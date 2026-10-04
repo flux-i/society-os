@@ -1,7 +1,7 @@
 # Society OS Execution Backlog
 
 **Updated:** 4 October 2026  
-**Current state:** Foundation, identity/registry and manual entries/private receipt PDFs are verified locally. Separate-reviewer proposals, revisions/decline/withdrawal, audience-scoped notice publication/archive and six actual native WebMCP journeys are now verified at release 0.5/schema 5. Complaints, private document versions, further role administration, PWA/migration and production acceptance remain ahead. Real identity/custody, approved finance examples/policy and infrastructure inputs remain pending.
+**Current state:** Foundation, identity/registry, manual entries/private receipt PDFs, separate-reviewer proposals and audience-scoped approved notices are verified locally. Personal service requests, validated assignments/transitions, resident closure/reopening and private staff notes now pass the release 0.6/schema 6 gate: 53 Go tests, 48 ordinary browser cases and 8 actual native WebMCP cases. Private document versions, further role administration, PWA/migration and production acceptance remain ahead. Real identity/custody, approved finance examples/policy and infrastructure inputs remain pending.
 
 **Scope update:** The portal tracks manually entered records and generates receipts for money already received. Payment initiation, gateways and bank automation are excluded. Automated billing and Tally integration are conditional future work.
 
@@ -111,7 +111,7 @@ Use the installed Claude evaluation guides when a concrete Claude-powered flow e
 
 The `claude-api` skill is optional development guidance, not an application dependency. No V1 workflow needs the Claude API, an Anthropic SDK or a Claude API key. If a later AI feature uses Claude, the skill can assist its implementation and evaluation; choosing that provider is a separate future decision.
 
-Operation identities, leased jobs/private storage and manual entries/receipts are implemented locally; see [manual-record acceptance](docs/manual-records-baseline.md). Separate-reviewer requests and approved notices now pass the checkpoint gate; see [approval and notice acceptance](docs/approvals-notices-baseline.md). Next are complaints and documents, alongside independent production/finance-policy preparation. Keep finance-entry permission separate from registry/community review: approving an expense proposal does not post a financial entry or pay money. Production inputs block only dependent decisions.
+Operation identities, leased jobs/private storage and manual entries/receipts are implemented locally; see [manual-record acceptance](docs/manual-records-baseline.md). Separate-reviewer requests and approved notices pass their checkpoint; see [approval and notice acceptance](docs/approvals-notices-baseline.md). [Service-request acceptance](docs/complaints-baseline.md) records current private/public conversation, scope, recovery and rendered checks. Next are private documents, alongside independent production/finance-policy preparation. Keep finance-entry permission separate from registry/community review: approving an expense proposal does not post a financial entry or pay money. Production inputs block only dependent decisions.
 
 ## 6 Manual entry boundary and future automation
 

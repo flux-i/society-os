@@ -25,7 +25,7 @@ test('native WebMCP discovers permitted tools after MFA and executes bounded sea
   expect(await page.evaluate(() => !!(document as ContextDocument).modelContext)).toBe(true)
   expect(await names(page)).toEqual([])
   await login(page)
-  await expect.poll(() => names(page)).toEqual(['society_find_homes', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace'])
+  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_homes', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint'])
   const mutations: string[] = []
   page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) })
   const homes = JSON.parse(await execute(page, 'society_find_homes', { wing: 'B', occupancy: 'RENTED' }))
@@ -65,7 +65,7 @@ test('native WebMCP follows resident scope and omits financial tools for an unen
   expect(await page.getByRole('dialog').count()).toBe(0)
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await login(page, 'Tenant')
-  await expect.poll(() => names(page)).toEqual(['society_find_homes', 'society_find_notices', 'society_find_requests', 'society_open_home', 'society_open_workspace'])
+  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint'])
   await expect(execute(page, 'society_open_workspace', { screen: 'entries' })).rejects.toThrow()
   const tenantHomes = JSON.parse(await execute(page, 'society_find_homes', {}))
   expect(tenantHomes.items.map((home: { id: string }) => home.id)).toEqual(['demo-flat-A-103'])
@@ -130,4 +130,44 @@ test('native WebMCP reads real submission and publication states while approval 
   const published = JSON.parse(await execute(page, 'society_find_notices', { query: 'NATIVE Notice approval journey' }))
   expect(published.items).toHaveLength(1); expect(published.items[0].id).toBe(pending.items[0].id)
   expect(published.items[0].state).toBe('APPROVED'); expect(published.items[0].events).toBeUndefined()
+})
+
+test('native WebMCP scopes complaint search and detail and excludes private staff messages for the reporter', async ({ page }) => {
+  await login(page, 'Owner'); await navigate(page, 'Help & repairs')
+  await page.getByRole('button', { name: 'Report an issue', exact: true }).click()
+  await chooseOption(page, 'Service request home', 'Home A-101'); await chooseOption(page, 'Service category', 'Water')
+  await page.getByRole('textbox', { name: 'Subject', exact: true }).fill('NATIVE A fictional water inspection')
+  await page.getByRole('textbox', { name: 'Details', exact: true }).fill('The fictional water pressure needs an inspection from the handling team.')
+  const response = page.waitForResponse(response => response.url().endsWith('/api/complaints') && response.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Save service request', exact: true }).click(); const result = await response; expect(result.status()).toBe(200); const id = (await result.json()).id
+  await page.getByRole('button', { name: 'Close service request details' }).click(); await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+  await login(page); await page.goto('/#help?case=' + id)
+  await chooseOption(page, 'Update visibility', 'Handling team only')
+  await page.getByRole('textbox', { name: 'Service update message' }).fill('NATIVE_STAFF_SECRET_A private inspection coordination note')
+  await page.getByRole('button', { name: 'Save update', exact: true }).click(); await expect(page.getByText('NATIVE_STAFF_SECRET_A private inspection coordination note')).toBeVisible()
+  await expect.poll(() => names(page)).toContain('society_read_complaint')
+  const staff = JSON.parse(await execute(page, 'society_read_complaint', { case_id: id })); expect(staff.history_total).toBe(2); expect(JSON.stringify(staff)).toContain('NATIVE_STAFF_SECRET')
+  await page.getByRole('button', { name: 'Close service request details' }).click(); await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await login(page, 'Owner')
+  await expect.poll(() => names(page)).toContain('society_read_complaint')
+  const reporter = JSON.parse(await execute(page, 'society_read_complaint', { case_id: id, history_page: 99 })); expect(reporter.history_total).toBe(1); expect(reporter.version).toBe(1); expect(reporter.history_page).toBe(1); expect(JSON.stringify(reporter)).not.toContain('NATIVE_STAFF_SECRET')
+  const found = JSON.parse(await execute(page, 'society_find_complaints', { query: 'NATIVE A fictional water inspection', status: 'OPEN' })); expect(found.items.map((item: { id: string }) => item.id)).toEqual([id])
+  const hiddenSearch = JSON.parse(await execute(page, 'society_find_complaints', { query: 'NATIVE_STAFF_SECRET' })); expect(hiddenSearch.total).toBe(0)
+  await execute(page, 'society_open_workspace', { screen: 'help' }); await expect(page.getByRole('heading', { name: 'Your service requests' })).toBeVisible()
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await login(page, 'Tenant'); await expect.poll(() => names(page)).toContain('society_read_complaint')
+  await expect(execute(page, 'society_read_complaint', { case_id: id })).rejects.toThrow(); expect(JSON.parse(await execute(page, 'society_find_complaints', { query: 'NATIVE A fictional water inspection' })).total).toBe(0)
+  await expect(execute(page, 'society_find_complaints', { status: 'APPROVED' })).rejects.toThrow()
+  expect((await names(page)).some(name => /approve|close|update|assign/.test(name))).toBe(false)
+})
+
+test('native complaint reads reject cancellation and cease returning data after session revocation', async ({ page }) => {
+  await login(page, 'Owner'); await expect.poll(() => names(page)).toContain('society_read_complaint')
+  const cancelled = await page.evaluate(async () => {
+    const context = (document as ContextDocument).modelContext; const tool = (await context.getTools()).find(item => item.name === 'society_find_complaints')!
+    const controller = new AbortController(); controller.abort()
+    const major = Number(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1])
+    try { await context.executeTool(tool, major < 155 ? '{}' : {}, { signal: controller.signal }); return false } catch { return true }
+  })
+  expect(cancelled).toBe(true)
+  const me = await (await page.request.get('/api/auth/me')).json(); expect((await page.request.post('/api/auth/logout', { headers: { Origin: new URL(page.url()).origin, 'X-CSRF-Token': me.csrf_token }, data: {} })).status()).toBe(200)
+  await expect(execute(page, 'society_find_complaints', {})).rejects.toThrow(); await expect.poll(() => names(page)).toEqual([])
 })

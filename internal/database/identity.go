@@ -71,24 +71,25 @@ func verifyPassword(password, encoded string) bool {
 }
 
 type Principal struct {
-	ID                string   `json:"id"`
-	ResidentID        string   `json:"-"`
-	Name              string   `json:"name"`
-	Roles             []string `json:"roles"`
-	CanReadRegistry   bool     `json:"can_read_registry"`
-	CanManageRegistry bool     `json:"can_manage_registry"`
-	CanManageRecords  bool     `json:"can_manage_records"`
-	CanReadAllRecords bool     `json:"can_read_all_records"`
-	CanReadRecords    bool     `json:"can_read_records"`
-	CanReviewRequests bool     `json:"can_review_requests"`
-	CSRF              string   `json:"csrf_token"`
-	MFARequired       bool     `json:"mfa_required"`
-	MFAEnrolled       bool     `json:"mfa_enrolled"`
-	MFAPending        bool     `json:"mfa_pending"`
-	IsDemo            bool     `json:"is_demo"`
-	Fresh             bool     `json:"fresh_authentication"`
-	passwordAt        int64
-	factorAt          int64
+	ID                  string   `json:"id"`
+	ResidentID          string   `json:"-"`
+	Name                string   `json:"name"`
+	Roles               []string `json:"roles"`
+	CanReadRegistry     bool     `json:"can_read_registry"`
+	CanManageRegistry   bool     `json:"can_manage_registry"`
+	CanManageRecords    bool     `json:"can_manage_records"`
+	CanReadAllRecords   bool     `json:"can_read_all_records"`
+	CanReadRecords      bool     `json:"can_read_records"`
+	CanReviewRequests   bool     `json:"can_review_requests"`
+	CanHandleComplaints bool     `json:"can_handle_complaints"`
+	CSRF                string   `json:"csrf_token"`
+	MFARequired         bool     `json:"mfa_required"`
+	MFAEnrolled         bool     `json:"mfa_enrolled"`
+	MFAPending          bool     `json:"mfa_pending"`
+	IsDemo              bool     `json:"is_demo"`
+	Fresh               bool     `json:"fresh_authentication"`
+	passwordAt          int64
+	factorAt            int64
 }
 
 type identityReader interface {
@@ -134,6 +135,7 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		}
 		if role == "ADMINISTRATOR" || role == "COMMITTEE" {
 			p.CanReviewRequests = true
+			p.CanHandleComplaints = true
 		}
 		if role == "ADMINISTRATOR" || role == "TREASURER" || role == "COMMITTEE" {
 			p.MFARequired = true
@@ -162,6 +164,7 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		p.CanReadAllRecords = false
 		p.CanReadRecords = false
 		p.CanReviewRequests = false
+		p.CanHandleComplaints = false
 	}
 	return p, rows.Err()
 }

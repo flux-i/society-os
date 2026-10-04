@@ -1,6 +1,6 @@
 # Society OS
 
-A thoughtful community portal for a 118-flat society. The working **local preview** includes an illustrated overview, occupancy and owner/tenant counts, scoped homes, registry administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices and verified SQLite snapshot/restore tools.
+A thoughtful community portal for a 118-flat society. The working **local preview** includes an illustrated overview, occupancy and owner/tenant counts, scoped homes, registry administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices, personal service requests with private handler notes and verified SQLite snapshot/restore tools.
 
 ## Run locally
 
@@ -13,14 +13,14 @@ make run
 
 Open **http://127.0.0.1:8080**. `make run` builds the application, creates the isolated fictional registry if needed, and serves the frontend and API from one Go process. Stop with Ctrl+C. Repeated seeding preserves the same fixture without duplicating records.
 
-The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 4 without replacing registry records. The identity upgrade signs out old sessions.
+The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 6 without replacing registry records. The earlier identity upgrade signs out old sessions.
 
 Choose an account on the sign-in screen, then select **Sign in**. The fictional credentials are prefilled; every demo account uses the public preview password `Community-preview-2026!`.
 
 | Account | Local preview access |
 |---|---|
 | `admin@demo.society` | Registry/history, invitations/recovery and an explicit additional treasury grant for entries/receipts; MFA required |
-| `committee@demo.society` | Community registry and financial views; cannot change records |
+| `committee@demo.society` | Community registry/financial views, separate-reviewer requests and service handling; MFA required; cannot post financial records |
 | `owner@demo.society` | Only the owner's two active homes and confirmed financial records, A-101 and A-102 |
 | `tenant@demo.society` | Only the tenant's active home, A-103; no former-tenant history or finance entitlement |
 
@@ -44,11 +44,11 @@ make bench
 make report
 ```
 
-`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 39 backend checks, including exact financial amounts, concurrent operation retries, immutable corrections, leased receipt jobs and private PDF access.
+`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 53 backend test declarations, including exact financial amounts, concurrent operation retries, immutable corrections, leased receipt jobs, private PDF access, separate approvals, scoped notices and personal/private service conversations.
 
 `make bench` runs the representative registry query three times. `make report` creates an independent fresh synthetic database, measures 100 warm local HTTP reads after ten warmups, snapshots the live database and restores it into a new environment. It verifies SHA-256 independently in Python and records measured times, engine settings and counts in `reports/local/account-security-baseline.json`. These are local measurements, not production performance commitments.
 
-`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. The browser API is optional for using the portal, and no tool approves, publishes or posts records. See [approval and notice evidence](docs/approvals-notices-baseline.md) and the ongoing [development process](docs/development-workflow.md).
+`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. The current gate passes 48 ordinary browser cases and 8 native WebMCP cases. The browser API is optional for using the portal, and no tool approves, publishes or posts records. See [approval and notice evidence](docs/approvals-notices-baseline.md), [service-request evidence](docs/complaints-baseline.md) and the ongoing [development process](docs/development-workflow.md).
 
 Browser checks use a fresh fictional database on an ephemeral loopback port and leave your preview untouched:
 
@@ -58,9 +58,20 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. Thirty-four browser checks cover the registry, all 118 home cards, the original nine dropdown controls plus five entry/receipt controls, manual entry/receipt/discard/reversal/retry workflows, invitation activation, password reset/session revocation, authenticator enrollment, recovery-code reuse denial and rendered UI regressions across desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the control inventory, fixes, screenshot command and global Claude Code/Codex browser tooling.
+Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. The 48 browser cases cover the registry, all 118 home cards, opened dropdowns, manual entry/receipt/discard/reversal/retry workflows, invitations, password reset/session revocation, authenticators, separate review/publication and service requests across desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the original inventory and global Claude Code/Codex browser tooling; subsequent workflow baselines record the added controls.
 
 **Entries & receipts** lets the officer save and review manual drafts, confirm supplied charges/opening balances or money already received, download private receipt PDFs, discard mistaken drafts and reverse confirmed entries with a reason. Balances derive from confirmed, unreversed entries in the selected home scope. The owner sees only financially permitted records. See [manual-record acceptance](docs/manual-records-baseline.md) and [our development process and issue inventory](docs/development-workflow.md).
+
+**Requests & community** supports proposals, revisions and approval by a different reviewer. Approved notices reach only their current audience. Expense/registry proposals do not automatically post money or apply registry edits. **Help & repairs** lets residents report against their own active home and follow their own cases. Authorized handlers manage assignment/progress and staff-only notes; authors can confirm closure or reopen after resolution. Ended membership retains read-only personal case history.
+
+To keep an already verified preview running while developing the next checkpoint, retain its binary and assets together:
+
+```sh
+python3 scripts/pin-preview.py --name 0.6
+./var/preview-releases/0.6/society-server serve --demo --db var/demo/society.db --mfa-key-file var/keys/mfa.key --addr 127.0.0.1:8080 --web-dir var/preview-releases/0.6/web
+```
+
+Stop the earlier server before starting the retained one. The pin command refuses an existing name. Verify the build first, then pin it; the command packages files and does not run the checks. It does not copy databases or keys. Use a new name for the next verified release.
 
 ## Local recovery
 
@@ -119,6 +130,12 @@ This records supplied custodians; it does not verify their real-world authority.
 | `POST /api/entries/{id}/reverse` | Linked immutable correction |
 | `GET /api/receipts/{id}/download` | Current-scope private PDF download |
 | `POST /api/receipts/{id}/retry` | Treasury retry of a failed PDF job |
+| `GET`, `POST /api/reviews` | Current-scope proposal directory and retry-safe submission |
+| `GET /api/reviews/{id}`, `POST /api/reviews/{id}/actions` | Private request history; revision, separate review and archive |
+| `GET /api/notices`, `GET /api/notices/{id}` | Current-audience approved notices |
+| `GET`, `POST /api/complaints` | Personal/handler case directory and retry-safe report |
+| `GET /api/complaints/{id}` | Scoped case and visible history page |
+| `POST /api/complaints/{id}/updates` | Public/private conversation or permitted version-checked decision |
 | `GET /api/people` | Registry officer's bounded person lookup |
 | `GET /api/flats/{id}/activity` | Registry officer's latest 30 home changes |
 
@@ -128,7 +145,7 @@ Passwords use Argon2id; sessions use hashed random bearer tokens, HttpOnly/SameS
 
 ## What follows
 
-Next: notices/complaints/documents, subsequent role/account administration, approved finance examples/receipt policy, production recovery and a representative pilot. Manual financial records describe given charges and money already received; the portal does not initiate payment.
+Next: private documents, subsequent role/account administration, PWA/migration, approved finance examples/receipt policy, production recovery and a representative pilot. Manual financial records describe given charges and money already received; the portal does not initiate payment.
 
 Automated billing, bank matching, payment gateways and Tally integration are conditional future work. No runtime LLM API is required.
 

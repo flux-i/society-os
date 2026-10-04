@@ -110,7 +110,7 @@ test('navigation and dialog controls fit tablet, narrow and reduced-height scree
       await page.keyboard.press('Escape')
       await expect(page.getByRole('button', { name: 'Menu', exact: true })).toHaveAttribute('aria-expanded', 'false')
       await page.getByRole('button', { name: 'Menu', exact: true }).click()
-      for (const name of ['Overview', 'Homes & people', 'Access & invitations', 'Entries', 'Receipts', 'Requests & approvals', 'Community', 'Account security']) {
+      for (const name of ['Overview', 'Homes & people', 'Access & invitations', 'Entries', 'Receipts', 'Requests & approvals', 'Community', 'Help & repairs', 'Account security']) {
         await page.getByRole('link', { name, exact: true }).scrollIntoViewIfNeeded()
         await expect(page.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 })
       }
