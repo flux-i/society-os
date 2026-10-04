@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { login, completePreviewMFA, chooseOption } from './helpers'
+import { login, completePreviewMFA, chooseOption, navigate } from './helpers'
 
 test('officer updates occupancy, adds an existing person, ends the relationship and sees history', async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: 'Explore the homes', exact: true }).click()
+  await page.getByRole('link', { name: 'Open homes & people', exact: true }).click()
   await page.getByRole('button', { name: 'View home A-101', exact: true }).click()
   await page.getByRole('button', { name: 'Manage home', exact: true }).click()
   await chooseOption(page, 'Occupancy', 'VACANT')
@@ -38,7 +38,7 @@ test('officer updates occupancy, adds an existing person, ends the relationship 
   await page.getByRole('button', { name: 'History', exact: true }).click()
   await expect(page.getByText('Fictional second home tenancy ended', { exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
-  await page.getByRole('link', { name: 'Overview', exact: true }).click()
+  await navigate(page, 'Homes & people')
   await expect(page.locator('.stat-item').filter({ hasText: 'Owners' }).locator('strong')).toHaveText('118')
   await expect(page.locator('.stat-item').filter({ hasText: 'Tenants' }).locator('strong')).toHaveText('35')
 })
@@ -49,10 +49,12 @@ test('account switching clears the officer workspace and scopes owner and tenant
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible()
   await expect(page.locator('.wing-card')).toHaveCount(0)
   await login(page, 'Owner')
+  await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible()
+  await navigate(page, 'Your homes')
   await expect(page.getByRole('status')).toHaveText('2 homes found')
   await expect(page.getByRole('button', { name: 'View home A-101', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'View home A-102', exact: true })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Overview', exact: true })).toHaveCount(1)
   await page.getByRole('button', { name: 'View home A-101', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Manage home', exact: true })).toHaveCount(0)
   await page.keyboard.press('Escape')
@@ -60,6 +62,7 @@ test('account switching clears the officer workspace and scopes owner and tenant
   expect(forbidden.status()).toBe(404)
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await login(page, 'Tenant')
+  await navigate(page, 'Your homes')
   await expect(page.getByRole('status')).toHaveText('1 homes found')
   await page.getByRole('button', { name: 'View home A-103', exact: true }).click()
   await expect(page.getByText('Demo Former Tenant A-103', { exact: true })).toHaveCount(0)
@@ -74,7 +77,7 @@ test('phone login and management form fit, and a stale save offers reload', asyn
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Use a preview code', exact: true })).toBeVisible()
   await completePreviewMFA(page)
-  await page.getByRole('link', { name: 'Explore the homes', exact: true }).click()
+  await page.getByRole('link', { name: 'Open homes & people', exact: true }).click()
   await page.getByRole('button', { name: 'View home A-101', exact: true }).click()
   await page.getByRole('button', { name: 'Manage home', exact: true }).click()
   await chooseOption(page, 'Occupancy', 'VACANT')

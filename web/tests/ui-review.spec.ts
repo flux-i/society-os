@@ -94,7 +94,7 @@ test('small phone login and overview fit the viewport', async ({ page }) => {
   await capture(page, 'login-small-phone')
   await login(page)
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
-  await expect(page.getByRole('heading', { name: 'Your community, a little closer.' })).toBeInViewport()
+  await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeInViewport()
   await capture(page, 'overview-small-phone')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

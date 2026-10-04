@@ -5,12 +5,12 @@
 **Preferred hosting model:** Self-host the application on an owned small computer; use cloud services only where they add clear value
 **Target architecture:** Lightweight custom application instead of ERPNext/Frappe
 **Document date:** 4 October 2026
-**Revision:** Manual tracking plus society operations scope, updated 4 October 2026
+**Revision:** Manual tracking plus society operations scope, updated 5 October 2026
 **Confirmed input:** 118 flats; resident/user count to be established during registry migration
 **Accounting:** Existing very old Tally installation; exact version/import compatibility pending
 **Society state:** Pending for receipt/retention policy; statutory billing rules are future inputs
 
-**Implementation status:** The verified local Go/React release 0.7/schema 7 includes registry/memberships and scoped sessions, invitations/recovery and privileged MFA, manual entries/private receipt PDFs, separate reviews/approved notices, private service-request workflows and validated document originals/versions. Domain, rendered browser and actual native WebMCP gates pass for that release. See [README](README.md) and the [execution backlog](execution-backlog.md). The changing overview is next. Production identity/custody, subsequent role/account administration, infrastructure and real-data acceptance remain pending; production checklists below stay open until their full gates pass.
+**Implementation status:** The verified local Go/React release 0.8/schema 7 includes registry/memberships and scoped sessions, invitations/recovery and privileged MFA, manual entries/private receipt PDFs, separate reviews/approved notices, private service-request workflows and validated document originals/versions and a changing role-scoped overview. Domain, rendered browser and actual native WebMCP gates pass for that release. See [README](README.md) and the [execution backlog](execution-backlog.md). The [changing overview](docs/overview-baseline.md) is verified; role/account administration is next. Production identity/custody, infrastructure and real-data acceptance remain pending; production checklists below stay open until their full gates pass.
 
 **Scope addition:** The user's subsequent requests are preserved in the [society operations roadmap](docs/society-operations-roadmap.md): an actionable changing overview, maintenance, fund collection campaigns, resident external-payment reports, targeted WhatsApp/email, evidence-based rule reports and authorised fines, and externally prepared financial statements with intentional publication/sharing. This dated addendum defines the next slices and supersedes earlier deferrals of those specifically requested capabilities. No payment initiation is added; older sections remain conditional references for unrequested billing/bank/Tally automation.
 

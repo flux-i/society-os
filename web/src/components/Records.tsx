@@ -16,6 +16,8 @@ const money = (paise: number) => new Intl.NumberFormat('en-IN', { style: 'curren
 const date = () => new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date())
 const displayDate = (value: string) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(new Date(value + 'T00:00:00+05:30'))
 
+const linkedEntry = () => { const id = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('entry') ?? ''; return /^[A-Za-z0-9_-]{43}$/.test(id) ? id : '' }
+
 function ReceiptArt() {
   return <svg className="records-art" viewBox="0 0 220 230" fill="none" aria-hidden="true"><circle cx="115" cy="112" r="95" fill="#d9dfca" /><g transform="rotate(9 108 118)"><path d="M51 29h116v179l-11-7-12 7-11-7-12 7-11-7-12 7-12-7-12 7-11-7-11 7Z" fill="#fbfaf4" stroke="#a4b092" /><path d="M74 64h65M74 83h45M74 133h69M74 150h46" stroke="#b7bda9" strokeWidth="3" strokeLinecap="round" /><circle cx="111" cy="108" r="13" fill="#e4e9d9" /><path d="m105 108 4 4 8-8" stroke="#5c744c" strokeWidth="2" strokeLinecap="round" /><path d="M130 175h13" stroke="#83936c" strokeWidth="3" strokeLinecap="round" /></g><circle cx="177" cy="170" r="27" fill="#2c5041" /><path d="m164 170 9 9 17-19" stroke="#f8f7ee" strokeWidth="2" strokeLinecap="round" /></svg>
 }
@@ -32,7 +34,8 @@ export function Records({ user, receipts }: { user: User; receipts: boolean }) {
   const feedback = useRef<HTMLParagraphElement>(null)
   useEffect(() => { if (error) feedback.current?.scrollIntoView({ block: 'nearest' }) }, [error])
   const [creating, setCreating] = useState(false)
-  const [selected, setSelected] = useState('')
+  const [selected, setSelected] = useState(linkedEntry)
+  useEffect(() => { const update = () => setSelected(linkedEntry()); window.addEventListener('hashchange', update); return () => window.removeEventListener('hashchange', update) }, [])
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError('')
     const timer = window.setTimeout(() => request<RecordPage>(`/api/entries?${new URLSearchParams({ home, q: query, state, receipts: String(receipts), page: String(page) })}`, controller.signal).then(value => { setData(value); setLoading(false) }).catch((err: Error) => { if (!controller.signal.aborted) { setError(err.message); setLoading(false) } }), query ? 200 : 0)
@@ -61,7 +64,7 @@ export function Records({ user, receipts }: { user: User; receipts: boolean }) {
     </section>
     <p className="records-footnote"><Icon name="leaf" />Payments happen outside the portal. These totals reflect supplied entries; they are not an automatic bill.</p>
     {creating && data && <NewEntry homes={data.homes} initialHome={home} onClose={() => setCreating(false)} onCreated={id => { setCreating(false); setSelected(id); setRevision(n => n + 1) }} />}
-    {selected && <RecordDetail id={selected} user={user} onClose={() => setSelected('')} onSaved={() => setRevision(n => n + 1)} />}
+    {selected && <RecordDetail id={selected} user={user} onClose={() => { setSelected(''); if (linkedEntry()) window.history.replaceState(null, '', receipts ? '#receipts' : '#entries') }} onSaved={() => setRevision(n => n + 1)} />}
   </div>
 }
 

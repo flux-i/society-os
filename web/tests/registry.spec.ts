@@ -3,14 +3,15 @@ import { login, chooseFilter } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await login(page)
-  await expect(page.getByRole('heading', { name: 'Your community, a little closer.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible()
 })
 
-test('overview links to wing registry, home details and working filters', async ({ page }) => {
+test('overview links to home counts, wing registry, details and working filters', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Your community, a little closer.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible()
+  await page.getByRole('link', { name: 'Open homes & people', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Explore Wing A, 40 homes' })).toBeVisible()
   await expect(page.locator('.stat-item').filter({ hasText: 'Owners' }).locator('strong')).toHaveText('118')
   await expect(page.locator('.stat-item').filter({ hasText: 'Tenants' }).locator('strong')).toHaveText('35')
@@ -46,9 +47,9 @@ test('small phone has no page overflow and accessible detail dismissal', async (
   await page.setViewportSize({ width: 375, height: 812 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
-  await expect(page.getByRole('link', { name: 'Explore the homes', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Open homes & people', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  await page.getByRole('link', { name: 'Explore the homes', exact: true }).click()
+  await page.getByRole('link', { name: 'Open homes & people', exact: true }).click()
   await expect(page.getByRole('status')).toHaveText('118 homes found')
   await page.getByRole('button', { name: 'View home A-101', exact: true }).click()
   await expect(page.getByRole('dialog')).toBeVisible()

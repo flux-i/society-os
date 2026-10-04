@@ -14,8 +14,8 @@ const states: Record<string, string> = { PENDING: 'Awaiting review', CHANGES_REQ
 const audiences: Record<string, string> = { ALL_RESIDENTS: 'All current residents', OWNERS_ONLY: 'Current owners', TENANTS_ONLY: 'Current tenants', COMMITTEE_ONLY: 'Committee & administrators', BUILDING: 'A selected wing' }
 const when = (at: number) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(new Date(at * 1000))
 const money = (paise: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(paise / 100)
-const linkedNotice = () => {
-  const id = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('notice') ?? ''
+const linkedReview = (notices: boolean) => {
+  const id = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get(notices ? 'notice' : 'request') ?? ''
   return /^[A-Za-z0-9_-]{43}$/.test(id) ? id : ''
 }
 
@@ -32,11 +32,11 @@ export function Reviews({ user, notices = false }: { user: User; notices?: boole
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
-  const [selected, setSelected] = useState(notices ? linkedNotice : () => '')
+  const [selected, setSelected] = useState(() => linkedReview(notices))
   const [editing, setEditing] = useState<Review | null>(null)
   const loadFeedback = useRef<HTMLDivElement>(null)
   useEffect(() => { if (error) loadFeedback.current?.scrollIntoView({ block: 'center', behavior: 'instant' }) }, [error])
-  useEffect(() => { if (!notices) return; const update = () => setSelected(linkedNotice()); window.addEventListener('hashchange', update); return () => window.removeEventListener('hashchange', update) }, [notices])
+  useEffect(() => { const update = () => setSelected(linkedReview(notices)); window.addEventListener('hashchange', update); return () => window.removeEventListener('hashchange', update) }, [notices])
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError('')
     const timer = setTimeout(() => request<ReviewPage>(`/api/${notices ? 'notices' : 'reviews'}?${new URLSearchParams({ q: query, state, page: String(page) })}`, controller.signal).then(value => { setData(value); setLoading(false) }).catch((err: Error) => { if (!controller.signal.aborted) { setError(err.message); setLoading(false) } }), query ? 200 : 0)
@@ -53,7 +53,7 @@ export function Reviews({ user, notices = false }: { user: User; notices?: boole
     </section>
     {!notices && <p className="records-footnote"><Icon name="leaf" />An approved proposal records permission for follow-up. Financial entries and registry changes retain their own controls.</p>}
     {(creating || editing) && <NewReview homes={data?.homes ?? []} notice={notices} existing={editing} onClose={() => { setCreating(false); setEditing(null) }} onSaved={id => { setCreating(false); setEditing(null); setSelected(notices ? '' : id); setRevision(n => n + 1) }} />}
-    {selected && <ReviewDetail id={selected} notices={notices} user={user} onClose={() => setSelected('')} onSaved={() => setRevision(n => n + 1)} onEdit={item => { setSelected(''); setEditing(item) }} />}
+    {selected && <ReviewDetail id={selected} notices={notices} user={user} onClose={() => { setSelected(''); if (linkedReview(notices)) window.history.replaceState(null, '', notices ? '#community' : '#reviews') }} onSaved={() => setRevision(n => n + 1)} onEdit={item => { setSelected(''); setEditing(item) }} />}
   </div>
 }
 
@@ -116,7 +116,7 @@ function ReviewDetail({ id, notices, user, onClose, onSaved, onEdit }: { id: str
   const canDecide = item && !notices && user.can_review_requests && item.author_id !== user.id && item.state === 'PENDING'
   const canWithdraw = item && !notices && item.author_id === user.id && ['PENDING', 'CHANGES_REQUESTED'].includes(item.state)
   const canArchive = item && !notices && user.can_review_requests && item.kind === 'NOTICE' && item.state === 'APPROVED'
-  return <PortalDialog titleId="review-detail-title" closeLabel="Close request details" busy={busy} onClose={onClose}><div className="dialog-heading reviews-dialog-heading review-detail-heading"><span className="eyebrow">{item ? notices ? 'COMMUNITY NOTICE' : kinds[item.kind] : 'YOUR COMMUNITY'}</span><h2 id="review-detail-title">{item?.title ?? 'Opening this request…'}</h2>{item && <span className={`review-status review-${item.state.toLowerCase()}`}>{notices ? 'Published' : states[item.state]}</span>}</div><div className="dialog-scroll detail-body">{loadError ? <div className="empty-state" role="alert"><p>{loadError}</p><button className="button button-dark" onClick={reload}>Reload request<Icon name="refresh" /></button></div> : !item ? <p role="status">Opening the details…</p> : <>
+  return <PortalDialog titleId="review-detail-title" closeLabel="Close request details" busy={busy} onClose={onClose}><div className="dialog-heading reviews-dialog-heading review-detail-heading"><span className="eyebrow">{item ? notices ? 'COMMUNITY NOTICE' : kinds[item.kind] : 'YOUR COMMUNITY'}</span><h2 id="review-detail-title">{loadError ? 'Request unavailable' : item?.title ?? 'Opening this request…'}</h2>{item && <span className={`review-status review-${item.state.toLowerCase()}`}>{notices ? 'Published' : states[item.state]}</span>}</div><div className="dialog-scroll detail-body">{loadError ? <div className="empty-state" role="alert"><p>{loadError}</p><button className="button button-dark" onClick={reload}>Reload request<Icon name="refresh" /></button></div> : !item ? <p role="status">Opening the details…</p> : <>
     <p className="review-full-body">{item.body}</p><dl className="record-facts">{item.home && <div><dt>Home</dt><dd>{item.home}</dd></div>}{item.audience && <div><dt>Audience</dt><dd>{item.audience === 'BUILDING' ? 'Current residents of Wing ' + item.building_code : audiences[item.audience]}</dd></div>}{item.estimate_paise > 0 && <div><dt>Proposed estimate</dt><dd>{money(item.estimate_paise)} · no financial entry</dd></div>}<div><dt>{notices ? 'Published' : 'Submitted'}</dt><dd>{when(notices ? item.updated_at : item.submitted_at)}</dd></div></dl>
     {notices && <a className="text-link notice-share" href={'https://wa.me/?text=' + encodeURIComponent('A community update is available in your society portal: ' + window.location.origin + window.location.pathname + '#community?notice=' + item.id)} target="_blank" rel="noopener noreferrer">Share notice link on WhatsApp<Icon name="arrow" /></a>}
     {!notices && <><h3 className="review-history-title">The story so far</h3><ol className="review-history">{item.events?.map(event => <li key={event.version}><span className="review-history-dot" /><div><strong>{event.action === 'SUBMITTED' ? 'Sent for review' : event.action === 'RESUBMITTED' ? 'Revised and resubmitted' : states[event.action]}</strong><p>{event.reason}</p><small>{event.actor} · {when(event.at)}</small></div></li>)}</ol>{item.author_id === user.id && item.state === 'PENDING' && <p className="review-own-note"><Icon name="shield" />Another reviewer will decide this request.</p>}{item.author_id === user.id && item.state === 'CHANGES_REQUESTED' && <button className="button button-dark" disabled={busy} onClick={() => onEdit(item)}>Revise this request<Icon name="arrow" /></button>}</>}

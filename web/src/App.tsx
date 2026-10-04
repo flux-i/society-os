@@ -3,7 +3,7 @@ import { APIError, mutate, request, setSession, statuses } from './api'
 import type { Building, Flat, FlatDetail, FlatPage, Summary, User } from './api'
 import { Icon } from './components/Icon'
 import type { IconName } from './components/Icon'
-import { Neighbourhood } from './components/Neighbourhood'
+import { Overview } from './components/Overview'
 import { Login } from './components/Login'
 import { RegistryEditor, RegistryHistory, relationshipLabel } from './components/RegistryEditor'
 import { Access, AccountLink, AccountSecurity, MFAGate } from './components/Identity'
@@ -39,7 +39,7 @@ function Sidebar({ view, user, onAbout }: { view: View; user: User; onAbout: () 
     <button ref={menuButton} className="mobile-nav-toggle" aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(value => !value)}>Menu<Icon name={menuOpen ? 'close' : 'menu'} /></button>
     <div id="workspace-navigation" className={`sidebar-space ${menuOpen ? 'menu-open' : ''}`} onClick={event => { if ((event.target as Element).closest('a')) { setMenuOpen(false); if (menuOpen) requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true })) } }}><span className="eyebrow">YOUR WORKSPACE</span>
       <nav aria-label="Main navigation" className="nav-list">
-        {user.can_read_registry && <a href="#overview" className={`nav-item ${view === 'overview' ? 'active' : ''}`} aria-current={view === 'overview' ? 'page' : undefined}><Icon name="overview" /><span>Overview</span>{view === 'overview' && <span className="active-dot" />}</a>}
+        {<a href="#overview" className={`nav-item ${view === 'overview' ? 'active' : ''}`} aria-current={view === 'overview' ? 'page' : undefined}><Icon name="overview" /><span>Overview</span>{view === 'overview' && <span className="active-dot" />}</a>}
         <a href="#homes" className={`nav-item ${view === 'homes' ? 'active' : ''}`} aria-current={view === 'homes' ? 'page' : undefined}><Icon name="homes" /><span>{user.can_read_registry ? 'Homes & people' : 'Your homes'}</span>{view === 'homes' && <span className="active-dot" />}</a>
         {user.can_manage_registry && <a href="#access" className={`nav-item ${view === 'access' ? 'active' : ''}`} aria-current={view === 'access' ? 'page' : undefined}><Icon name="community" /><span>Access & invitations</span></a>}
         {user.can_read_records && (['entries', 'receipts'] as const).map(item => <a key={item} href={'#' + item} className={`nav-item ${view === item ? 'active' : ''}`} aria-current={view === item ? 'page' : undefined}><Icon name={item === 'entries' ? 'records' : 'receipt'} /><span>{item === 'entries' ? 'Entries' : 'Receipts'}</span></a>)}
@@ -75,7 +75,7 @@ function WingCard({ wing, onClick, selected = false }: { wing: Building; onClick
   </button>
 }
 
-function Overview({ summary, onWing }: { summary: Summary | null; onWing: (code: string) => void }) {
+function CommunityCounts({ summary }: { summary: Summary | null }) {
   const metrics: { label: string; value: number | undefined; hint: string; icon: IconName }[] = [
     { label: 'Homes', value: summary?.counts.flats, hint: `Across ${summary?.counts.buildings ?? '—'} wings`, icon: 'homes' },
     { label: 'Occupied', value: summary?.community.occupied, hint: 'Homes with occupants', icon: 'leaf' },
@@ -83,37 +83,7 @@ function Overview({ summary, onWing }: { summary: Summary | null; onWing: (code:
     { label: 'Owners', value: summary?.community.owners, hint: 'Distinct active people', icon: 'community' },
     { label: 'Tenants', value: summary?.community.tenants, hint: 'Distinct active people', icon: 'community' },
   ]
-  return <div className="page-enter">
-    <section className="hero" aria-labelledby="hero-title">
-      <div className="hero-copy"><span className="hero-eyebrow"><span className="tiny-spark"><Icon name="spark" /></span> A LITTLE MORE CONNECTED</span>
-        <h1 id="hero-title">Your community,<br /><em>a little closer.</em></h1>
-        <p>A thoughtful home for the people, places<br className="desktop-break" /> and everyday things that bring us together.</p>
-        <a className="button hero-button" href="#homes">Explore the homes<Icon name="arrow" /></a>
-        <div className="hero-caption"><span className="mini-avatars"><span>A</span><span>B</span><span>C</span></span><span>{summary ? `${summary.counts.flats} homes. One community.` : 'A place for every home.'}</span></div>
-      </div>
-      <Neighbourhood className="hero-illustration" />
-      <span className="hero-coordinate">A PLACE TO BELONG · SOCIETY OS</span>
-    </section>
-
-    <section aria-label="Community at a glance" className="stats-strip">
-      {metrics.map(metric => <div className="stat-item" key={metric.label}><span className="stat-label">{metric.label}<Icon name={metric.icon} /></span><strong>{metric.value ?? '—'}</strong><small>{metric.hint}</small></div>)}
-    </section>
-    <div className="occupancy-caption"><span><i className="dot dot-green" />{summary?.community.owner_occupied ?? '—'} owner-occupied homes</span><span>{summary?.community.rented ?? '—'} rented homes</span><span>People are counted once per role; joint owners are included.</span></div>
-
-    <section className="neighbourhood-section" aria-labelledby="neighbourhood-title">
-      <div className="section-heading"><div><span className="eyebrow">THE PLACE WE CALL HOME</span><h2 id="neighbourhood-title">Around the neighbourhood</h2></div><a href="#homes" className="text-link">See all homes<Icon name="arrow" /></a></div>
-      <div className="wing-grid">{summary ? summary.buildings.map(wing => <WingCard key={wing.id} wing={wing} onClick={() => onWing(wing.code)} />) : [0, 1, 2].map(i => <div className="wing-skeleton skeleton" key={i} aria-hidden="true" />)}</div>
-    </section>
-
-    <section className="next-chapter" aria-labelledby="chapter-title">
-      <div className="chapter-intro"><span className="eyebrow">THE NEXT CHAPTER</span><h2 id="chapter-title">Everyday things,<br /><em>beautifully in order.</em></h2><p>We’re making room for the little things that make society life simpler.</p><span className="chapter-tag"><Icon name="spark" />A place for the everyday</span></div>
-      <div className="chapter-items">
-        <div className="chapter-item"><span className="chapter-icon"><Icon name="records" /></span><div><h3>Entries, without the clutter</h3><p>Record given charges and money already paid.</p></div><span className="chapter-number">01</span></div>
-        <div className="chapter-item"><span className="chapter-icon"><Icon name="receipt" /></span><div><h3>A receipt for every paid entry</h3><p>Clear records, easy downloads, preserved history.</p></div><span className="chapter-number">02</span></div>
-        <div className="chapter-item"><span className="chapter-icon"><Icon name="community" /></span><div><h3>A connected community</h3><p>Notices, documents and a place to get help.</p></div><span className="chapter-number">03</span></div>
-      </div>
-    </section>
-  </div>
+  return <><section aria-label="Community at a glance" className="stats-strip registry-stats">{metrics.map(metric => <div className="stat-item" key={metric.label}><span className="stat-label">{metric.label}<Icon name={metric.icon} /></span><strong>{metric.value ?? '—'}</strong><small>{metric.hint}</small></div>)}</section><div className="occupancy-caption"><span><i className="dot dot-green" />{summary?.community.owner_occupied ?? '—'} owner-occupied homes</span><span>{summary?.community.rented ?? '—'} rented homes</span><span>People are counted once per role; joint owners are included.</span></div></>
 }
 
 function Registry({ summary, user, refresh, initialWing, onOpen }: { summary: Summary | null; user: User; refresh: number; initialWing: string; onOpen: (id: string) => void }) {
@@ -144,6 +114,7 @@ function Registry({ summary, user, refresh, initialWing, onOpen }: { summary: Su
   const chooseWing = (code: string) => { setBuilding(old => old === code ? '' : code); setPage(1) }
   return <div className="page-enter">
     <div className="registry-heading"><div><span className="eyebrow">{user.can_read_registry ? 'OUR NEIGHBOURHOOD' : 'YOUR CORNER OF THE COMMUNITY'}</span><h1>{user.can_read_registry ? <>Every home has <em>a story.</em></> : <>A place to call <em>yours.</em></>}</h1><p>{user.can_read_registry ? 'Find a home. Meet the people. Keep the details together.' : 'Your active homes and the people who share them.'}</p></div>{summary && <span className="registry-count"><strong>{summary.counts.flats}</strong><span>homes,<br />one community</span></span>}</div>
+    {user.can_read_registry && <CommunityCounts summary={summary} />}
     <div className="wing-grid registry-wings">{summary?.buildings.map(wing => <WingCard key={wing.id} wing={wing} onClick={() => chooseWing(wing.code)} selected={building === wing.code} />)}</div>
     <section className="registry-panel" aria-labelledby="registry-title">
       <div className="registry-toolbar"><div><h2 id="registry-title">{user.can_read_registry ? 'Homes & people' : 'Your homes'}</h2><p>{user.can_manage_registry ? 'Open a home to manage its occupancy, people and history.' : user.can_read_registry ? 'A view of the community. Registry changes are made by the officer.' : 'Access follows your current relationships with each home.'}</p></div><span className="result-count" role="status">{loading ? 'Finding homes…' : error ? 'Connection unavailable' : `${data?.total ?? 0} homes found`}</span></div>
@@ -209,23 +180,22 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
     return () => window.removeEventListener('hashchange', handler)
   }, [])
   useEffect(() => {
-    if (!user.can_read_registry) { setSummary(null); return }
+    if (!user.can_read_registry || view !== 'homes') { setSummary(null); setError(''); return }
     const controller = new AbortController()
     setError('')
     Promise.all([request<Summary>('/api/registry/summary', controller.signal), request<{status:string}>('/ready', controller.signal)]).then(([result]) => setSummary(result)).catch((err: Error) => { if (!controller.signal.aborted) { setError(err.message); setSummary(null) } })
     return () => controller.abort()
-  }, [retry, refresh, user.can_read_registry])
+  }, [retry, refresh, user.can_read_registry, view])
   const date = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(new Date())
-  const openWing = (code: string) => { setInitialWing(code); window.location.hash = 'homes' }
   return <div className="app-shell">
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Skip to content</a>
-    <Sidebar view={!user.can_read_registry && view === 'overview' ? 'homes' : view} user={user} onAbout={() => setAbout(true)} />
+    <Sidebar view={view} user={user} onAbout={() => setAbout(true)} />
     <div className="main-shell">
-      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_registry ? 'Access & invitations' : view === 'overview' && user.can_read_registry ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
+      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_registry ? 'Access & invitations' : view === 'overview' ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
       <div className="preview-banner"><span><Icon name="spark" />A first look at your community workspace.</span><span>Fictional data <i /> Live local registry</span></div>
       <main id="main-content" tabIndex={-1} className="main-content">
-        {error && <div className="connection-error" role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Reconnect<Icon name="refresh" /></button></div>}
-        {view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_registry ? <Access user={user} /> : view === 'overview' && user.can_read_registry ? <Overview summary={summary} onWing={openWing} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
+        {view === 'homes' && error && <div className="connection-error" role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Reconnect<Icon name="refresh" /></button></div>}
+        {view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_registry ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
         <footer className="page-footer"><span><span className="footer-wordmark">society.</span> Made for everyday life.</span><button onClick={() => setAbout(true)}>About this preview<Icon name="arrow" /></button></footer>
       </main>
     </div>

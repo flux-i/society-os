@@ -69,14 +69,20 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['homes', 'security', 'reviews', 'community', 'help', 'documents', ...(user.can_read_registry ? ['overview'] : []), ...(user.can_manage_registry ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', ...(user.can_manage_registry ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen === 'overview' && !me.can_read_registry) || (screen === 'access' && !me.can_manage_registry) || (['entries', 'receipts'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen === 'access' && !me.can_manage_registry) || (['entries', 'receipts'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
       window.location.hash = screen
       return { screen }
     }, false)
+    const sections = ['reviews', 'service', 'notices', 'documents', ...(user.can_read_records ? ['finance'] : [])]
+    add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
+      const section = String(input.section)
+      if (!sections.includes(section) || (section === 'finance' && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
+      return request('/api/overview/' + section, signal)
+    })
     if (user.can_read_records) add('society_find_records', 'Read permitted manual entries or receipt states. Totals describe supplied records. This never confirms entries, creates receipts or initiates payments.', {
       query: search, home_id: { type: 'string', maxLength: 100 }, receipts_only: { type: 'boolean' }, page,
     }, [], async (input, signal, me) => {

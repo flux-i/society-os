@@ -21,12 +21,28 @@ async function execute(page: Page, name: string, args: unknown) {
   }, { name, args })
 }
 
+test('native WebMCP reads the same personal overview after an actual UI report and preserves its dialog', async ({ page }) => {
+  await login(page, 'Owner'); await expect.poll(() => names(page)).toContain('society_read_overview')
+  const before = JSON.parse(await execute(page, 'society_read_overview', { section: 'service' }))
+  await navigate(page, 'Help & repairs'); await page.getByRole('button', { name: 'Report an issue', exact: true }).click(); await chooseOption(page, 'Service request home', 'Home A-101'); await chooseOption(page, 'Service category', 'Plumbing'); await page.getByRole('textbox', { name: 'Subject', exact: true }).fill('NATIVE Overview kitchen leak'); await page.getByRole('textbox', { name: 'Details', exact: true }).fill('A fictional leak for the actual native overview contract and current personal scope.'); await page.getByRole('button', { name: 'Save service request', exact: true }).click(); await expect(page.getByRole('dialog').locator('.case-status')).toHaveText('Open')
+  const mutations: string[] = []; page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) })
+  const result = JSON.parse(await execute(page, 'society_read_overview', { section: 'service' })); expect(result.counts.active).toBe(before.counts.active + 1); expect(result.items.length).toBeLessThanOrEqual(4); expect(result.calendar).toBe('Asia/Kolkata'); expect(result.items.every((item: Record<string, unknown>) => !('description' in item) && !('updates' in item))).toBe(true)
+  await expect(execute(page, 'society_open_workspace', { screen: 'overview' })).rejects.toThrow(); await expect(page.getByRole('dialog')).toBeVisible(); await page.getByRole('button', { name: 'Close service request details', exact: true }).click(); await execute(page, 'society_open_workspace', { screen: 'overview' }); await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible(); await expect(page.getByRole('region', { name: 'Your active service requests', exact: true }).locator('strong')).toHaveText(String(result.counts.active)); expect(mutations).toEqual([])
+})
+
+test('native WebMCP denies unentitled overview finance unsupported sections and revoked sessions', async ({ page }) => {
+  await login(page, 'Tenant'); await expect.poll(() => names(page)).toContain('society_read_overview')
+  await expect(execute(page, 'society_read_overview', { section: 'finance' })).rejects.toThrow(); await expect(execute(page, 'society_read_overview', { section: '../entries' })).rejects.toThrow(); await expect(execute(page, 'society_read_overview', { section: 'notices', page: 2 })).rejects.toThrow()
+  const docs = JSON.parse(await execute(page, 'society_read_overview', { section: 'documents' })); expect(docs.counts.ready_review).toBe(0); expect(docs.counts.upload_attention).toBe(0); expect(docs.items.every((item: Record<string, unknown>) => ['EXPIRED', 'EXPIRING'].includes(String(item.state)) && !('events' in item) && !('download_url' in item) && !('filename' in item))).toBe(true)
+  const me = await (await page.request.get('/api/auth/me')).json(); expect((await page.request.post('/api/auth/logout', { headers: { Origin: new URL(page.url()).origin, 'X-CSRF-Token': me.csrf_token }, data: {} })).status()).toBe(200); await expect(execute(page, 'society_read_overview', { section: 'service' })).rejects.toThrow(); await expect.poll(() => names(page)).toEqual([])
+})
+
 test('native WebMCP discovers permitted tools after MFA and executes bounded searches', async ({ page }) => {
   await page.goto('/')
   expect(await page.evaluate(() => !!(document as ContextDocument).modelContext)).toBe(true)
   expect(await names(page)).toEqual([])
   await login(page)
-  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document'])
+  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document', 'society_read_overview'])
   const mutations: string[] = []
   page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) })
   const homes = JSON.parse(await execute(page, 'society_find_homes', { wing: 'B', occupancy: 'RENTED' }))
@@ -66,7 +82,7 @@ test('native WebMCP follows resident scope and omits financial tools for an unen
   expect(await page.getByRole('dialog').count()).toBe(0)
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await login(page, 'Tenant')
-  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document'])
+  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document', 'society_read_overview'])
   await expect(execute(page, 'society_open_workspace', { screen: 'entries' })).rejects.toThrow()
   const tenantHomes = JSON.parse(await execute(page, 'society_find_homes', {}))
   expect(tenantHomes.items.map((home: { id: string }) => home.id)).toEqual(['demo-flat-A-103'])

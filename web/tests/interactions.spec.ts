@@ -103,11 +103,11 @@ test('shell links, About, backdrop, focus, history and committee access work', a
   await navigate(page, 'Homes & people')
   await expect(page.getByRole('status')).toHaveText('118 homes found')
   await page.getByRole('link', { name: 'Society OS overview', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Your community, a little closer.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Every home has a story.', exact: true })).toBeVisible()
   await page.goForward()
-  await expect(page.getByRole('heading', { name: 'Your community, a little closer.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible()
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await login(page, 'Committee')
   await navigate(page, 'Homes & people')
@@ -123,12 +123,14 @@ test('shell links, About, backdrop, focus, history and committee access work', a
 test('overview routes, every filter and all 118 home cards work across ten pages', async ({ page }) => {
   test.setTimeout(120000)
   await login(page)
+  await page.getByRole('link', { name: 'Open homes & people', exact: true }).click()
   for (const [wing, count] of [['A', 40], ['B', 40], ['C', 38]] as const) {
     await page.getByRole('button', { name: `Explore Wing ${wing}, ${count} homes`, exact: true }).click()
     await expect(page.getByRole('status')).toHaveText(`${count} homes found`)
     await navigate(page, 'Overview')
+    await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible()
+    await page.getByRole('link', { name: 'Open homes & people', exact: true }).click()
   }
-  await page.getByRole('link', { name: 'See all homes', exact: true }).click()
   await expect.soft(page.getByRole('status')).toHaveText('118 homes found')
   await chooseFilter(page, 'Filter by wing', '')
   for (const [wing, count] of [['A', 40], ['B', 40], ['C', 38]] as const) {

@@ -1,8 +1,8 @@
 # Society operations: overview and next workflows
 
 **Recorded:** 4 October 2026, from the user's explicit product direction.
-**Status:** Accepted development scope; implementation and production acceptance are separate. Release 0.7/schema 7 is the verified preview with completed local document evidence. The overview revamp is next.
-**Ordering:** Finish its gate, then revamp the overview. Deliver the remaining workflows in the order below, with domain, rendered interaction, screenshot and actual native WebMCP checks at every checkpoint.
+**Status:** Accepted development scope; implementation and production acceptance are separate. Release 0.8/schema 7 is the verified preview with completed document and [changing overview evidence](overview-baseline.md). Explicit role/account administration is next.
+**Ordering:** Documents and the changing overview have passed their local gates. Continue with explicit role/account administration. Deliver the remaining workflows in the order below, with domain, rendered interaction, screenshot and actual native WebMCP checks at every checkpoint.
 
 This document extends the [implementation plan](../housing-society-digital-platform-plan.md) and [execution backlog](../execution-backlog.md). It supersedes their earlier deferral of resident payment reports and configured messaging. Payment gateways, transfers initiated by the platform, bank automation and automatic statutory charge calculations remain outside scope. A collection campaign requests an externally paid contribution; it does not move money.
 
@@ -96,8 +96,8 @@ Visitor gate hardware, parking enforcement, amenity booking, elections, AI, paym
 
 ## 8. Delivery order and evidence
 
-1. Finish the private-documents checkpoint with full checks, actual browser captures, native WebMCP and recovery evidence.
-2. Revamp the overview around the changing information already available, with exact deep links and role-scoped attention queues.
+1. **Verified locally:** private documents with full checks, browser captures, native WebMCP and recovery evidence.
+2. **Verified locally:** changing overview with exact deep links, scoped full counts, partial failures, inspected captures and native WebMCP.
 3. Complete role/account administration so treasury, reporting, review, document publication and messaging powers remain explicit.
 4. Deliver maintenance cycles, charge/receipt allocations and upkeep deadlines.
 5. Deliver fund campaigns and resident reports of external payments, with treasury confirmation.

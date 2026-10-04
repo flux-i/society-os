@@ -1,7 +1,7 @@
 # Housing Society Execution Strategy
 
 **Date:** 4 October 2026
-**Status:** Verified local release 0.7/schema 7 includes the foundation, registry/identity/MFA, manual entries/private receipts, separate reviews/approved notices, private service requests and validated document versions. The changing overview is next. Production identity/custody acceptance, subsequent role/account administration, infrastructure and later workflows remain pending.
+**Status:** Verified local release 0.8/schema 7 includes the foundation, registry/identity/MFA, manual entries/private receipts, separate reviews/approved notices, private service requests and validated document versions. The changing overview is verified; role/account administration is next. Production identity/custody acceptance, infrastructure and later workflows remain pending.
 **Applies to:** [Housing Society Digital Platform implementation plan](housing-society-digital-platform-plan.md), especially Sections 39, 40, 43, 52 and 54
 
 **Current scope:** Tracking/monitoring, manually entered charges and already-paid records, derived balances and generated receipts are included. Payment initiation/gateways, bank automation, automated billing and Tally integration are conditional future work.

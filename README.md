@@ -1,8 +1,8 @@
 # Society OS
 
-A thoughtful community portal for a 118-flat society. The working **local preview** includes an illustrated overview, occupancy and owner/tenant counts, scoped homes, registry administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices, personal service requests with private handler notes, validated private document versions and verified SQLite snapshot/restore tools.
+A thoughtful community portal for a 118-flat society. The working **local preview** includes a changing role-scoped overview, occupancy and owner/tenant counts on Homes & people, scoped homes, registry administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices, personal service requests with private handler notes, validated private document versions and verified SQLite snapshot/restore tools.
 
-The [next operations roadmap](docs/society-operations-roadmap.md) preserves the user's overview revamp, maintenance, fund campaigns/external-payment verification, targeted WhatsApp/email, approved rule/fine workflows and financial statement publication. Those are next development slices; the existing portal does not initiate payment or send provider messages.
+The [next operations roadmap](docs/society-operations-roadmap.md) preserves the user's maintenance, fund campaigns/external-payment verification, targeted WhatsApp/email, approved rule/fine workflows and financial statement publication. The overview is verified under the [overview baseline](docs/overview-baseline.md); the other workflows are next development slices; the existing portal does not initiate payment or send provider messages.
 
 ## Run locally
 
@@ -34,7 +34,7 @@ Open a home as the registry officer and choose **Manage home** to change occupan
 
 **Account security** supports authenticator setup, recovery-code replacement, five-minute identity confirmation and password changes. Reset/change signs out every target-account session and preserves MFA. Administrator access remains locked until factor verification succeeds. Passwords require at least 12 characters.
 
-The overview distinguishes homes from people: the fresh fixture contains **109 occupied homes, 9 vacant homes, 118 distinct active owners and 35 distinct active tenants**. Occupied homes comprise 74 owner-occupied and 35 rented homes. Joint owners count separately; multi-home owners count once society-wide; former/future memberships do not count as active. Wing counts deduplicate people within each wing, so summing wings need not equal the society total when someone owns homes in different wings.
+Homes & people distinguishes homes from people: the fresh fixture contains **109 occupied homes, 9 vacant homes, 118 distinct active owners and 35 distinct active tenants**. Occupied homes comprise 74 owner-occupied and 35 rented homes. Joint owners count separately; multi-home owners count once society-wide; former/future memberships do not count as active. Wing counts deduplicate people within each wing, so summing wings need not equal the society total when someone owns homes in different wings.
 
 For frontend hot reload, keep the Go server running and run `make dev` in another terminal. Vite serves a local development URL and proxies API calls to `127.0.0.1:8080`.
 
@@ -46,11 +46,11 @@ make bench
 make report
 ```
 
-`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 64 backend test declarations, including exact financial amounts, concurrent operation retries, immutable corrections, leased receipt jobs, private PDF access, separate approvals, scoped notices, personal/private service conversations and document validation/version/quota/snapshot cases.
+`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 72 backend test declarations, including exact financial amounts, concurrent operation retries, immutable corrections, leased receipt jobs, private PDF access, separate approvals, scoped notices, personal/private service conversations and document validation/version/quota/snapshot cases.
 
 `make bench` runs the representative registry query three times. `make report` creates an independent fresh synthetic database, measures 100 warm local HTTP reads after ten warmups, snapshots the live database and restores it into a new environment. It verifies SHA-256 independently in Python and records measured times, engine settings and counts in `reports/local/account-security-baseline.json`. These are local measurements, not production performance commitments.
 
-`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. The document gate passes 60 ordinary browser cases and 10 native WebMCP cases. The browser API is optional for using the portal, and no tool approves, uploads, publishes or posts records. See [approval and notice evidence](docs/approvals-notices-baseline.md), [service-request evidence](docs/complaints-baseline.md), [document acceptance](docs/documents-baseline.md) and the ongoing [development process](docs/development-workflow.md).
+`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. The overview gate passes 69 ordinary browser cases and 12 native WebMCP cases. The browser API is optional for using the portal, and no tool approves, uploads, publishes or posts records. See [approval and notice evidence](docs/approvals-notices-baseline.md), [service-request evidence](docs/complaints-baseline.md), [document acceptance](docs/documents-baseline.md), [overview acceptance](docs/overview-baseline.md) and the ongoing [development process](docs/development-workflow.md).
 
 Browser checks use a fresh fictional database on an ephemeral loopback port and leave your preview untouched:
 
@@ -60,7 +60,9 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. The 60 browser cases cover the registry, all 118 home cards, opened dropdowns, manual entry/receipt/discard/reversal/retry workflows, invitations, password reset/session revocation, authenticators, separate review/publication, service requests and original-document upload/download/version/retry workflows across desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the original inventory and global Claude Code/Codex browser tooling; subsequent workflow baselines record the added controls.
+Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. The 69 browser cases cover scoped overview queues and balances, deep links, independent source failures/retries, the registry, all 118 home cards, opened dropdowns, manual entry/receipt/discard/reversal/retry workflows, invitations, password reset/session revocation, authenticators, separate review/publication, service requests and original-document upload/download/version/retry workflows across desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the original inventory and global Claude Code/Codex browser tooling; subsequent workflow baselines record the added controls.
+
+**Overview** shows changing decisions, service work, document attention/deadlines and approved notices for the current account. Financial cards require their own entitlement and distinguish positive home balances from credits, confirmed money received in the last 30 India calendar days, draft work and receipt-generation attention. Each section has its own retry; unavailable values remain unknown. Refresh rereads current sources, and actionable rows open their exact permitted record.
 
 **Entries & receipts** lets the officer save and review manual drafts, confirm supplied charges/opening balances or money already received, download private receipt PDFs, discard mistaken drafts and reverse confirmed entries with a reason. Balances derive from confirmed, unreversed entries in the selected home scope. The owner sees only financially permitted records. See [manual-record acceptance](docs/manual-records-baseline.md) and [our development process and issue inventory](docs/development-workflow.md).
 
@@ -71,8 +73,8 @@ Build first with `make build`, or use `make browser-check`. Follow this machine'
 To keep an already verified preview running while developing the next checkpoint, retain its binary and assets together:
 
 ```sh
-python3 scripts/pin-preview.py --name 0.7
-./var/preview-releases/0.7/society-server serve --demo --db var/demo/society.db --mfa-key-file var/keys/mfa.key --addr 127.0.0.1:8080 --web-dir var/preview-releases/0.7/web
+python3 scripts/pin-preview.py --name 0.8
+./var/preview-releases/0.8/society-server serve --demo --db var/demo/society.db --mfa-key-file var/keys/mfa.key --addr 127.0.0.1:8080 --web-dir var/preview-releases/0.8/web
 ```
 
 Stop the earlier server before starting the retained one. The pin command refuses an existing name. Verify the build first, then pin it; the command packages files and does not run the checks. It does not copy databases or keys. Use a new name for the next verified release.
@@ -121,6 +123,7 @@ This records supplied custodians; it does not verify their real-world authority.
 | `GET /api/admin/accounts` | Administrator account directory |
 | `POST /api/admin/invitations` | Invite a currently related registry person |
 | `POST /api/admin/accounts/{id}/link` | Reissue invitation or assisted password recovery |
+| `GET /api/overview/{section}` | Current scoped finance/reviews/service/notices/documents totals with up to four metadata rows |
 | `GET /api/system` | Registry officer's application/schema/engine evidence |
 | `GET /api/registry/summary` | Operator's community and wing occupancy/people totals |
 | `GET /api/flats` | Authorized search/filter/pagination, with scoped totals |
