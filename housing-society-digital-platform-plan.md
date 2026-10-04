@@ -5,12 +5,14 @@
 **Preferred hosting model:** Self-host the application on an owned small computer; use cloud services only where they add clear value  
 **Target architecture:** Lightweight custom application instead of ERPNext/Frappe  
 **Document date:** 4 October 2026  
-**Revision:** Manual tracking and receipt scope, updated 4 October 2026  
+**Revision:** Manual tracking plus society operations scope, updated 4 October 2026  
 **Confirmed input:** 118 flats; resident/user count to be established during registry migration  
 **Accounting:** Existing very old Tally installation; exact version/import compatibility pending  
 **Society state:** Pending for receipt/retention policy; statutory billing rules are future inputs
 
-**Implementation status:** The local Go/React foundation includes the registry, relevant occupancy/people counts, scoped sessions, registry management/history and schema-3 invitations/password recovery, required privileged authenticator verification, recovery codes and fresh identity checks. SQLite, credential-safe recovery and isolated browser journeys pass. See [README](README.md), [account-security acceptance](docs/account-security-baseline.md) and [execution backlog](execution-backlog.md). Next are operation identities/jobs/private storage, then manual entries/receipts. Production identity/custody, subsequent role/account administration, infrastructure and real-data acceptance remain pending; production checklists below stay open until their full gates pass.
+**Implementation status:** The verified local Go/React release 0.6/schema 6 includes registry/memberships and scoped sessions, invitations/recovery and privileged MFA, manual entries/private receipt PDFs, separate reviews/approved notices and private service-request workflows. Domain, rendered browser and actual native WebMCP gates pass for that release. See [README](README.md) and the [execution backlog](execution-backlog.md). Documents are in verification. Production identity/custody, subsequent role/account administration, infrastructure and real-data acceptance remain pending; production checklists below stay open until their full gates pass.
+
+**Scope addition:** The user's subsequent requests are preserved in the [society operations roadmap](docs/society-operations-roadmap.md): an actionable changing overview, maintenance, fund collection campaigns, resident external-payment reports, targeted WhatsApp/email, evidence-based rule reports and authorised fines, and externally prepared financial statements with intentional publication/sharing. This dated addendum defines the next slices and supersedes earlier deferrals of those specifically requested capabilities. No payment initiation is added; older sections remain conditional references for unrequested billing/bank/Tally automation.
 
 ---
 
@@ -22,11 +24,11 @@ Use Go, SQLite, a React/Vite PWA, private AWS S3 for documents/off-site snapshot
 
 Version 1 covers tracking and monitoring: registry and memberships; invitation/login and scoped roles; manually entered given charges/opening balances and already-paid records; exact amounts and derived flat balances; immutable generated receipts/PDFs and auditable corrections; notices; complaints; permitted documents; authorized reports; and tested recovery. Authorized users supply the entries. The portal does not initiate payment.
 
-**Scope boundary:** No payment gateway, bank transfer initiation, bank API/automated matching, automatic billing/rate/interest calculation, resident payment-claim workflow or Tally integration is required for V1. Sections 12 and 14 and the extended financial designs after Section 13.0 are retained as conditional future references. Section 13.0 and the revised delivery/testing/production gates define the current manual-entry workflow. Do not scaffold future modules as launch dependencies.
+**Scope boundary:** No payment gateway, bank transfer initiation, bank API/automated matching, automatic billing/rate/interest calculation or Tally integration is required. Resident reports of externally paid money and treasury verification are now requested next work, governed by the operations roadmap. Sections 12 and 14 and unrequested extended financial designs after Section 13.0 remain conditional future references. Section 13.0 defines the verified manual-entry workflow; new maintenance/fund/fine allocations extend it through separate checkpoints. Do not scaffold unrequested automation as a launch dependency.
 
 The application remains one modular process and one local SQLite database, with a small database-backed job queue. Separate scheduled backup and ingress services are operational dependencies, not an additional business-service platform. No PostgreSQL, Redis, Kubernetes, full ERP, native apps, payment gateway, vector database, or local mail server is needed initially.
 
-Manual WhatsApp sharing is included. Email, full-text extraction/OCR, automated WhatsApp, and AI are optional later capabilities; core operation and assisted account recovery do not depend on them.
+Manual WhatsApp sharing is included. Targeted WhatsApp/email delivery is now planned explicitly in the operations roadmap, using synthetic provider checks before society-owned live channel configuration is supplied. Full-text extraction/OCR and AI remain optional later capabilities; core operation and assisted account recovery do not depend on them.
 
 Mandatory recurring costs are measured incremental electricity, S3 storage/requests/applicable transfer, and any selected production ingress/domain cost. Existing broadband has zero incremental cost only if the society already funds a suitable connection. The complete annual forecast, including taxes and contingency, must remain below ₹12,000; development/capital spending and volunteer effort are recorded separately.
 

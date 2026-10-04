@@ -5,6 +5,8 @@
 
 **Scope update:** The portal tracks manually entered records and generates receipts for money already received. Payment initiation, gateways and bank automation are excluded. Automated billing and Tally integration are conditional future work.
 
+**User priorities added 4 October:** [Society operations roadmap](docs/society-operations-roadmap.md) records the overview revamp, maintenance tracking, special fund campaigns and resident reports of external payments, targeted registered-contact WhatsApp/email delivery, private rule-report evidence and approved fine issuance, and externally prepared financial statement uploads/publication. These are accepted next development work. Complete the document gate, then the overview, then the ordered slices in that roadmap. Its explicit requests supersede older deferrals of resident payment reports and configured messaging; actual payment initiation remains excluded. Researched asset/AMC, vendor, emergency, reminder and meeting additions are prioritised there with primary sources and acceptance conditions.
+
 Execute the [strategy](housing-society-execution-strategy.md) through small build milestones. Begin with a runnable local foundation using synthetic data. Confirm production infrastructure and accounting inputs alongside that work, then complete the gates in the [implementation plan](housing-society-digital-platform-plan.md).
 
 ## 1 Verified starting position
@@ -121,4 +123,4 @@ Store monetary values exactly in paise. Save the confirmed entry, receipt identi
 
 Derive balances from approved given charges/opening balances and recorded paid entries. No statutory rate, interest formula or automatic bill schedule is inferred. Detailed per-invoice allocations/advance settlement are added only if required by the approved workflow.
 
-Future work, only when requested: payment gateways/initiation, bank APIs or automated matching, automated billing calculations, resident claim/verification workflows and Tally import/export integration. Nothing in the current development or pilot depends on those integrations.
+Future work, only when requested: payment gateways/initiation, bank APIs or automated matching, automated billing calculations and Tally import/export integration. The user has now requested resident reports/treasury verification, collection campaigns and configured messaging; these are next development slices in the [operations roadmap](docs/society-operations-roadmap.md), rather than completed integrations or production dependencies for the already verified preview.
