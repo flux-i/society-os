@@ -1,7 +1,7 @@
 # Society OS Execution Backlog
 
 **Updated:** 4 October 2026  
-**Current state:** Local foundation and the first identity/registry slice are runnable: relevant occupancy/people counts, fictional sign-in, scoped reads, registry management and change history. Invitations/assisted password recovery and privileged MFA work locally. Manual entries, private receipt PDFs, operation retries, draft discard and linked corrections now work locally. Production identity/custody acceptance, approved finance examples/policy, subsequent role/account administration, infrastructure and later workflows are pending.
+**Current state:** Foundation, identity/registry and manual entries/private receipt PDFs are verified locally. Separate-reviewer proposals, revisions/decline/withdrawal, audience-scoped notice publication/archive and six actual native WebMCP journeys are now verified at release 0.5/schema 5. Complaints, private document versions, further role administration, PWA/migration and production acceptance remain ahead. Real identity/custody, approved finance examples/policy and infrastructure inputs remain pending.
 
 **Scope update:** The portal tracks manually entered records and generates receipts for money already received. Payment initiation, gateways and bank automation are excluded. Automated billing and Tally integration are conditional future work.
 
@@ -14,7 +14,7 @@ Execute the [strategy](housing-society-execution-strategy.md) through small buil
 - The official `claude-api` skill is installed globally for Claude Code and Codex. Both global copies match the 81-file manifest; the skill appears in this session's available skills.
 - Local Git, Go/React source, migrations, synthetic database and documented build/check/benchmark/report commands now exist. See [README](README.md) and [architecture decisions](docs/architecture-decisions.md).
 - The local interface includes the approved illustrated overview, wing cards, searchable homes, occupied/vacant homes and active owners/tenants. Fictional sign-in, scoped resident homes, occupancy/membership administration and change history are working. [Visual direction](docs/design-system.md) records the user's requested design standard.
-- Production hardware, stable public origin and society state remain unconfirmed. Exact Tally details are future integration inputs. Reviewed examples of manual entries and the receipt format will be needed before the finance workflow is finalized.
+- The user supplied an i5-8300H / 8 GB Windows x64 computer with SSD/HDD storage; see [hardware evidence](docs/production-hardware.md). Exact OS/build, host operation, stable public origin and society state remain unconfirmed. Exact Tally details are future integration inputs. Reviewed examples of manual entries and the receipt format will be needed before the finance workflow is finalized.
 
 The user will provide the production hardware, society state and exact Tally version later. Proceed with local development and synthetic data while these remain pending; do not infer statutory charges or Tally compatibility from placeholders. The first finance workflow records given charges/opening balances and money already paid; it never initiates a transfer.
 
@@ -58,7 +58,7 @@ The [rendered UI review](docs/ui-review-baseline.md) now includes an expanded in
 
 | Input | Person to involve | Why it matters | Current state |
 |---|---|---|---|
-| Production computer model, OS, SSD and power/network setup | Technical maintainer | Deployment target, recovery and actual operating-cost measurements | Pending |
+| Production computer model, OS, SSD and power/network setup | Technical maintainer | Deployment target, recovery and actual operating-cost measurements | CPU/RAM/Windows x64/SSD/HDD supplied; OS/build, health, operation and power/network checks pending |
 | Society state and approved document/receipt policy | Committee and records/finance owner | Applicable retention and receipt fields; no charge rules inferred | Pending |
 | Representative manual charge/payment entries and receipt format | Authorized finance operator and committee | Correct entry fields, derived balances and receipt output | Pending before finance acceptance |
 | Canonical flat registry and current/historical membership rules | Registry officer | Invitations and correct resource access | Pending |
@@ -111,7 +111,7 @@ Use the installed Claude evaluation guides when a concrete Claude-powered flow e
 
 The `claude-api` skill is optional development guidance, not an application dependency. No V1 workflow needs the Claude API, an Anthropic SDK or a Claude API key. If a later AI feature uses Claude, the skill can assist its implementation and evaluation; choosing that provider is a separate future decision.
 
-Operation identities, leased jobs/private storage and the manual entry/receipt slice are now implemented locally; see [manual-record acceptance](docs/manual-records-baseline.md). Next are notices/complaints/documents and the independent production/finance-policy acceptance work. Invitations/password recovery and privileged MFA now work with synthetic data. Password sign-in, current membership/role scope, registry administration and transactional history already work with synthetic accounts. Keep finance-entry permissions separate from resident and registry access. Production hardware/state details still block only their dependent production decisions.
+Operation identities, leased jobs/private storage and manual entries/receipts are implemented locally; see [manual-record acceptance](docs/manual-records-baseline.md). Separate-reviewer requests and approved notices now pass the checkpoint gate; see [approval and notice acceptance](docs/approvals-notices-baseline.md). Next are complaints and documents, alongside independent production/finance-policy preparation. Keep finance-entry permission separate from registry/community review: approving an expense proposal does not post a financial entry or pay money. Production inputs block only dependent decisions.
 
 ## 6 Manual entry boundary and future automation
 

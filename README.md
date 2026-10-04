@@ -1,6 +1,6 @@
 # Society OS
 
-A thoughtful community portal for a 118-flat society. The working **local preview** includes an illustrated overview, occupied/vacant and active owner/tenant counts, sign-in, resident-scoped homes, registry administration, invitations/password recovery, authenticator protection, change history, manual entries/receipt PDFs and verified SQLite snapshot/restore tools.
+A thoughtful community portal for a 118-flat society. The working **local preview** includes an illustrated overview, occupancy and owner/tenant counts, scoped homes, registry administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices and verified SQLite snapshot/restore tools.
 
 ## Run locally
 
@@ -47,6 +47,8 @@ make report
 `make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 39 backend checks, including exact financial amounts, concurrent operation retries, immutable corrections, leased receipt jobs and private PDF access.
 
 `make bench` runs the representative registry query three times. `make report` creates an independent fresh synthetic database, measures 100 warm local HTTP reads after ten warmups, snapshots the live database and restores it into a new environment. It verifies SHA-256 independently in Python and records measured times, engine settings and counts in `reports/local/account-security-baseline.json`. These are local measurements, not production performance commitments.
+
+`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. The browser API is optional for using the portal, and no tool approves, publishes or posts records. See [approval and notice evidence](docs/approvals-notices-baseline.md) and the ongoing [development process](docs/development-workflow.md).
 
 Browser checks use a fresh fictional database on an ephemeral loopback port and leave your preview untouched:
 

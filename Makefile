@@ -1,4 +1,4 @@
-.PHONY: setup build check seed run dev snapshot restore-check bench report browser-check
+.PHONY: setup build check seed run dev snapshot restore-check bench report browser-check webmcp-check eval
 
 DB ?= var/demo/society.db
 ADDR ?= 127.0.0.1:8080
@@ -44,3 +44,11 @@ report: build
 
 browser-check: build
 	npm run test:browser --prefix web
+
+webmcp-check: build
+	npm run test:browser --prefix web -- --config=playwright.webmcp.config.ts
+
+# One checkpoint gate; every stage must finish successfully before proceeding.
+eval: check build
+	npm run test:browser --prefix web
+	npm run test:browser --prefix web -- --config=playwright.webmcp.config.ts

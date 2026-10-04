@@ -80,6 +80,7 @@ type Principal struct {
 	CanManageRecords  bool     `json:"can_manage_records"`
 	CanReadAllRecords bool     `json:"can_read_all_records"`
 	CanReadRecords    bool     `json:"can_read_records"`
+	CanReviewRequests bool     `json:"can_review_requests"`
 	CSRF              string   `json:"csrf_token"`
 	MFARequired       bool     `json:"mfa_required"`
 	MFAEnrolled       bool     `json:"mfa_enrolled"`
@@ -131,7 +132,10 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		if role == "ADMINISTRATOR" {
 			p.CanManageRegistry = true
 		}
-		if role == "ADMINISTRATOR" || role == "TREASURER" {
+		if role == "ADMINISTRATOR" || role == "COMMITTEE" {
+			p.CanReviewRequests = true
+		}
+		if role == "ADMINISTRATOR" || role == "TREASURER" || role == "COMMITTEE" {
 			p.MFARequired = true
 		}
 		if role == "ADMINISTRATOR" || role == "COMMITTEE" || role == "TREASURER" {
@@ -157,6 +161,7 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		p.CanManageRecords = false
 		p.CanReadAllRecords = false
 		p.CanReadRecords = false
+		p.CanReviewRequests = false
 	}
 	return p, rows.Err()
 }

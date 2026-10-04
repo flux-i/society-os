@@ -14,7 +14,7 @@ function PortalSelect({ label, value, options, onChange, required, form = false 
   const trigger = useRef<HTMLButtonElement | null>(null)
   const menu = useRef<HTMLDivElement | null>(null)
   const attach = useCallback((node: HTMLButtonElement | null) => { trigger.current = node; setContainer(node?.closest('dialog') ?? undefined) }, [])
-  const items = form ? options.filter(option => option.value) : options
+  const items = form && required ? options.filter(option => option.value) : options
   useEffect(() => {
     if (!open) return
     const outside = (event: PointerEvent) => {
@@ -23,8 +23,8 @@ function PortalSelect({ label, value, options, onChange, required, form = false 
     document.addEventListener('pointerdown', outside, true)
     return () => document.removeEventListener('pointerdown', outside, true)
   }, [open])
-  return <span className="select-field" onInvalidCapture={event => { event.preventDefault(); setInvalid(true); requestAnimationFrame(() => { const first = trigger.current?.closest('form')?.querySelector<HTMLElement>('input:invalid, textarea:invalid, button[aria-invalid="true"]'); (first ?? trigger.current)?.focus() }) }}><Select.Root value={form ? value : value || 'all'} required={required} open={open} onOpenChange={setOpen} onValueChange={next => {
-    if (form && !items.some(option => option.value === next)) return
+  return <span className="select-field" onInvalidCapture={event => { event.preventDefault(); setInvalid(true); requestAnimationFrame(() => { const first = trigger.current?.closest('form')?.querySelector<HTMLElement>('input:invalid, textarea:invalid, button[aria-invalid="true"]'); (first ?? trigger.current)?.focus() }) }}><Select.Root value={value || (form && required ? '' : 'all')} required={required} open={open} onOpenChange={setOpen} onValueChange={next => {
+    if (form && !items.some(option => (option.value || 'all') === next)) return
     setInvalid(false)
     onChange(next === 'all' ? '' : next)
   }}>

@@ -1,9 +1,23 @@
 // A fresh fictional database keeps browser mutations out of the user's preview.
 import { spawn, execFileSync } from 'node:child_process'
-import { mkdtempSync, openSync, closeSync, rmSync } from 'node:fs'
+import { mkdtempSync, openSync, closeSync, rmSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { createServer } from 'node:net'
+
+// Each suite gets its own database, server and real login limiter. The complete
+// gate must not weaken production throttling to accommodate repeated QA logins.
+if (process.argv.length === 2) {
+  const suites = readdirSync(resolve('tests')).filter(file => file.endsWith('.spec.ts') && file !== 'webmcp.spec.ts').sort()
+  for (const suite of suites) {
+    process.stdout.write(`\nIsolated browser suite: ${suite}\n`)
+    const child = spawn(process.execPath, [resolve('tests/run-browser.mjs'), suite], { stdio: 'inherit', env: process.env })
+    const code = await new Promise(resolve => child.on('exit', code => resolve(code ?? 1)))
+    if (code !== 0) process.exit(code)
+  }
+  process.stdout.write(`\nAll ${suites.length} isolated browser suites passed.\n`)
+  process.exit(0)
+}
 
 const root = mkdtempSync(join(tmpdir(), 'society-browser-'))
 const db = join(root, 'society.db')

@@ -68,12 +68,16 @@ func (s *Server) protected(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func decode(w http.ResponseWriter, r *http.Request, value any) bool {
+	return decodeLimit(w, r, value, 8192)
+}
+
+func decodeLimit(w http.ResponseWriter, r *http.Request, value any, limit int64) bool {
 	contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || contentType != "application/json" {
 		respond(w, 415, map[string]string{"error": "json_required"})
 		return false
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(value); err != nil {

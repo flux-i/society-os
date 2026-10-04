@@ -11,9 +11,11 @@ import { Access, AccountLink, AccountSecurity, MFAGate } from './components/Iden
 import { PortalDialog } from './components/PortalDialog'
 import { FilterSelect } from './components/FilterSelect'
 import { Records } from './components/Records'
+import { useSocietyTools } from './webmcp'
+import { Reviews } from './components/Reviews'
 
-type View = 'overview' | 'homes' | 'access' | 'security' | 'entries' | 'receipts'
-const currentView = (): View => { const hash = window.location.hash.slice(1); return hash === 'homes' || hash === 'access' || hash === 'security' || hash === 'entries' || hash === 'receipts' ? hash : 'overview' }
+type View = 'overview' | 'homes' | 'access' | 'security' | 'entries' | 'receipts' | 'reviews' | 'community'
+const currentView = (): View => { const hash = window.location.hash.slice(1).split('?')[0]; return ['homes', 'access', 'security', 'entries', 'receipts', 'reviews', 'community'].includes(hash) ? hash as View : 'overview' }
 const takeLink = () => {
   const match = window.location.hash.match(/^#(?:activate|reset)=([A-Za-z0-9_-]{43})$/)
   if (!match) return ''
@@ -31,7 +33,7 @@ function Sidebar({ view, user, onAbout }: { view: View; user: User; onAbout: () 
   const menuButton = useRef<HTMLButtonElement>(null)
   useEffect(() => { setMenuOpen(false) }, [view])
   const future: { name: string; icon: IconName }[] = [
-    { name: 'Community', icon: 'community' }, { name: 'Documents', icon: 'document' },
+    { name: 'Documents', icon: 'document' },
   ]
   return <aside className="sidebar" onKeyDown={event => { if (event.key === 'Escape') { setMenuOpen(false); menuButton.current?.focus() } }}>
     <Brand />
@@ -42,6 +44,8 @@ function Sidebar({ view, user, onAbout }: { view: View; user: User; onAbout: () 
         <a href="#homes" className={`nav-item ${view === 'homes' ? 'active' : ''}`} aria-current={view === 'homes' ? 'page' : undefined}><Icon name="homes" /><span>{user.can_read_registry ? 'Homes & people' : 'Your homes'}</span>{view === 'homes' && <span className="active-dot" />}</a>
         {user.can_manage_registry && <a href="#access" className={`nav-item ${view === 'access' ? 'active' : ''}`} aria-current={view === 'access' ? 'page' : undefined}><Icon name="community" /><span>Access & invitations</span></a>}
         {user.can_read_records && (['entries', 'receipts'] as const).map(item => <a key={item} href={'#' + item} className={`nav-item ${view === item ? 'active' : ''}`} aria-current={view === item ? 'page' : undefined}><Icon name={item === 'entries' ? 'records' : 'receipt'} /><span>{item === 'entries' ? 'Entries' : 'Receipts'}</span></a>)}
+        <a href="#reviews" className={`nav-item ${view === 'reviews' ? 'active' : ''}`} aria-current={view === 'reviews' ? 'page' : undefined}><Icon name="check" /><span>{user.can_review_requests ? 'Requests & approvals' : 'Your requests'}</span></a>
+        <a href="#community" className={`nav-item ${view === 'community' ? 'active' : ''}`} aria-current={view === 'community' ? 'page' : undefined}><Icon name="community" /><span>Community</span></a>
         <a href="#security" className={`nav-item ${view === 'security' ? 'active' : ''}`} aria-current={view === 'security' ? 'page' : undefined}><Icon name="shield" /><span>Account security</span></a>
         {future.map(item => <button className="nav-item upcoming-nav" key={item.name} disabled title={`${item.name} is planned for a later milestone`}><Icon name={item.icon} /><span>{item.name}</span><small>Next</small></button>)}
       </nav>
@@ -198,6 +202,7 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
   const [selected, setSelected] = useState<string | null>(null)
   const [about, setAbout] = useState(false)
   const [refresh, setRefresh] = useState(0)
+  useSocietyTools(user, setSelected)
   useEffect(() => {
     const handler = () => { const next = currentView(); setView(next); if (next !== 'homes') setInitialWing(''); window.scrollTo({ top: 0, behavior: 'instant' }); setSelected(null); setAbout(false) }
     window.addEventListener('hashchange', handler)
@@ -216,11 +221,11 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Skip to content</a>
     <Sidebar view={!user.can_read_registry && view === 'overview' ? 'homes' : view} user={user} onAbout={() => setAbout(true)} />
     <div className="main-shell">
-      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_registry ? 'Access & invitations' : view === 'overview' && user.can_read_registry ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
+      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'reviews' ? 'Requests & approvals' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_registry ? 'Access & invitations' : view === 'overview' && user.can_read_registry ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
       <div className="preview-banner"><span><Icon name="spark" />A first look at your community workspace.</span><span>Fictional data <i /> Live local registry</span></div>
       <main id="main-content" tabIndex={-1} className="main-content">
         {error && <div className="connection-error" role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Reconnect<Icon name="refresh" /></button></div>}
-        {view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_registry ? <Access user={user} /> : view === 'overview' && user.can_read_registry ? <Overview summary={summary} onWing={openWing} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
+        {view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_registry ? <Access user={user} /> : view === 'overview' && user.can_read_registry ? <Overview summary={summary} onWing={openWing} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
         <footer className="page-footer"><span><span className="footer-wordmark">society.</span> Made for everyday life.</span><button onClick={() => setAbout(true)}>About this preview<Icon name="arrow" /></button></footer>
       </main>
     </div>
