@@ -32,6 +32,7 @@ func (s *Server) Handler() http.Handler {
 	s.recordRoutes(mux)
 	s.reviewRoutes(mux)
 	s.complaintRoutes(mux)
+	s.documentRoutes(mux)
 	mux.HandleFunc("POST /api/auth/login", s.login(guard))
 	mux.HandleFunc("GET /api/auth/me", s.protected(func(w http.ResponseWriter, r *http.Request) { respond(w, 200, currentPrincipal(r)) }))
 	mux.HandleFunc("POST /api/auth/logout", s.protected(s.logout))

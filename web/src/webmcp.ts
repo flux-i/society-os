@@ -69,7 +69,7 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['homes', 'security', 'reviews', 'community', 'help', ...(user.can_read_registry ? ['overview'] : []), ...(user.can_manage_registry ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts'] : [])]
+    const views = ['homes', 'security', 'reviews', 'community', 'help', 'documents', ...(user.can_read_registry ? ['overview'] : []), ...(user.can_manage_registry ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
       if (!views.includes(screen) || (screen === 'overview' && !me.can_read_registry) || (screen === 'access' && !me.can_manage_registry) || (['entries', 'receipts'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
@@ -95,6 +95,11 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
     add('society_read_complaint', 'Read an authorised service request and one page of its conversation. Resident results exclude staff-only notes and their counts; current handler permission is enforced by the server. This does not update or close a case.', { case_id: { type: 'string', minLength: 1, maxLength: 100 }, history_page: page }, ['case_id'], async (input, signal) => {
       if (typeof input.case_id !== 'string' || !input.case_id || input.case_id.length > 100) throw new Error('A service request identity is required.')
       return request('/api/complaints/' + encodeURIComponent(input.case_id) + '?' + new URLSearchParams({ history_page: String(pageNumber(input.history_page)) }), signal)
+    })
+    add('society_find_documents', 'Search authorised document titles and filenames. Pending/private uploads and counts follow the signed-in account’s current scope; file contents are never returned. This does not upload, approve or archive a file.', { query: search, page }, [], async (input, signal) => request('/api/documents?' + new URLSearchParams({ q: queryText(input.query), page: String(pageNumber(input.page)) }), signal))
+    add('society_read_document', 'Read permitted document metadata and one page of allowed versions. Private review history is excluded for ordinary readers. Original bytes and download URLs are not returned; approval requires a separate person using the visible form.', { document_id: { type: 'string', minLength: 1, maxLength: 100 }, history_page: page }, ['document_id'], async (input, signal) => {
+      if (typeof input.document_id !== 'string' || !input.document_id || input.document_id.length > 100) throw new Error('A document identity is required.')
+      return request('/api/documents/' + encodeURIComponent(input.document_id) + '?' + new URLSearchParams({ history_page: String(pageNumber(input.history_page)) }), signal)
     })
     return () => lifetime.abort()
   }, [user.id, user.mfa_pending, user.can_read_registry, user.can_manage_registry, user.can_read_records, openHome])

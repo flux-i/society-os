@@ -882,3 +882,41 @@
   .case-conversation .history-pagination { flex-direction: column; align-items: start; }
   .case-update h3 { font-size: 27px; }
 }
+.document-art { width: 230px; flex: 0 0 230px; align-self: center; }
+.documents-page .filter-row .filter-select { width: 172px; }
+.review-declined { color: #915e4d; background: #f4e7df; }
+.document-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.document-card { display: flex; flex-direction: column; align-items: stretch; min-width: 0; text-align: left; background: var(--color-white, #fffefb); border: 1px solid #dce1d2; border-radius: 16px; padding: 24px; color: #264137; transition: border-color .18s, transform .18s; }
+.document-card:hover { border-color: #879a6d; transform: translateY(-2px); }
+.document-card-top { display: flex; align-items: start; justify-content: space-between; gap: 10px; margin-bottom: 22px; }
+.document-paper { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; flex: 0 0 auto; width: 58px; height: 70px; border-radius: 6px 15px 6px 6px; }
+.document-paper svg { width: 28px; height: 28px; }
+.document-paper small { font-size: 9px; letter-spacing: .08em; margin-top: 4px; }
+.paper-sage { background: #e6eadc; color: #647c53; }
+.paper-sand { background: #f0e5d7; color: #926a49; }
+.paper-lavender { background: #eae7ee; color: #817392; }
+.document-card strong { font-family: var(--font-display, 'Instrument Serif', serif); font-weight: 400; font-size: 28px; line-height: 1.15; margin: 10px 0 12px; overflow-wrap: anywhere; }
+.document-filename { display: block; overflow-wrap: anywhere; font-size: 12px; color: #778579; line-height: 1.6; margin-bottom: 24px; }
+.document-card .review-row-bottom { margin-top: auto; padding-top: 16px; border-top: 1px solid #e1e5d8; }
+.document-card .review-row-bottom span { overflow-wrap: anywhere; }
+.document-upload-target { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 150px; border: 1px dashed #9ba98b; border-radius: 12px; padding: 24px; text-align: center; background: #f1f3e9; color: #3d5d49; gap: 8px; }
+.document-upload-target .document-file-input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; opacity: 0; cursor: pointer; }
+.document-upload-target:focus-within { outline: 2px solid #6c8458; outline-offset: 3px; }
+.document-upload-target strong { overflow-wrap: anywhere; font-size: 15px; }
+.document-upload-target > span { font-size: 12px; color: #75856d; }
+.document-fixed-scope { background: #f1f2e9; border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.7; }
+.document-original { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 0 0 24px; }
+.document-original > div { flex: 1; min-width: 120px; }
+.document-original strong { font-size: 14px; overflow-wrap: anywhere; }
+.document-original p { font-size: 12px; color: #75816f; margin-top: 6px; }
+.document-original .button { flex: 0 1 auto; }
+.document-checking { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 16px; background: #f0f2e8; border-radius: 10px; font-size: 13px; line-height: 1.8; }
+.document-checking p { flex: 1; min-width: 150px; }
+.document-version-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0; width: 100%; text-align: left; color: #284438; }
+.document-version-link span:first-child { display: grid; gap: 6px; min-width: 0; }
+.document-version-link strong, .document-version-link small { overflow-wrap: anywhere; }
+.document-version-link:disabled { opacity: 1; cursor: default; }
+.document-current { display: inline-flex; border-radius: 5px; padding: 5px 8px; background: #e5ebd7; color: #667d51; font-size: 11px; flex: 0 0 auto; }
+.document-replace { margin-top: 16px; }
+@media (max-width: 1200px) { .document-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .document-grid { grid-template-columns: minmax(0, 1fr); } .document-art { display: none; } .document-original .button { width: 100%; } .documents-page .filter-row .filter-select { width: auto; } }

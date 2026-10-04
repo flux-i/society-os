@@ -39,7 +39,7 @@ export interface FlatDetail extends Flat {
   members: { id: string; name: string; relationship: string; start_date: string; end_date: string | null; membership_id: string; primary_contact: boolean; active: boolean }[]
 }
 
-export interface User { id: string; name: string; roles: string[]; can_read_registry: boolean; can_manage_registry: boolean; can_manage_records: boolean; can_read_all_records: boolean; can_read_records: boolean; can_review_requests: boolean; can_handle_complaints: boolean; csrf_token: string; mfa_required: boolean; mfa_enrolled: boolean; mfa_pending: boolean; is_demo: boolean; fresh_authentication: boolean }
+export interface User { id: string; name: string; roles: string[]; can_read_registry: boolean; can_manage_registry: boolean; can_manage_records: boolean; can_read_all_records: boolean; can_read_records: boolean; can_review_requests: boolean; can_handle_complaints: boolean; can_manage_documents: boolean; csrf_token: string; mfa_required: boolean; mfa_enrolled: boolean; mfa_pending: boolean; is_demo: boolean; fresh_authentication: boolean }
 export interface MFAResult { user: User; recovery_codes?: string[] }
 export interface Account { id: string; name: string; email: string; resident_name: string; state: string; roles: string[]; mfa_enrolled: boolean; active_homes: number }
 export interface AccountPage { items: Account[]; total: number; page: number; page_size: number }
@@ -68,7 +68,7 @@ export async function request<T>(path: string, signal?: AbortSignal, init?: Requ
     const messages: Record<number, string> = {
       401: path === '/api/auth/login' ? 'That email and password didn’t match. Please try again.' : 'Please sign in again to continue.',
       403: 'Your account does not have permission for this action.',
-      409: ['/api/entries', '/api/receipts', '/api/reviews', '/api/complaints'].some(prefix => path.startsWith(prefix)) ? 'This record has changed or this retry has different details. Reload the record before continuing.' : 'Someone has updated this home. Reload the details before saving.',
+      409: ['/api/entries', '/api/receipts', '/api/reviews', '/api/complaints', '/api/documents'].some(prefix => path.startsWith(prefix)) ? 'This record has changed or this retry has different details. Reload the record before continuing.' : 'Someone has updated this home. Reload the details before saving.',
       429: 'Please wait a little before trying to sign in again.',
     }
     const codes: Record<string, string> = {
@@ -85,4 +85,8 @@ export async function request<T>(path: string, signal?: AbortSignal, init?: Requ
 
 export const mutate = <T,>(path: string, method: string, data: unknown): Promise<T> => request<T>(path, undefined, {
   method, headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(data),
+})
+
+export const uploadOriginal = (id: string, file: File): Promise<{ id: string }> => request(`/api/documents/${encodeURIComponent(id)}/content`, undefined, {
+  method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-CSRF-Token': csrf }, body: file,
 })

@@ -83,9 +83,7 @@ test('login controls, validation, help and busy feedback work', async ({ page })
 test('shell links, About, backdrop, focus, history and committee access work', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await login(page)
-  for (const name of ['Documents']) {
-    await expect(page.getByRole('button', { name: name + ' Next', exact: true })).toBeDisabled()
-  }
+  await expect(page.getByRole('link', { name: 'Documents', exact: true })).toHaveAttribute('href', '#documents')
   await expect(page.getByRole('link', { name: 'Community', exact: true })).toHaveAttribute('href', '#community')
   await expect(page.getByRole('link', { name: 'Requests & approvals', exact: true })).toHaveAttribute('href', '#reviews')
   await page.locator('.workspace-profile').click()

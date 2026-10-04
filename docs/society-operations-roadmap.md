@@ -1,7 +1,7 @@
 # Society operations: overview and next workflows
 
-**Recorded:** 4 October 2026, from the user's explicit product direction.  
-**Status:** Accepted development scope; implementation and production acceptance are separate. Release 0.6 remains the verified preview. The document checkpoint is in verification.  
+**Recorded:** 4 October 2026, from the user's explicit product direction.
+**Status:** Accepted development scope; implementation and production acceptance are separate. Release 0.7/schema 7 is the verified preview with completed local document evidence. The overview revamp is next.
 **Ordering:** Finish its gate, then revamp the overview. Deliver the remaining workflows in the order below, with domain, rendered interaction, screenshot and actual native WebMCP checks at every checkpoint.
 
 This document extends the [implementation plan](../housing-society-digital-platform-plan.md) and [execution backlog](../execution-backlog.md). It supersedes their earlier deferral of resident payment reports and configured messaging. Payment gateways, transfers initiated by the platform, bank automation and automatic statutory charge calculations remain outside scope. A collection campaign requests an externally paid contribution; it does not move money.

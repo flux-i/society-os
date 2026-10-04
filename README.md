@@ -1,10 +1,12 @@
 # Society OS
 
-A thoughtful community portal for a 118-flat society. The working **local preview** includes an illustrated overview, occupancy and owner/tenant counts, scoped homes, registry administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices, personal service requests with private handler notes and verified SQLite snapshot/restore tools.
+A thoughtful community portal for a 118-flat society. The working **local preview** includes an illustrated overview, occupancy and owner/tenant counts, scoped homes, registry administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices, personal service requests with private handler notes, validated private document versions and verified SQLite snapshot/restore tools.
+
+The [next operations roadmap](docs/society-operations-roadmap.md) preserves the user's overview revamp, maintenance, fund campaigns/external-payment verification, targeted WhatsApp/email, approved rule/fine workflows and financial statement publication. Those are next development slices; the existing portal does not initiate payment or send provider messages.
 
 ## Run locally
 
-Requirements: Go 1.27+, Node 22.12+ and npm. This workspace was tested with Go 1.27.0, Node 25.8.1 and npm 11.21.0. Go dependencies and frontend packages are pinned in `go.mod`/`go.sum` and `web/package-lock.json`.
+Requirements: Go 1.27+, Node 22.12+ and npm. PDF-original validation also requires a system `qpdf`; this workspace was tested with qpdf 12.4.2, Go 1.27.0, Node 25.8.1 and npm 11.21.0. Go dependencies and frontend packages are pinned in `go.mod`/`go.sum` and `web/package-lock.json`. Install qpdf through the host package manager (macOS: `brew install qpdf`) and check `qpdf --version`. If it is absent, uploaded PDFs remain unavailable with a retryable check failure; the portal never approves unchecked bytes. The full validator checks require the actual executable.
 
 ```sh
 make setup
@@ -13,7 +15,7 @@ make run
 
 Open **http://127.0.0.1:8080**. `make run` builds the application, creates the isolated fictional registry if needed, and serves the frontend and API from one Go process. Stop with Ctrl+C. Repeated seeding preserves the same fixture without duplicating records.
 
-The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 6 without replacing registry records. The earlier identity upgrade signs out old sessions.
+The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 7 without replacing registry records. The earlier identity upgrade signs out old sessions.
 
 Choose an account on the sign-in screen, then select **Sign in**. The fictional credentials are prefilled; every demo account uses the public preview password `Community-preview-2026!`.
 
@@ -44,11 +46,11 @@ make bench
 make report
 ```
 
-`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 53 backend test declarations, including exact financial amounts, concurrent operation retries, immutable corrections, leased receipt jobs, private PDF access, separate approvals, scoped notices and personal/private service conversations.
+`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 64 backend test declarations, including exact financial amounts, concurrent operation retries, immutable corrections, leased receipt jobs, private PDF access, separate approvals, scoped notices, personal/private service conversations and document validation/version/quota/snapshot cases.
 
 `make bench` runs the representative registry query three times. `make report` creates an independent fresh synthetic database, measures 100 warm local HTTP reads after ten warmups, snapshots the live database and restores it into a new environment. It verifies SHA-256 independently in Python and records measured times, engine settings and counts in `reports/local/account-security-baseline.json`. These are local measurements, not production performance commitments.
 
-`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. The current gate passes 48 ordinary browser cases and 8 native WebMCP cases. The browser API is optional for using the portal, and no tool approves, publishes or posts records. See [approval and notice evidence](docs/approvals-notices-baseline.md), [service-request evidence](docs/complaints-baseline.md) and the ongoing [development process](docs/development-workflow.md).
+`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. The document gate passes 60 ordinary browser cases and 10 native WebMCP cases. The browser API is optional for using the portal, and no tool approves, uploads, publishes or posts records. See [approval and notice evidence](docs/approvals-notices-baseline.md), [service-request evidence](docs/complaints-baseline.md), [document acceptance](docs/documents-baseline.md) and the ongoing [development process](docs/development-workflow.md).
 
 Browser checks use a fresh fictional database on an ephemeral loopback port and leave your preview untouched:
 
@@ -58,17 +60,19 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. The 48 browser cases cover the registry, all 118 home cards, opened dropdowns, manual entry/receipt/discard/reversal/retry workflows, invitations, password reset/session revocation, authenticators, separate review/publication and service requests across desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the original inventory and global Claude Code/Codex browser tooling; subsequent workflow baselines record the added controls.
+Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. The 60 browser cases cover the registry, all 118 home cards, opened dropdowns, manual entry/receipt/discard/reversal/retry workflows, invitations, password reset/session revocation, authenticators, separate review/publication, service requests and original-document upload/download/version/retry workflows across desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the original inventory and global Claude Code/Codex browser tooling; subsequent workflow baselines record the added controls.
 
 **Entries & receipts** lets the officer save and review manual drafts, confirm supplied charges/opening balances or money already received, download private receipt PDFs, discard mistaken drafts and reverse confirmed entries with a reason. Balances derive from confirmed, unreversed entries in the selected home scope. The owner sees only financially permitted records. See [manual-record acceptance](docs/manual-records-baseline.md) and [our development process and issue inventory](docs/development-workflow.md).
 
 **Requests & community** supports proposals, revisions and approval by a different reviewer. Approved notices reach only their current audience. Expense/registry proposals do not automatically post money or apply registry edits. **Help & repairs** lets residents report against their own active home and follow their own cases. Authorized handlers manage assignment/progress and staff-only notes; authors can confirm closure or reopen after resolution. Ended membership retains read-only personal case history.
 
+**Documents** accepts fictional plain PDFs, PNGs and JPEGs with reserved size/checksum/quota, actual content checks, private originals and separate approval before sharing. A replacement preserves the previous approved version until approval; decline/withdraw/archive retain history. Current home/person/community/accounting scope controls metadata, counts, version history and downloads. Financial uploads require their own entitlement and never post money or issue a receipt. Limits: 20 MiB images, 4 MiB PDFs, 100 MiB per uploader and 1 GiB per society including reservations and retained bytes. Actual image decoding is capped at 8 megapixels. PDF checks use a bounded qpdf process; they do not establish antivirus coverage or an operating-system memory sandbox. The **synthetic local storage adapter** stores originals in SQLite so consistent snapshots include them. Planned production S3, containment/antivirus, retention policy, spreadsheets/OCR and attachment links remain pending.
+
 To keep an already verified preview running while developing the next checkpoint, retain its binary and assets together:
 
 ```sh
-python3 scripts/pin-preview.py --name 0.6
-./var/preview-releases/0.6/society-server serve --demo --db var/demo/society.db --mfa-key-file var/keys/mfa.key --addr 127.0.0.1:8080 --web-dir var/preview-releases/0.6/web
+python3 scripts/pin-preview.py --name 0.7
+./var/preview-releases/0.7/society-server serve --demo --db var/demo/society.db --mfa-key-file var/keys/mfa.key --addr 127.0.0.1:8080 --web-dir var/preview-releases/0.7/web
 ```
 
 Stop the earlier server before starting the retained one. The pin command refuses an existing name. Verify the build first, then pin it; the command packages files and does not run the checks. It does not copy databases or keys. Use a new name for the next verified release.
@@ -84,6 +88,8 @@ make restore-check SNAPSHOT=var/snapshots/checkpoint-01 RESTORED_DB=var/restored
 Snapshots use `VACUUM INTO` to include committed WAL changes consistently, then remove sessions, access links and recovery codes from the private copy before hashing. Session deletion also removes pending authenticator setup. Identity and audit remain intact; the live user's session is unaffected, and restored users must sign in again. Each new private bundle contains `society.db` and a manifest with SHA-256, byte size, schema/application/engine versions, fixture identity, timestamp and counts. Verification includes SQLite integrity, foreign keys and migration checksums. Restoration refuses existing databases and WAL/SHM sidecars. Use the matching release for a snapshot's schema; older checkpoints require their matching release before an explicit upgrade. Confirmed authenticator factors survive encrypted; preserve the matching MFA key separately. Saved recovery codes intentionally do not survive restoration.
 
 Derived PDFs live in a private `documents/` directory beside the database. On startup, missing/corrupt completed PDFs are regenerated from the preserved receipt snapshots and numbers.
+
+Original library files belong to the local SQLite snapshot along with their checksum, scope, immutable versions and review events. Restore verifies original bytes in a separate recovery case and invalidates old sessions. Do not confuse regenerable receipt PDFs with irreplaceable uploaded originals.
 
 These snapshots are local and unencrypted. Off-site encryption, S3, off-site key custody, external alerts and production power/reboot recovery are pending infrastructure work. The live database and generated snapshots/builds/reports are ignored by Git; do not put real resident data or usable secrets in this preview.
 
@@ -136,6 +142,12 @@ This records supplied custodians; it does not verify their real-world authority.
 | `GET`, `POST /api/complaints` | Personal/handler case directory and retry-safe report |
 | `GET /api/complaints/{id}` | Scoped case and visible history page |
 | `POST /api/complaints/{id}/updates` | Public/private conversation or permitted version-checked decision |
+| `GET`, `POST /api/documents` | Scoped library/counts and retry-safe upload reservation |
+| `GET /api/documents/{id}` | Permitted metadata and paged immutable versions; private review trail only for uploader/reviewer |
+| `POST /api/documents/{id}/content` | Original-author raw upload; reserved size/checksum and current entitlement checked |
+| `POST /api/documents/{id}/actions` | Version-checked separate approval, decline, withdrawal, archive or unavailable-check retry |
+| `GET /api/documents/{id}/download` | Current-scope validated original attachment |
+| `GET /api/documents/subjects` | Document reviewer's bounded active-person lookup |
 | `GET /api/people` | Registry officer's bounded person lookup |
 | `GET /api/flats/{id}/activity` | Registry officer's latest 30 home changes |
 

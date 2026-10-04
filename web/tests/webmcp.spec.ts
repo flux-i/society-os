@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { login, navigate, completePreviewMFA, chooseOption } from './helpers'
+import { plainPDF } from './document-fixtures'
 
 type ContextDocument = Document & { modelContext: {
   getTools: () => Promise<{ name: string }[]>
@@ -25,7 +26,7 @@ test('native WebMCP discovers permitted tools after MFA and executes bounded sea
   expect(await page.evaluate(() => !!(document as ContextDocument).modelContext)).toBe(true)
   expect(await names(page)).toEqual([])
   await login(page)
-  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_homes', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint'])
+  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document'])
   const mutations: string[] = []
   page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) })
   const homes = JSON.parse(await execute(page, 'society_find_homes', { wing: 'B', occupancy: 'RENTED' }))
@@ -65,7 +66,7 @@ test('native WebMCP follows resident scope and omits financial tools for an unen
   expect(await page.getByRole('dialog').count()).toBe(0)
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await login(page, 'Tenant')
-  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint'])
+  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document'])
   await expect(execute(page, 'society_open_workspace', { screen: 'entries' })).rejects.toThrow()
   const tenantHomes = JSON.parse(await execute(page, 'society_find_homes', {}))
   expect(tenantHomes.items.map((home: { id: string }) => home.id)).toEqual(['demo-flat-A-103'])
@@ -170,4 +171,19 @@ test('native complaint reads reject cancellation and cease returning data after 
   expect(cancelled).toBe(true)
   const me = await (await page.request.get('/api/auth/me')).json(); expect((await page.request.post('/api/auth/logout', { headers: { Origin: new URL(page.url()).origin, 'X-CSRF-Token': me.csrf_token }, data: {} })).status()).toBe(200)
   await expect(execute(page, 'society_find_complaints', {})).rejects.toThrow(); await expect.poll(() => names(page)).toEqual([])
+})
+
+test('native document tools scope a real original before and after visible separate approval without exposing bytes or private review history', async ({ page }) => {
+ await login(page, 'Owner'); await expect.poll(() => names(page)).toContain('society_find_documents'); await execute(page, 'society_open_workspace', { screen: 'documents' }); await page.getByRole('button', { name: 'Add a document', exact: true }).click(); await page.getByLabel('Document file', { exact: true }).setInputFiles({ name: 'native-circular.pdf', mimeType: 'application/pdf', buffer: plainPDF() }); await page.getByRole('textbox', { name: 'Title', exact: true }).fill('NATIVE Document circulation'); await chooseOption(page, 'Document category', 'Circular'); await chooseOption(page, 'Document audience', 'Current society residents')
+ await expect(execute(page, 'society_open_workspace', { screen: 'overview' })).rejects.toThrow(); await expect(page.getByRole('dialog')).toBeVisible(); const saved = page.waitForResponse(response => /\/api\/documents\/[^/]+\/content$/.test(response.url()) && response.request().method() === 'POST'); await page.getByRole('button', { name: 'Upload for review', exact: true }).click(); const response = await saved; expect(response.status()).toBe(200); const id = (await response.json()).id; await expect(page.getByRole('button', { name: 'Download original', exact: true })).toBeEnabled()
+ const own = JSON.parse(await execute(page, 'society_read_document', { document_id: id, history_page: 99 })); expect(own.review_state).toBe('PENDING'); expect(own.history_page).toBe(1); expect(own.history_total).toBe(1); expect(own.events.length).toBeGreaterThan(0)
+ await page.getByRole('button', { name: 'Close document details' }).click(); await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await login(page, 'Tenant'); await expect.poll(() => names(page)).toContain('society_read_document'); expect(JSON.parse(await execute(page, 'society_find_documents', { query: 'NATIVE Document circulation' })).total).toBe(0); await expect(execute(page, 'society_read_document', { document_id: id })).rejects.toThrow()
+ await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await login(page); await page.goto('/#documents?file=' + id); await chooseOption(page, 'Document decision', 'Approve this version'); await page.getByRole('textbox', { name: 'Document decision reason' }).fill('NATIVE_REVIEW_SECRET Only staff and the uploader can see this review reason'); await page.getByRole('checkbox', { name: 'I have checked this version, its audience and my decision.' }).check(); await page.getByRole('button', { name: 'Save document decision', exact: true }).click(); await expect(page.getByRole('dialog').locator('.review-state')).toHaveText('Approved'); await page.getByRole('button', { name: 'Close document details' }).click(); await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await login(page, 'Tenant'); await expect.poll(() => names(page)).toContain('society_read_document')
+ const approved = JSON.parse(await execute(page, 'society_read_document', { document_id: id })); expect(approved.review_state).toBe('APPROVED'); expect(approved.revision).toBe(1); expect(approved.events).toBeUndefined(); expect(JSON.stringify(approved)).not.toContain('NATIVE_REVIEW_SECRET'); expect(approved.original_bytes).toBeUndefined(); expect(approved.download_url).toBeUndefined(); const found = JSON.parse(await execute(page, 'society_find_documents', { query: 'NATIVE Document circulation' })); expect(found.items.map((item: { id: string }) => item.id)).toEqual([id]); await expect(execute(page, 'society_find_documents', { category: 'HTML', page: -1 })).rejects.toThrow(); expect((await names(page)).some(name => /approve|upload|archive|delete/.test(name))).toBe(false)
+})
+
+test('native document cancellation and bounded arguments fail safely and tools unregister after session revocation', async ({ page }) => {
+ await login(page, 'Owner'); await expect.poll(() => names(page)).toContain('society_find_documents'); await expect(execute(page, 'society_find_documents', { query: 'x'.repeat(101) })).rejects.toThrow(); await expect(execute(page, 'society_read_document', { document_id: 'x'.repeat(101), history_page: -1 })).rejects.toThrow()
+ const cancelled = await page.evaluate(async () => { const context = (document as ContextDocument).modelContext; const tool = (await context.getTools()).find(item => item.name === 'society_find_documents')!; const controller = new AbortController(); controller.abort(); const major = Number(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1]); try { await context.executeTool(tool, major < 155 ? '{}' : {}, { signal: controller.signal }); return false } catch { return true } }); expect(cancelled).toBe(true)
+ const me = await (await page.request.get('/api/auth/me')).json(); expect((await page.request.post('/api/auth/logout', { headers: { Origin: new URL(page.url()).origin, 'X-CSRF-Token': me.csrf_token }, data: {} })).status()).toBe(200); await expect(execute(page, 'society_find_documents', {})).rejects.toThrow(); await expect.poll(() => names(page)).toEqual([])
 })
