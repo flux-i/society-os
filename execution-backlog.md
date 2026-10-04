@@ -1,7 +1,8 @@
 # Society OS Execution Backlog
 
 **Updated:** 4 October 2026  
-**Current state:** Local foundation and the first identity/registry slice are runnable: relevant occupancy/people counts, fictional sign-in, scoped reads, registry management and change history. Invitations/assisted password recovery and privileged MFA work locally. Production identity/custody acceptance, subsequent role/account administration, infrastructure and later workflows are pending.  
+**Current state:** Local foundation and the first identity/registry slice are runnable: relevant occupancy/people counts, fictional sign-in, scoped reads, registry management and change history. Invitations/assisted password recovery and privileged MFA work locally. Manual entries, private receipt PDFs, operation retries, draft discard and linked corrections now work locally. Production identity/custody acceptance, approved finance examples/policy, subsequent role/account administration, infrastructure and later workflows are pending.
+
 **Scope update:** The portal tracks manually entered records and generates receipts for money already received. Payment initiation, gateways and bank automation are excluded. Automated billing and Tally integration are conditional future work.
 
 Execute the [strategy](housing-society-execution-strategy.md) through small build milestones. Begin with a runnable local foundation using synthetic data. Confirm production infrastructure and accounting inputs alongside that work, then complete the gates in the [implementation plan](housing-society-digital-platform-plan.md).
@@ -110,7 +111,7 @@ Use the installed Claude evaluation guides when a concrete Claude-powered flow e
 
 The `claude-api` skill is optional development guidance, not an application dependency. No V1 workflow needs the Claude API, an Anthropic SDK or a Claude API key. If a later AI feature uses Claude, the skill can assist its implementation and evaluation; choosing that provider is a separate future decision.
 
-The immediate next engineering tasks are **operation identities, leased jobs and private storage**, followed by the manual-entry/receipt slice. Invitations/password recovery and privileged MFA now work with synthetic data. Password sign-in, current membership/role scope, registry administration and transactional history already work with synthetic accounts. Keep finance-entry permissions separate from resident and registry access. Production hardware/state details still block only their dependent production decisions.
+Operation identities, leased jobs/private storage and the manual entry/receipt slice are now implemented locally; see [manual-record acceptance](docs/manual-records-baseline.md). Next are notices/complaints/documents and the independent production/finance-policy acceptance work. Invitations/password recovery and privileged MFA now work with synthetic data. Password sign-in, current membership/role scope, registry administration and transactional history already work with synthetic accounts. Keep finance-entry permissions separate from resident and registry access. Production hardware/state details still block only their dependent production decisions.
 
 ## 6 Manual entry boundary and future automation
 

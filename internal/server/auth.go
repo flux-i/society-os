@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/subtle"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -173,6 +174,8 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) resultError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		respond(w, 404, map[string]string{"error": "not_found"})
 	case errors.Is(err, database.ErrMFARequired):
 		respond(w, 403, map[string]string{"error": "mfa_required"})
 	case errors.Is(err, database.ErrReauthRequired):

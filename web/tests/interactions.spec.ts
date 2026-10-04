@@ -83,7 +83,7 @@ test('login controls, validation, help and busy feedback work', async ({ page })
 test('shell links, About, backdrop, focus, history and committee access work', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await login(page)
-  for (const name of ['Entries', 'Receipts', 'Community', 'Documents']) {
+  for (const name of ['Community', 'Documents']) {
     await expect(page.getByRole('button', { name: name + ' Next', exact: true })).toBeDisabled()
   }
   await page.locator('.workspace-profile').click()

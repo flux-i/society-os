@@ -14,19 +14,22 @@ import (
 	"time"
 
 	"society.local/portal/internal/database"
+	"society.local/portal/internal/documents"
 )
 
 type Server struct {
-	Store   *database.Store
-	Logger  *slog.Logger
-	Version string
-	Web     fs.FS
+	Store     *database.Store
+	Logger    *slog.Logger
+	Version   string
+	Web       fs.FS
+	Documents *documents.Store
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	guard := newLoginGuard()
 	s.accountRoutes(mux, guard)
+	s.recordRoutes(mux)
 	mux.HandleFunc("POST /api/auth/login", s.login(guard))
 	mux.HandleFunc("GET /api/auth/me", s.protected(func(w http.ResponseWriter, r *http.Request) { respond(w, 200, currentPrincipal(r)) }))
 	mux.HandleFunc("POST /api/auth/logout", s.protected(s.logout))

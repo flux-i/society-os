@@ -64,7 +64,7 @@ Replacing native form controls also required regression checks for native requir
 
 The desktop filter comparison uses **2048×1119**. Open menus are checked at 1280×720, 1024×768, 768×1024, 375×812 and 320×568; each of the seven form dropdowns is inspected inside its dialog at desktop and phone sizes. Earlier viewport checks also cover 375×500. Geometry assertions include matching filter heights/borders/radii, fully visible menus, no horizontal page overflow, and hit testing inside dialog menus to detect clipping.
 
-This is a documented Chromium review of the implemented local workflows and the specified states. It does not establish every possible input, timing, browser or physical-device interaction. Upcoming disabled Entries, Receipts, Community and Documents controls have no implemented workflow to exercise.
+This is a documented Chromium review of the implemented local workflows and the specified states. It does not establish every possible input, timing, browser or physical-device interaction. At this schema-3 checkpoint, Entries/Receipts/Community/Documents were upcoming disabled controls. Schema 4 adds Entries/Receipts; its separate coverage is recorded in [manual-record acceptance](manual-records-baseline.md).
 
 To reproduce the complete suite with screenshots:
 

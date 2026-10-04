@@ -23,7 +23,7 @@ function PortalSelect({ label, value, options, onChange, required, form = false 
     document.addEventListener('pointerdown', outside, true)
     return () => document.removeEventListener('pointerdown', outside, true)
   }, [open])
-  return <span className="select-field" onInvalidCapture={event => { event.preventDefault(); setInvalid(true); trigger.current?.focus() }}><Select.Root value={form ? value : value || 'all'} required={required} open={open} onOpenChange={setOpen} onValueChange={next => {
+  return <span className="select-field" onInvalidCapture={event => { event.preventDefault(); setInvalid(true); requestAnimationFrame(() => { const first = trigger.current?.closest('form')?.querySelector<HTMLElement>('input:invalid, textarea:invalid, button[aria-invalid="true"]'); (first ?? trigger.current)?.focus() }) }}><Select.Root value={form ? value : value || 'all'} required={required} open={open} onOpenChange={setOpen} onValueChange={next => {
     if (form && !items.some(option => option.value === next)) return
     setInvalid(false)
     onChange(next === 'all' ? '' : next)

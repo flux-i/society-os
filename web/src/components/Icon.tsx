@@ -1,4 +1,5 @@
 const paths = {
+  plus: 'M12 4v16 M4 12h16',
   menu: 'M4 6h16 M4 12h16 M4 18h16',
   shield: 'M12 3 3 7v6c0 5 9 9 9 9s9-4 9-9V7z M8 12l3 3 5-6',
   key: 'M14 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M9 11v10 M9 16h4 M9 20h3',

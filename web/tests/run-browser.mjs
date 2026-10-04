@@ -24,7 +24,7 @@ try {
     if (server.exitCode !== null || Date.now() > deadline) throw new Error(`Isolated browser QA server could not start on ${base}`)
     await new Promise(resolve => setTimeout(resolve, 50))
   }
-  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(2)], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: base } })
+  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(2)], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: base, SOCIETY_BROWSER_DB: db } })
   process.exitCode = await new Promise(resolve => runner.on('exit', code => resolve(code ?? 1)))
 } finally {
   if (server && server.exitCode === null) {

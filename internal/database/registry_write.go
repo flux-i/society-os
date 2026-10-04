@@ -316,7 +316,7 @@ func (s *Store) ActivityFor(ctx context.Context, token, flatID string) ([]AuditE
 		return nil, err
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT a.id, u.display_name, a.action, a.occurred_at, a.reason, a.before_json, a.after_json
-        FROM audit_events a JOIN users u ON u.id = a.actor_user_id WHERE a.flat_id = ? ORDER BY a.id DESC LIMIT 30`, flatID)
+        FROM audit_events a JOIN users u ON u.id = a.actor_user_id WHERE a.flat_id = ? AND a.action IN ('OCCUPANCY_CHANGED','MEMBERSHIP_ADDED','MEMBERSHIP_ENDED') ORDER BY a.id DESC LIMIT 30`, flatID)
 	if err != nil {
 		return nil, err
 	}

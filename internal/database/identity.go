@@ -77,6 +77,9 @@ type Principal struct {
 	Roles             []string `json:"roles"`
 	CanReadRegistry   bool     `json:"can_read_registry"`
 	CanManageRegistry bool     `json:"can_manage_registry"`
+	CanManageRecords  bool     `json:"can_manage_records"`
+	CanReadAllRecords bool     `json:"can_read_all_records"`
+	CanReadRecords    bool     `json:"can_read_records"`
 	CSRF              string   `json:"csrf_token"`
 	MFARequired       bool     `json:"mfa_required"`
 	MFAEnrolled       bool     `json:"mfa_enrolled"`
@@ -119,6 +122,12 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 			return p, err
 		}
 		p.Roles = append(p.Roles, role)
+		if role == "TREASURER" {
+			p.CanManageRecords = true
+		}
+		if role == "TREASURER" || role == "COMMITTEE" {
+			p.CanReadAllRecords = true
+		}
 		if role == "ADMINISTRATOR" {
 			p.CanManageRegistry = true
 		}
@@ -129,11 +138,25 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 			p.CanReadRegistry = true
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return p, err
+	}
+	rows.Close()
+	p.CanReadRecords = p.CanReadAllRecords
+	if !p.CanReadRecords && p.ResidentID != "" {
+		err = q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM flat_memberships WHERE resident_id = ? AND can_view_finances = 1 AND start_date <= ? AND (end_date IS NULL OR end_date > ?))`, p.ResidentID, today(), today()).Scan(&p.CanReadRecords)
+		if err != nil {
+			return p, err
+		}
+	}
 	p.MFAPending = (p.MFARequired || p.MFAEnrolled) && p.factorAt == 0
 	p.Fresh = p.passwordAt > now.Add(-5*time.Minute).Unix() && (!(p.MFARequired || p.MFAEnrolled) || p.factorAt > now.Add(-5*time.Minute).Unix())
 	if p.MFAPending {
 		p.CanReadRegistry = false
 		p.CanManageRegistry = false
+		p.CanManageRecords = false
+		p.CanReadAllRecords = false
+		p.CanReadRecords = false
 	}
 	return p, rows.Err()
 }

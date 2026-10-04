@@ -1,6 +1,6 @@
 # Society OS
 
-A thoughtful community portal for a 118-flat society. The working **local preview** includes an illustrated overview, occupied/vacant and active owner/tenant counts, sign-in, resident-scoped homes, registry administration, invitations/password recovery, authenticator protection, change history and verified SQLite snapshot/restore tools.
+A thoughtful community portal for a 118-flat society. The working **local preview** includes an illustrated overview, occupied/vacant and active owner/tenant counts, sign-in, resident-scoped homes, registry administration, invitations/password recovery, authenticator protection, change history, manual entries/receipt PDFs and verified SQLite snapshot/restore tools.
 
 ## Run locally
 
@@ -13,16 +13,16 @@ make run
 
 Open **http://127.0.0.1:8080**. `make run` builds the application, creates the isolated fictional registry if needed, and serves the frontend and API from one Go process. Stop with Ctrl+C. Repeated seeding preserves the same fixture without duplicating records.
 
-The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 3 without replacing registry records. The identity upgrade signs out old sessions.
+The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 4 without replacing registry records. The identity upgrade signs out old sessions.
 
 Choose an account on the sign-in screen, then select **Sign in**. The fictional credentials are prefilled; every demo account uses the public preview password `Community-preview-2026!`.
 
 | Account | Local preview access |
 |---|---|
-| `admin@demo.society` | Registry management/history, invitations and password recovery; MFA required |
-| `committee@demo.society` | Community registry views; cannot change records |
-| `owner@demo.society` | Only the owner's two active homes, A-101 and A-102 |
-| `tenant@demo.society` | Only the tenant's active home, A-103; no former-tenant history |
+| `admin@demo.society` | Registry/history, invitations/recovery and an explicit additional treasury grant for entries/receipts; MFA required |
+| `committee@demo.society` | Community registry and financial views; cannot change records |
+| `owner@demo.society` | Only the owner's two active homes and confirmed financial records, A-101 and A-102 |
+| `tenant@demo.society` | Only the tenant's active home, A-103; no former-tenant history or finance entitlement |
 
 **For the registry officer:** after Sign in, select **Use a preview code**, then **Verify and continue**. On first setup, save and acknowledge the displayed recovery codes. The shortcut is restricted to the four fictional accounts; invited identities use their own authenticator.
 
@@ -44,7 +44,7 @@ make bench
 make report
 ```
 
-`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 31 backend checks.
+`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 39 backend checks, including exact financial amounts, concurrent operation retries, immutable corrections, leased receipt jobs and private PDF access.
 
 `make bench` runs the representative registry query three times. `make report` creates an independent fresh synthetic database, measures 100 warm local HTTP reads after ten warmups, snapshots the live database and restores it into a new environment. It verifies SHA-256 independently in Python and records measured times, engine settings and counts in `reports/local/account-security-baseline.json`. These are local measurements, not production performance commitments.
 
@@ -56,7 +56,9 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. Twenty-six browser checks cover the registry, all 118 home cards, all nine dropdown menus, invitation activation, password reset/session revocation, authenticator enrollment, recovery-code reuse denial and rendered UI regressions across desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the control inventory, fixes, screenshot command and global Claude Code/Codex browser tooling.
+Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. Thirty-four browser checks cover the registry, all 118 home cards, the original nine dropdown controls plus five entry/receipt controls, manual entry/receipt/discard/reversal/retry workflows, invitation activation, password reset/session revocation, authenticator enrollment, recovery-code reuse denial and rendered UI regressions across desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the control inventory, fixes, screenshot command and global Claude Code/Codex browser tooling.
+
+**Entries & receipts** lets the officer save and review manual drafts, confirm supplied charges/opening balances or money already received, download private receipt PDFs, discard mistaken drafts and reverse confirmed entries with a reason. Balances derive from confirmed, unreversed entries in the selected home scope. The owner sees only financially permitted records. See [manual-record acceptance](docs/manual-records-baseline.md) and [our development process and issue inventory](docs/development-workflow.md).
 
 ## Local recovery
 
@@ -67,6 +69,8 @@ make restore-check SNAPSHOT=var/snapshots/checkpoint-01 RESTORED_DB=var/restored
 ```
 
 Snapshots use `VACUUM INTO` to include committed WAL changes consistently, then remove sessions, access links and recovery codes from the private copy before hashing. Session deletion also removes pending authenticator setup. Identity and audit remain intact; the live user's session is unaffected, and restored users must sign in again. Each new private bundle contains `society.db` and a manifest with SHA-256, byte size, schema/application/engine versions, fixture identity, timestamp and counts. Verification includes SQLite integrity, foreign keys and migration checksums. Restoration refuses existing databases and WAL/SHM sidecars. Use the matching release for a snapshot's schema; older checkpoints require their matching release before an explicit upgrade. Confirmed authenticator factors survive encrypted; preserve the matching MFA key separately. Saved recovery codes intentionally do not survive restoration.
+
+Derived PDFs live in a private `documents/` directory beside the database. On startup, missing/corrupt completed PDFs are regenerated from the preserved receipt snapshots and numbers.
 
 These snapshots are local and unencrypted. Off-site encryption, S3, off-site key custody, external alerts and production power/reboot recovery are pending infrastructure work. The live database and generated snapshots/builds/reports are ignored by Git; do not put real resident data or usable secrets in this preview.
 
@@ -105,6 +109,14 @@ This records supplied custodians; it does not verify their real-world authority.
 | `PATCH /api/flats/{id}` | Registry officer's version-checked occupancy change |
 | `POST /api/flats/{id}/members` | Create/link a person and date-bounded relationship |
 | `POST /api/flats/{id}/members/{membership}/end` | End a relationship while retaining history |
+| `GET /api/entries` | Financially scoped totals, home options, search/filter/pagination |
+| `POST /api/entries` | Retry-safe manual draft |
+| `GET /api/entries/{id}` | Financially scoped record and receipt status |
+| `POST /api/entries/{id}/post` | Treasury confirmation; atomic received receipt/job |
+| `POST /api/entries/{id}/discard` | Discard a draft with preserved history |
+| `POST /api/entries/{id}/reverse` | Linked immutable correction |
+| `GET /api/receipts/{id}/download` | Current-scope private PDF download |
+| `POST /api/receipts/{id}/retry` | Treasury retry of a failed PDF job |
 | `GET /api/people` | Registry officer's bounded person lookup |
 | `GET /api/flats/{id}/activity` | Registry officer's latest 30 home changes |
 
@@ -114,7 +126,7 @@ Passwords use Argon2id; sessions use hashed random bearer tokens, HttpOnly/SameS
 
 ## What follows
 
-Next: operation identities/jobs/private storage, then manual entries and receipt PDFs, notices/complaints/documents, production recovery and a representative pilot. Manual financial records describe given charges and money already received; the portal does not initiate payment.
+Next: notices/complaints/documents, subsequent role/account administration, approved finance examples/receipt policy, production recovery and a representative pilot. Manual financial records describe given charges and money already received; the portal does not initiate payment.
 
 Automated billing, bank matching, payment gateways and Tally integration are conditional future work. No runtime LLM API is required.
 

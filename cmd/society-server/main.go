@@ -15,11 +15,12 @@ import (
 
 	"society.local/portal/internal/backup"
 	"society.local/portal/internal/database"
+	"society.local/portal/internal/documents"
 	"society.local/portal/internal/security"
 	"society.local/portal/internal/server"
 )
 
-var version = "0.3.0-dev"
+var version = "0.4.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -118,6 +119,9 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		if err := store.SeedDemoAccounts(ctx); err != nil {
 			return err
 		}
+		if err := store.SeedDemoTreasury(ctx); err != nil {
+			return err
+		}
 		counts, err := database.CountRecords(ctx, store.DB)
 		if err != nil {
 			return err
@@ -152,6 +156,9 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		if err := store.SeedDemoAccounts(ctx); err != nil {
 			return err
 		}
+		if err := store.SeedDemoTreasury(ctx); err != nil {
+			return err
+		}
 		var factors int
 		if err := store.DB.QueryRowContext(ctx, "SELECT (SELECT COUNT(*) FROM mfa_factors)+(SELECT COUNT(*) FROM mfa_pending)").Scan(&factors); err != nil {
 			return err
@@ -164,7 +171,19 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		if err := store.VerifyMFAKey(ctx); err != nil {
 			return err
 		}
-		app := &server.Server{Store: store, Logger: logger, Version: version, Web: os.DirFS(*webDir)}
+		documentStore, err := documents.Open(documents.DefaultPath(*dbPath))
+		if err != nil {
+			return err
+		}
+		defer documentStore.Close()
+		if err = documentStore.Reconcile(ctx, store); err != nil {
+			return err
+		}
+		workerCtx, stopWorker := context.WithCancel(ctx)
+		workerDone := make(chan struct{})
+		go func() { defer close(workerDone); documentStore.Run(workerCtx, store, logger) }()
+		defer func() { stopWorker(); <-workerDone }()
+		app := &server.Server{Documents: documentStore, Store: store, Logger: logger, Version: version, Web: os.DirFS(*webDir)}
 		httpServer := &http.Server{Addr: *address, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
 		errCh := make(chan error, 1)
 		go func() { errCh <- httpServer.ListenAndServe() }()
