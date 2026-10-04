@@ -1,0 +1,102 @@
+import { test, expect } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { mkdirSync, chmodSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { login, navigate, chooseOption } from './helpers'
+
+async function inspectMenu(page: Page, name: string, size: number) {
+  const trigger = page.getByRole('combobox', { name, exact: true })
+  const sizeBefore = await trigger.boundingBox()
+  expect(sizeBefore!.height).toBe(48)
+  await trigger.click()
+  const menu = page.getByRole('listbox')
+  await expect(menu).toBeInViewport({ ratio: 1 })
+  await expect(page.getByRole('option').first()).toBeVisible()
+  const bounds = await menu.boundingBox()
+  expect(bounds!.x).toBeGreaterThanOrEqual(0)
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(size)
+  // A menu inside a native dialog must also be clickable, not clipped by the dialog's scroll area.
+  expect(await menu.evaluate(el => {
+    const b = el.getBoundingClientRect()
+    const point = document.elementFromPoint(b.left + b.width / 2, b.bottom - 8)
+    return !!point && el.contains(point)
+  })).toBe(true)
+  if (process.env.SOCIETY_CAPTURE_UI) {
+    await page.evaluate(() => document.fonts.ready)
+    const folder = resolve('../reports/local/interaction-review')
+    mkdirSync(folder, { recursive: true, mode: 0o700 })
+    const path = resolve(folder, `form-${size}-${name.toLowerCase().replaceAll(' ', '-')}-open.png`)
+    await page.screenshot({ path }); chmodSync(path, 0o600)
+  }
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(trigger).toBeFocused()
+}
+
+test('all form dropdowns open visibly inside dialogs and retain their values at desktop and phone sizes', async ({ page }) => {
+  test.setTimeout(60000)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await login(page)
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 375, height: 812 }]) {
+    await page.setViewportSize(viewport)
+    await navigate(page, 'Access & invitations')
+    await page.getByRole('button', { name: 'Invite a person', exact: true }).click()
+    await inspectMenu(page, 'Access', viewport.width)
+    await chooseOption(page, 'Access', 'ADMINISTRATOR')
+    await expect(page.getByLabel('Access term (days)')).toBeVisible()
+    await page.getByLabel('Find a person').fill('Demo Owner C-101')
+    await inspectMenu(page, 'Person in the registry', viewport.width)
+    await chooseOption(page, 'Person in the registry', 'Demo Owner C-101')
+    await expect(page.getByRole('combobox', { name: 'Person in the registry', exact: true })).toHaveText('Demo Owner C-101')
+    await page.keyboard.press('Escape')
+    await navigate(page, 'Homes & people')
+    await page.getByRole('button', { name: 'View home A-101', exact: true }).click()
+    await page.getByRole('button', { name: 'Manage home', exact: true }).click()
+    await inspectMenu(page, 'Occupancy', viewport.width)
+    await expect(page.getByRole('combobox', { name: 'Occupancy', exact: true })).toHaveText('Owner occupied')
+    await page.getByRole('button', { name: 'Add person', exact: true }).click()
+    await inspectMenu(page, 'Person record', viewport.width)
+    await expect(page.getByLabel('Full name')).toBeVisible()
+    await inspectMenu(page, 'Relationship', viewport.width)
+    await expect(page.getByLabel('Full name')).toBeVisible()
+    await chooseOption(page, 'Person record', 'existing')
+    await page.getByLabel('Find a person').fill('Demo Tenant A-103')
+    await inspectMenu(page, 'Existing person', viewport.width)
+    await chooseOption(page, 'Existing person', 'Demo Tenant A-103')
+    await page.getByRole('button', { name: 'End relationship', exact: true }).click()
+    await inspectMenu(page, 'Relationship to end', viewport.width)
+    await chooseOption(page, 'Relationship to end', 'Demo Owner A-101 · Owner')
+    await expect(page.getByRole('combobox', { name: 'Relationship to end', exact: true })).toHaveText('Demo Owner A-101 · Owner')
+    await page.keyboard.press('Escape')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
+})
+
+test('person selection remains required and a long registry menu can scroll and select the last result', async ({ page }) => {
+  await login(page)
+  await navigate(page, 'Access & invitations')
+  await page.getByRole('button', { name: 'Invite a person', exact: true }).click()
+  await page.getByLabel('Email address', { exact: true }).fill('required-person@browser.test')
+  await page.getByRole('checkbox', { name: 'I verified this person’s identity, email and home relationship.' }).check()
+  await page.getByLabel('Verification note').fill('Fictional required field validation check.')
+  let requests = 0
+  await page.route('**/api/admin/invitations', route => { requests++; return route.abort() })
+  await page.getByRole('button', { name: 'Create personal link', exact: true }).click()
+  expect(await page.locator('#invitation-form').evaluate((form: HTMLFormElement) => form.checkValidity())).toBe(false)
+  expect(requests).toBe(0)
+  const person = page.getByRole('combobox', { name: 'Person in the registry', exact: true })
+  await expect(person).toBeFocused()
+  await expect(person).toHaveAttribute('aria-invalid', 'true')
+  await expect(person).toHaveAttribute('aria-required', 'true')
+  await person.click()
+  await expect(page.getByRole('option')).toHaveCount(30)
+  const last = page.getByRole('option').last()
+  const label = await last.innerText()
+  await last.scrollIntoViewIfNeeded()
+  await last.click()
+  await expect(person).toHaveText(label)
+  await page.getByRole('checkbox', { name: 'I verified this person’s identity, email and home relationship.' }).check()
+  await expect(person).not.toHaveAttribute('aria-invalid', 'true')
+  expect(await page.locator('#invitation-form').evaluate((form: HTMLFormElement) => form.checkValidity())).toBe(true)
+})
