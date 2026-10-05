@@ -4,6 +4,7 @@ import { login, navigate, completePreviewMFA, chooseOption } from './helpers'
 import { plainPDF } from './document-fixtures'
 import { execFileSync } from 'node:child_process'
 import { apiMaintenance, apiReceived, ensureMaintenanceReviewer } from './maintenance-fixtures'
+import { apiCareRecord, apiWork, apiWorkAction, careDate } from './upkeep-fixtures'
 
 type ContextDocument = Document & { modelContext: {
   getTools: () => Promise<{ name: string }[]>
@@ -89,7 +90,7 @@ test('native tools rediscover current personal scope after an appointment expire
   }).toEqual(['demo-flat-A-101', 'demo-flat-A-102'])
   const current = await (await resident.request.get('/api/auth/me')).json(); expect(current.id).toBe(before.id); expect(current.roles).toEqual([]); expect(current.can_read_all_records).toBe(false); expect(current.can_read_records).toBe(true)
   await expect(resident.locator('.overview-finance-balance strong')).toHaveText('₹0.00')
-  await expect.poll(() => names(resident)).toHaveLength(14)
+  await expect.poll(() => names(resident)).toHaveLength(16)
   const hidden = JSON.parse(await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-103' })); expect(hidden.items).toEqual([]); expect(hidden.total).toBe(0); expect(hidden.debit_paise).toBe(0); expect(hidden.homes.map((home: { id: string }) => home.id).sort()).toEqual(['demo-flat-A-101', 'demo-flat-A-102']); expect((await resident.request.get('/api/entries/' + entryId)).status()).toBe(404)
   await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-101' }); await expect(resident.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible(); await context.close()
 })
@@ -132,7 +133,7 @@ test('native WebMCP discovers permitted tools after MFA and executes bounded sea
   expect(await page.evaluate(() => !!(document as ContextDocument).modelContext)).toBe(true)
   expect(await names(page)).toEqual([])
   await login(page)
-  await expect.poll(() => names(page)).toEqual(['society_find_accounts', 'society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_maintenance', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_account', 'society_read_complaint', 'society_read_document', 'society_read_home_statement', 'society_read_maintenance', 'society_read_overview'])
+  await expect.poll(() => names(page)).toEqual(['society_find_accounts', 'society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_maintenance', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_find_upkeep', 'society_find_upkeep_register', 'society_open_home', 'society_open_workspace', 'society_read_account', 'society_read_complaint', 'society_read_document', 'society_read_home_statement', 'society_read_maintenance', 'society_read_overview', 'society_read_upkeep', 'society_read_upkeep_register'])
   const mutations: string[] = []
   page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) })
   const homes = JSON.parse(await execute(page, 'society_find_homes', { wing: 'B', occupancy: 'RENTED' }))
@@ -172,7 +173,7 @@ test('native WebMCP follows resident scope and omits financial tools for an unen
   expect(await page.getByRole('dialog').count()).toBe(0)
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await login(page, 'Tenant')
-  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document', 'society_read_overview'])
+  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_find_upkeep', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document', 'society_read_overview', 'society_read_upkeep'])
   await expect(execute(page, 'society_open_workspace', { screen: 'entries' })).rejects.toThrow()
   const tenantHomes = JSON.parse(await execute(page, 'society_find_homes', {}))
   expect(tenantHomes.items.map((home: { id: string }) => home.id)).toEqual(['demo-flat-A-103'])
@@ -354,4 +355,42 @@ test('native captured home statements are discarded when one financial entitleme
     const allowed=JSON.parse(await execute(page,'society_read_home_statement',{home_id:'demo-flat-A-101'}));expect(allowed.flat_id).toBe('demo-flat-A-101')
     await page.getByRole('combobox',{name:'Statement home',exact:true}).click();await expect(page.getByRole('option',{name:'Home A-102',exact:true})).toHaveCount(0);await expect(page.getByRole('option',{name:'Home A-101',exact:true})).toBeVisible();await page.keyboard.press('Escape')
   }finally{entitlement(true);release();await page.unroute('**/api/statements/demo-flat-A-102?**')}
+})
+
+test('actual native upkeep metadata preserves the human form and excludes private work and register details',async({page})=>{
+ await login(page);await expect.poll(()=>names(page)).toContain('society_read_upkeep_register')
+ const title='NATIVE private upkeep '+Date.now(),id=await apiWork(page,title),vendor=await apiCareRecord(page,'VENDOR','NATIVE fictional care partner')
+ await execute(page,'society_open_workspace',{screen:'upkeep'});await page.getByRole('button',{name:'Plan work',exact:true}).click();await page.getByRole('textbox',{name:'Work title',exact:true}).fill('PRIVATE unsaved work title');await page.getByRole('textbox',{name:'Private work details',exact:true}).fill('PRIVATE human instructions must remain in this form')
+ const mutations:string[]=[];const listener=(request:import('@playwright/test').Request)=>{if(!['GET','HEAD'].includes(request.method()))mutations.push(request.url())};page.on('request',listener)
+ const found=JSON.parse(await execute(page,'society_find_upkeep',{query:title}));expect(found.total).toBe(1);expect(found.items).toHaveLength(1);expect(found.items[0].state).toBe('PLANNED');expect(found.items.length).toBeLessThanOrEqual(12)
+ const work=JSON.parse(await execute(page,'society_read_upkeep',{task_id:id}));const directory=JSON.parse(await execute(page,'society_find_upkeep_register',{kind:'VENDOR',query:'NATIVE fictional care partner'}));const record=JSON.parse(await execute(page,'society_read_upkeep_register',{kind:'VENDOR',record_id:vendor}));expect(directory.total).toBe(1);expect(record.state).toBe('ACTIVE')
+ for(const data of [work,record,directory.items[0]])for(const field of ['body','events','contact','phone','email','source_reference','location','assigned_to','ready_by','complaint_id'])expect(data).not.toHaveProperty(field)
+ await expect(page.getByRole('textbox',{name:'Work title',exact:true})).toHaveValue('PRIVATE unsaved work title');await expect(page.getByRole('textbox',{name:'Private work details',exact:true})).toHaveValue('PRIVATE human instructions must remain in this form');await expect(execute(page,'society_open_workspace',{screen:'overview'})).rejects.toThrow();expect(mutations).toEqual([]);page.off('request',listener);await page.getByRole('button',{name:'Close work preparation',exact:true}).click()
+ await page.goto('/#upkeep?task='+id);await expect(page.getByRole('dialog').getByRole('heading',{name:title,exact:true})).toBeVisible();const overview=JSON.parse(await execute(page,'society_read_overview',{section:'upkeep'}));expect(overview.items.length).toBeLessThanOrEqual(4);expect(overview.counts.open).toBeGreaterThanOrEqual(1)
+})
+
+test('native upkeep publication stays frozen across private activity and residents cannot discover operational registers',async({page,browser})=>{
+ await login(page);const id=await apiWork(page,'NATIVE internal pump work',{due_date:careDate(-1)}),hidden=await apiWork(page,'NATIVE hidden internal work')
+ await apiWorkAction(page,id,'PUBLISH',{audience:'BUILDING',building_code:'A',public_title:'NATIVE shared care update',public_body:'A deliberately supplied fictional resident update for Wing A.'})
+ const context=await browser.newContext({baseURL:new URL(page.url()).origin}),owner=await context.newPage();await login(owner,'Owner');await expect.poll(()=>names(owner)).toContain('society_read_upkeep');await expect.poll(()=>names(owner)).not.toContain('society_find_upkeep_register')
+ const before=JSON.parse(await execute(owner,'society_read_upkeep',{task_id:id}));expect(before.title).toBe('NATIVE shared care update');expect(before.state).toBe('PLANNED');expect(before.version).toBe(1)
+ await expect(execute(owner,'society_read_upkeep',{task_id:hidden})).rejects.toThrow();expect((await owner.request.get('/api/upkeep/options')).status()).toBe(403)
+ await apiWorkAction(page,id,'COMMENT');await apiWorkAction(page,id,'START');expect(JSON.parse(await execute(owner,'society_read_upkeep',{task_id:id}))).toEqual(before)
+ const found=JSON.parse(await execute(owner,'society_find_upkeep',{query:'NATIVE shared care update',state:'PLANNED'}));expect(found.total).toBe(1);expect(found.counts.overdue).toBe(1);expect(found.counts.unassigned).toBe(0)
+ await execute(owner,'society_open_workspace',{screen:'upkeep'});await owner.getByRole('button',{name:'Open work NATIVE shared care update',exact:true}).click();await expect(owner.getByRole('dialog').getByText('Planned',{exact:true})).toBeVisible();await expect(owner.getByRole('heading',{name:'Private activity',exact:true})).toHaveCount(0)
+ await apiWorkAction(page,id,'UNPUBLISH');await expect(execute(owner,'society_read_upkeep',{task_id:id})).rejects.toThrow();await context.close()
+})
+
+test('native upkeep rejects unsupported writes unbounded input cancellation and captured results after audience membership ends',async({page,browser})=>{
+ await login(page);const id=await apiWork(page,'NATIVE scope changing work');await apiWorkAction(page,id,'PUBLISH',{audience:'ALL_RESIDENTS',public_title:'NATIVE current homes care',public_body:'This fictional update is only for current residents.'})
+ const invalid:[string,unknown][]=[['society_find_upkeep',{query:'x'.repeat(101)}],['society_find_upkeep',{state:'APPROVED'}],['society_find_upkeep',{page:10001}],['society_read_upkeep',{task_id:id,action:'CONFIRM_DONE'}],['society_read_upkeep',{task_id:'x'.repeat(101)}],['society_find_upkeep_register',{kind:'OTHER'}],['society_read_upkeep_register',{kind:'VENDOR',record_id:'missing',source_reference:'write'}]]
+ for(const [name,input]of invalid)await expect(execute(page,name,input)).rejects.toThrow()
+ const cancelled=await page.evaluate(async()=>{const context=(document as ContextDocument).modelContext,tool=(await context.getTools()).find(t=>t.name==='society_find_upkeep')!,controller=new AbortController();controller.abort();const major=Number(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1]);try{await context.executeTool(tool,major<155?'{}':{},{signal:controller.signal});return false}catch{return true}});expect(cancelled).toBe(true)
+ const context=await browser.newContext({baseURL:new URL(page.url()).origin}),owner=await context.newPage();await login(owner,'Owner');await owner.goto('/#upkeep?task='+id);await expect(owner.getByRole('dialog').getByRole('heading',{name:'NATIVE current homes care',exact:true})).toBeVisible()
+ const path=process.env.SOCIETY_BROWSER_DB;if(!path||!path.includes('society-browser-'))throw new Error('A disposable synthetic database is required for audience checks.')
+ const membership=(ended:boolean)=>execFileSync('python3',['-c',"import sqlite3,sys;db=sqlite3.connect(sys.argv[1]);r=db.execute(\"UPDATE flat_memberships SET end_date=? WHERE resident_id='demo-owner-A-101' AND flat_id IN ('demo-flat-A-101','demo-flat-A-102')\",(sys.argv[2] if sys.argv[3]=='end' else None,));assert r.rowcount==2;db.commit()",path,careDate(),ended?'end':'restore'])
+ let captured!:()=>void,release!:()=>void;const ready=new Promise<void>(resolve=>{captured=resolve}),pending=new Promise<void>(resolve=>{release=resolve})
+ await owner.route('**/api/upkeep/tasks/'+id,async route=>{const response=await route.fetch();captured();await pending;await route.fulfill({response}).catch(()=>{})})
+ const reading=execute(owner,'society_read_upkeep',{task_id:id});await ready;membership(true)
+ try{release();await expect(reading).rejects.toThrow();await owner.unroute('**/api/upkeep/tasks/'+id);await expect(owner.getByRole('dialog')).toHaveCount(0);await expect(execute(owner,'society_read_upkeep',{task_id:id})).rejects.toThrow();expect(JSON.parse(await execute(owner,'society_find_upkeep',{})).items).toEqual([])}finally{release();membership(false);await owner.unroute('**/api/upkeep/tasks/'+id);await context.close()}
 })

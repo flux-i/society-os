@@ -16,9 +16,10 @@ import { Reviews } from './components/Reviews'
 import { Complaints } from './components/Complaints'
 import { Documents } from './components/Documents'
 import { Maintenance } from './components/Maintenance'
+import { Upkeep } from './components/Upkeep'
 
-type View = 'overview' | 'homes' | 'access' | 'security' | 'entries' | 'receipts' | 'reviews' | 'community' | 'help' | 'documents' | 'maintenance'
-const currentView = (): View => { const hash = window.location.hash.slice(1).split('?')[0]; return ['homes', 'access', 'security', 'entries', 'receipts', 'reviews', 'community', 'help', 'documents', 'maintenance'].includes(hash) ? hash as View : 'overview' }
+type View = 'overview' | 'homes' | 'access' | 'security' | 'entries' | 'receipts' | 'reviews' | 'community' | 'help' | 'documents' | 'maintenance' | 'upkeep'
+const currentView = (): View => { const hash = window.location.hash.slice(1).split('?')[0]; return ['homes', 'access', 'security', 'entries', 'receipts', 'reviews', 'community', 'help', 'documents', 'maintenance', 'upkeep'].includes(hash) ? hash as View : 'overview' }
 const takeLink = () => {
   const match = window.location.hash.match(/^#(?:activate|reset)=([A-Za-z0-9_-]{43})$/)
   if (!match) return ''
@@ -48,6 +49,7 @@ function Sidebar({ view, user, onAbout }: { view: View; user: User; onAbout: () 
         <a href="#reviews" className={`nav-item ${view === 'reviews' ? 'active' : ''}`} aria-current={view === 'reviews' ? 'page' : undefined}><Icon name="check" /><span>{user.can_review_requests ? 'Requests & approvals' : 'Your requests'}</span></a>
         <a href="#community" className={`nav-item ${view === 'community' ? 'active' : ''}`} aria-current={view === 'community' ? 'page' : undefined}><Icon name="community" /><span>Community</span></a>
         <a href="#help" className={`nav-item ${view === 'help' ? 'active' : ''}`} aria-current={view === 'help' ? 'page' : undefined}><Icon name="leaf" /><span>Help & repairs</span></a>
+        <a href="#upkeep" className={`nav-item ${view === 'upkeep' ? 'active' : ''}`} aria-current={view === 'upkeep' ? 'page' : undefined}><Icon name="leaf" /><span>Upkeep</span></a>
         <a href="#security" className={`nav-item ${view === 'security' ? 'active' : ''}`} aria-current={view === 'security' ? 'page' : undefined}><Icon name="shield" /><span>Account security</span></a>
         <a href="#documents" className={`nav-item ${view === 'documents' ? 'active' : ''}`} aria-current={view === 'documents' ? 'page' : undefined}><Icon name="document" /><span>Documents</span></a>
       </nav>
@@ -193,11 +195,11 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Skip to content</a>
     <Sidebar view={view} user={user} onAbout={() => setAbout(true)} />
     <div className="main-shell">
-      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'maintenance' ? 'Maintenance' : view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_accounts ? 'Access & invitations' : view === 'overview' ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
+      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'upkeep' ? 'Upkeep' : view === 'maintenance' ? 'Maintenance' : view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_accounts ? 'Access & invitations' : view === 'overview' ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
       <div className="preview-banner"><span><Icon name="spark" />A first look at your community workspace.</span><span>Fictional data <i /> Live local registry</span></div>
       <main id="main-content" tabIndex={-1} className="main-content">
         {view === 'homes' && error && <div className="connection-error" role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Reconnect<Icon name="refresh" /></button></div>}
-        {view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
+        {view === 'upkeep' ? <Upkeep user={user} /> : view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
         <footer className="page-footer"><span><span className="footer-wordmark">society.</span> Made for everyday life.</span><button onClick={() => setAbout(true)}>About this preview<Icon name="arrow" /></button></footer>
       </main>
     </div>
@@ -212,20 +214,30 @@ export default function App() {
   const [linkToken, setLinkToken] = useState(initialLink)
   const screen = loading ? 'loading' : linkToken ? 'link' : !user ? 'login' : user.mfa_pending ? 'verification' : 'workspace'
   useLayoutEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [screen])
-  const acceptUser = (value: User) => { setSession(value); setUser(value); setMessage('') }
+  const identity = useRef<User | null>(null)
+  const storeUser = (value: User | null) => {
+    const previous = identity.current
+    if (previous && value && userAccessScope(previous) !== userAccessScope(value)) {
+      // Detail links belong to the scope under which they were opened. Clear
+      // them before the new workspace mounts, so they cannot reopen old dialogs.
+      window.history.replaceState(null, '', '#' + currentView())
+    }
+    identity.current = value; setSession(value); setUser(value)
+  }
+  const acceptUser = (value: User) => { storeUser(value); setMessage('') }
   useEffect(() => { const handler = () => { const token = takeLink(); if (token) setLinkToken(token) }; window.addEventListener('hashchange', handler); return () => window.removeEventListener('hashchange', handler) }, [])
   useEffect(() => {
     const controller = new AbortController()
-    request<User>('/api/auth/me', controller.signal).then(value => { setSession(value); setUser(value) }).catch((err: Error) => { if (!controller.signal.aborted && !(err instanceof APIError && err.status === 401)) setMessage(err.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    const expire = () => { setSession(null); setUser(null); setMessage('Your session ended. Sign in again to continue.') }
+    request<User>('/api/auth/me', controller.signal).then(value => { storeUser(value) }).catch((err: Error) => { if (!controller.signal.aborted && !(err instanceof APIError && err.status === 401)) setMessage(err.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    const expire = () => { storeUser(null); setMessage('Your session ended. Sign in again to continue.') }
     window.addEventListener('session-expired', expire)
     return () => { controller.abort(); window.removeEventListener('session-expired', expire) }
   }, [])
   useEffect(() => {
     if (!user || user.mfa_pending) return
     const controller = new AbortController()
-    const check = () => request<User>('/api/auth/me', controller.signal).then(value => { setSession(value); setUser(value) }).catch((err: Error) => {
-      if (!controller.signal.aborted && err instanceof APIError && err.status === 401) { setSession(null); setUser(null); setMessage('Your session ended. Sign in again to continue.') }
+    const check = () => request<User>('/api/auth/me', controller.signal).then(value => { storeUser(value) }).catch((err: Error) => {
+      if (!controller.signal.aborted && err instanceof APIError && err.status === 401) { storeUser(null); setMessage('Your session ended. Sign in again to continue.') }
     })
     const timer = window.setInterval(check, 60000)
     const onVisible = () => { if (document.visibilityState === 'visible') void check() }
@@ -236,7 +248,7 @@ export default function App() {
   const logout = async () => {
     try { await mutate('/api/auth/logout', 'POST', {}) }
     catch (err) { if (!(err instanceof APIError && err.status === 401)) { setMessage((err as Error).message); return } }
-    setSession(null); setUser(null); setMessage(''); window.location.hash = 'overview'
+    storeUser(null); setMessage(''); window.location.hash = 'overview'
   }
   if (loading) return <main className="session-loading" role="status"><span className="footer-wordmark">society.</span><p>Opening your workspace…</p></main>
   if (linkToken) return <AccountLink key={linkToken} token={linkToken} onDone={() => { setLinkToken(''); if (user) void logout() }} />

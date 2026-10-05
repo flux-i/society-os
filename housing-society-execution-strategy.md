@@ -1,12 +1,12 @@
 # Housing Society Execution Strategy
 
 **Date:** 5 October 2026
-**Status:** Verified local release 0.10/schema 9 includes the foundation, registry/identity/MFA, manual entries/private receipts, separate reviews/notices, private service requests, validated document versions, changing overview, explicit account administration and maintenance cycles/allocations. Upkeep tasks/assets/vendor visits are next. Production identity/custody acceptance, infrastructure and subsequent roadmap workflows remain pending.
+**Status:** Verified local release 0.11/schema 10 includes the foundation, registry/identity/MFA, manual entries/private receipts, separate reviews/notices, private service requests, validated document versions, changing overview, explicit account administration, maintenance cycles/allocations and private upkeep work/assets/vendor visits. Fund campaigns/payment confirmation are next. Production identity/custody acceptance, infrastructure and subsequent roadmap workflows remain pending.
 **Applies to:** [Housing Society Digital Platform implementation plan](housing-society-digital-platform-plan.md), especially Sections 39, 40, 43, 52 and 54
 
 **Current scope:** Tracking/monitoring, manually entered charges and already-paid records, derived balances and generated receipts are included. Payment initiation/gateways, bank automation, automated billing and Tally integration are conditional future work.
 
-**Next development priorities, added 4 October:** The [society operations roadmap](docs/society-operations-roadmap.md) preserves the requested overview, maintenance, fund campaigns/external-payment verification, targeted messaging, private rule reports/approved fines and financial statement publication. Documents, overview and account administration have passed local gates. Maintenance cycles/allocations now pass their gate; continue with upkeep and subsequent slices, preserving payment-initiation exclusion and separate live-provider/policy/real-data acceptance.
+**Next development priorities, added 4 October:** The [society operations roadmap](docs/society-operations-roadmap.md) preserves the requested overview, maintenance, fund campaigns/external-payment verification, targeted messaging, private rule reports/approved fines and financial statement publication. Documents, overview and account administration have passed local gates. Maintenance cycles/allocations and upkeep now pass their gates; continue with campaigns and subsequent slices, preserving payment-initiation exclusion and separate live-provider/policy/real-data acceptance.
 
 Build the 118-flat Society OS through small, complete workflows whose correctness, recovery, performance and operating cost can be demonstrated. Use a coding assistant from the start to accelerate implementation and investigation. Keep the resident-facing AI assistant in the later phase already defined in the implementation plan.
 

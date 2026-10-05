@@ -1,0 +1,16 @@
+export type Choice = { id: string; label: string }
+export type UpkeepOptions = { assets: Choice[]; vendors: Choice[]; buildings: Choice[]; handlers: { id: string; name: string }[] }
+export type Publication = { title: string; body: string; category: string; priority: string; due_date: string; visit_date: string; state: string }
+export type Work = Publication & { id: string; version: number; audience: string; building_code: string; published_at: number; created_at: number; updated_at: number; asset_id?: string; asset?: string; vendor_id?: string; vendor?: string; assigned_to?: string; assigned_name?: string; assignee_eligible?: boolean; complaint_id?: string; complaint_number?: string; repeat_days?: number; parent_id?: string; ready_by?: string; ready_name?: string; ready_at?: number; checked_by?: string; checked_name?: string; checked_at?: number; public_version?: number; public_snapshot?: Publication }
+export type WorkPage = { items: Work[]; total: number; page: number; page_size: number; counts: Record<string, number> }
+export type Activity = { action: string; actor: string; reason: string; version: number; at: number }
+export type WorkDetail = Work & { events?: Activity[]; event_total?: number; event_page?: number; page_size: number }
+export type RegisterItem = { id: string; kind: string; name: string; category: string; location: string; contact: string; phone: string; email: string; vendor_id: string; vendor: string; source_reference: string; amc_start: string; amc_end: string; inspection_date: string; state: string; version: number; created_at: number; updated_at: number }
+export type RegisterPage = { items: RegisterItem[]; total: number; page: number; page_size: number }
+export type RegisterDetail = RegisterItem & { events: Activity[]; event_total: number; event_page: number; page_size: number }
+export const workStates: Record<string,string> = { PLANNED:'Planned', IN_PROGRESS:'In progress', WAITING:'Waiting', READY_FOR_CHECK:'Ready for check', DONE:'Done', CANCELLED:'Cancelled' }
+export const careCategories: Record<string,string> = { PLUMBING:'Plumbing', LIFT:'Lift', ELECTRICAL:'Electrical', SECURITY:'Security', CLEANING:'Cleaning', WATER:'Water', PARKING:'Parking', COMMON_AREA:'Common areas', OTHER:'Other' }
+export const workActions: Record<string,string> = { CREATED:'Work prepared', REPEATED:'New occurrence prepared', START:'Start work', WAIT:'Mark waiting', SUBMIT_CHECK:'Submit for checking', CONFIRM_DONE:'Confirm completion', RETURN_WORK:'Return to work', CANCEL:'Cancel work', REOPEN:'Reopen work', ASSIGN:'Assign work', RESCHEDULE:'Reschedule work', COMMENT:'Add a private note', PUBLISH:'Publish resident update', UNPUBLISH:'Remove resident update', REGISTER_CREATED:'Record added', REGISTER_UPDATED:'Record updated' }
+export const options = (labels:Record<string,string>) => Object.entries(labels).map(([value,label])=>({value,label}))
+export const careTime = (at:number) => new Intl.DateTimeFormat('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',timeZone:'Asia/Kolkata'}).format(new Date(at*1000))
+export const linkedCare = (key:string) => new URLSearchParams(window.location.hash.split('?')[1]??'').get(key)??''

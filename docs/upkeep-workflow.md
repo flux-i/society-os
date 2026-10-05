@@ -1,6 +1,6 @@
 # Upkeep, assets and vendor visits — expectation brief
 
-Recorded 5 October 2026 before implementation, as the remaining operational portion of step 4 in the [society operations roadmap](society-operations-roadmap.md). Maintenance cycles/allocations are undergoing their final checkpoint; this document does not claim upkeep implementation or acceptance. All development data and provider interactions remain fictional.
+Recorded 5 October 2026 before implementation, as the remaining operational portion of step 4 in the [society operations roadmap](society-operations-roadmap.md). Maintenance cycles/allocations were accepted in 0.10. This expectation brief preceded upkeep code; subsequent 0.11 acceptance is recorded separately in the [upkeep baseline](upkeep-baseline.md). All development data and provider interactions remain fictional.
 
 ## User outcome and authority
 

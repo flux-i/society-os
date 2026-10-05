@@ -12,7 +12,7 @@ func TestOverviewHTTPScopesEachSourceUsesNoStoreAndRequiresCurrentSession(t *tes
 	h := server.Handler()
 	owner := signIn(t, h, "owner@demo.society")
 	tenant := signIn(t, h, "tenant@demo.society")
-	for _, section := range []string{"reviews", "service", "documents", "notices", "finance", "maintenance"} {
+	for _, section := range []string{"reviews", "service", "documents", "notices", "finance", "maintenance", "upkeep"} {
 		w := owner.request("GET", "/api/overview/"+section, "")
 		if w.Code != 200 || w.Header().Get("Cache-Control") != "no-store" {
 			t.Fatal(section, w.Code, w.Body)

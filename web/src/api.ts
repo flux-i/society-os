@@ -73,7 +73,7 @@ export async function request<T>(path: string, signal?: AbortSignal, init?: Requ
       401: path === '/api/auth/login' ? 'That email and password didn’t match. Please try again.' : 'Please sign in again to continue.',
       403: 'Your account does not have permission for this action.',
       404: 'This record is unavailable for your current account.',
-      409: ['/api/entries', '/api/receipts', '/api/reviews', '/api/complaints', '/api/documents', '/api/admin/accounts', '/api/maintenance', '/api/allocations'].some(prefix => path.startsWith(prefix)) ? 'This record has changed or this retry has different details. Reload the record before continuing.' : 'Someone has updated this home. Reload the details before saving.',
+      409: ['/api/entries', '/api/receipts', '/api/reviews', '/api/complaints', '/api/documents', '/api/admin/accounts', '/api/maintenance', '/api/allocations', '/api/upkeep'].some(prefix => path.startsWith(prefix)) ? 'This record has changed or this retry has different details. Reload the record before continuing.' : 'Someone has updated this home. Reload the details before saving.',
       429: 'Please wait a little before trying to sign in again.',
     }
     const codes: Record<string, string> = {

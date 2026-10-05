@@ -1,8 +1,8 @@
 # Society OS
 
-A thoughtful community portal for a 118-flat society. The working **local preview** includes a changing role-scoped overview, occupancy and owner/tenant counts on Homes & people, scoped homes, registry and account administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices, personal service requests with private handler notes, validated private document versions, separately approved maintenance periods, explicit receipt/opening-credit allocations and verified SQLite snapshot/restore tools.
+A thoughtful community portal for a 118-flat society. The working **local preview** includes a changing role-scoped overview, occupancy and owner/tenant counts on Homes & people, scoped homes, registry and account administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices, personal service requests with private handler notes, validated private document versions, separately approved maintenance periods, explicit receipt/opening-credit allocations, private upkeep work/assets/vendors with intentional resident updates and verified SQLite snapshot/restore tools.
 
-The [operations roadmap](docs/society-operations-roadmap.md) preserves maintenance, fund campaigns/external-payment verification, targeted WhatsApp/email, approved rule/fine workflows and financial statement publication. [Maintenance cycles and receipt allocation](docs/maintenance-baseline.md) are verified in release 0.10/schema 9. [Upkeep tasks, assets and vendor visits](docs/upkeep-workflow.md) are next; earlier workflow baselines retain their evidence. The existing portal does not initiate payment or send provider messages.
+The [operations roadmap](docs/society-operations-roadmap.md) preserves maintenance, fund campaigns/external-payment verification, targeted WhatsApp/email, approved rule/fine workflows and financial statement publication. [Maintenance cycles and receipt allocation](docs/maintenance-baseline.md) are verified in release 0.10/schema 9. [Upkeep tasks, assets and vendor visits](docs/upkeep-baseline.md) are verified in release 0.11/schema 10. [Fund campaigns and externally paid reports](docs/collections-workflow.md) are next; earlier workflow baselines retain their evidence. The existing portal does not initiate payment or send provider messages.
 
 ## Run locally
 
@@ -15,7 +15,7 @@ make run
 
 Open **http://127.0.0.1:8080**. `make run` builds the application, creates the isolated fictional registry if needed, and serves the frontend and API from one Go process. Stop with Ctrl+C. Repeated seeding preserves the same fixture without duplicating records.
 
-The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 9 while preserving registry, account and audit history. The earlier identity upgrade signs out old sessions.
+The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 10 while preserving registry, account and audit history. The earlier identity upgrade signs out old sessions.
 
 Choose an account on the sign-in screen, then select **Sign in**. The fictional credentials are prefilled; every demo account uses the public preview password `Community-preview-2026!`.
 
@@ -48,11 +48,11 @@ make bench
 make report
 ```
 
-`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 93 Go test declarations, including exact financial amounts, operation retries, immutable corrections, leased receipt jobs, private PDFs, separate approvals, scoped notices/service conversations, document validation/version/quota/recovery, account appointments/suspension, current authority/home-scope changes and maintenance/credit-allocation reconciliation and recovery.
+`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 101 Go test declarations, including exact financial amounts, operation retries, immutable corrections, leased receipt jobs, private PDFs, separate approvals, scoped notices/service conversations, document validation/version/quota/recovery, account appointments/suspension, current authority/home-scope changes and maintenance/credit-allocation reconciliation, private upkeep/public snapshots, separate completion checks and recovery.
 
 `make bench` runs the representative registry query three times. `make report` creates an independent fresh synthetic database, measures 100 warm local HTTP reads after ten warmups, snapshots the live database and restores it into a new environment. It verifies SHA-256 independently in Python and records measured times, engine settings and counts in `reports/local/account-security-baseline.json`. These are local measurements, not production performance commitments.
 
-`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. Release 0.10 passes 91 ordinary browser cases across 14 isolated suites and 20 actual native WebMCP cases. The browser API is optional for using the portal, and no tool approves, uploads, publishes or posts records. See [maintenance acceptance](docs/maintenance-baseline.md) and the ongoing [development process](docs/development-workflow.md); earlier workflow baselines retain their historical evidence.
+`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. Release 0.11 passes 102 ordinary browser cases across 15 isolated suites and 23 actual native WebMCP cases. The browser API is optional for using the portal, and no tool approves, uploads, publishes or posts records. See [upkeep acceptance](docs/upkeep-baseline.md) and the ongoing [development process](docs/development-workflow.md); earlier workflow baselines retain their historical evidence.
 
 Browser checks use a fresh fictional database on an ephemeral loopback port and leave your preview untouched:
 
@@ -62,13 +62,15 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. The 91 browser cases cover scoped overview queues/balances, deep links, source failures/retries, all 118 home cards, opened menus, manual entries/receipts, invitations/recovery/MFA, separate reviews, service requests, validated document workflows, account appointment/suspension/current-scope changes, supplied maintenance periods and receipt allocations/corrections. Specific cases exercise desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the original inventory and global Claude Code/Codex browser tooling; subsequent baselines record added controls and their coverage limits.
+Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. The 102 browser cases cover scoped overview queues/balances, deep links, source failures/retries, all 118 home cards, opened menus, manual entries/receipts, invitations/recovery/MFA, separate reviews, service requests, validated document workflows, account appointment/suspension/current-scope changes, supplied maintenance periods and receipt allocations/corrections, and upkeep work/register/publication journeys. Specific cases exercise desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the original inventory and global Claude Code/Codex browser tooling; subsequent baselines record added controls and their coverage limits.
 
-**Overview** shows changing decisions, service work, document attention/deadlines and approved notices for the current account. Financial cards require their own entitlement and distinguish positive home balances from credits, confirmed money received in the last 30 India calendar days, draft work and receipt-generation attention. Each section has its own retry; unavailable values remain unknown. Refresh rereads current sources, and actionable rows open their exact permitted record. Maintenance adds current pending reviews, published outstanding and explicit past-due amounts with its own source retry.
+**Overview** shows changing decisions, service work, document attention/deadlines and approved notices for the current account. Financial cards require their own entitlement and distinguish positive home balances from credits, confirmed money received in the last 30 India calendar days, draft work and receipt-generation attention. Each section has its own retry; unavailable values remain unknown. Refresh rereads current sources, and actionable rows open their exact permitted record. Maintenance adds current pending reviews, published outstanding and explicit past-due amounts with its own source retry. Upkeep adds due/unassigned work, separate checks, visits and private AMC/inspection deadlines.
 
 **Entries & receipts** lets the officer save and review manual drafts, confirm supplied charges/opening balances or money already received, download private receipt PDFs, discard mistaken drafts and reverse confirmed entries with a reason. Balances derive from confirmed, unreversed entries in the selected home scope. The owner sees only financially permitted records. See [manual-record acceptance](docs/manual-records-baseline.md) and [our development process and issue inventory](docs/development-workflow.md).
 
 **Maintenance** previews supplied per-home amounts and an explicit period/due date before frozen submission. A different currently eligible Treasury reviewer publishes matching charges atomically; publication creates no receipt. Home statements distinguish charges, receipts/opening credits, available credit and retained allocation history. Explicit allocation/correction preserves original receipts and exact balances; lost-response retries do not duplicate charges or links. Residents see only published currently entitled homes. See [maintenance acceptance](docs/maintenance-baseline.md).
+
+**Upkeep** connects private assets/vendors, service work, assignments, dates and retained activity. A different current operator checks completion; repeated occurrences are explicitly previewed. Residents see frozen intentional updates for their current audience. Private activity never silently changes that snapshot. See [upkeep acceptance](docs/upkeep-baseline.md).
 
 **Requests & community** supports proposals, revisions and approval by a different reviewer. Approved notices reach only their current audience. Expense/registry proposals do not automatically post money or apply registry edits. **Help & repairs** lets residents report against their own active home and follow their own cases. Authorized handlers manage assignment/progress and staff-only notes; authors can confirm closure or reopen after resolution. Ended membership retains read-only personal case history.
 
@@ -77,8 +79,8 @@ Build first with `make build`, or use `make browser-check`. Follow this machine'
 To keep an already verified preview running while developing the next checkpoint, retain its binary and assets together:
 
 ```sh
-python3 scripts/pin-preview.py --name 0.10
-./var/preview-releases/0.10/society-server serve --demo --db var/demo/society.db --mfa-key-file var/keys/mfa.key --addr 127.0.0.1:8080 --web-dir var/preview-releases/0.10/web
+python3 scripts/pin-preview.py --name 0.11
+./var/preview-releases/0.11/society-server serve --demo --db var/demo/society.db --mfa-key-file var/keys/mfa.key --addr 127.0.0.1:8080 --web-dir var/preview-releases/0.11/web
 ```
 
 Stop the earlier server before starting the retained one. The pin command refuses an existing name. Verify the build first, then pin it; the command packages files and does not run the checks. It does not copy databases or keys. Use a new name for the next verified release.
@@ -110,6 +112,8 @@ Lost-factor recovery has no web route. In this synthetic environment a maintaine
 This records supplied custodians; it does not verify their real-world authority. It revokes sessions/links/codes and requires authenticator reenrollment. Actual society custody procedures still need acceptance.
 
 ## Current API
+
+Upkeep adds protected `/api/upkeep`, `/api/upkeep/options`, `/api/upkeep/tasks`, task detail/actions and operator-only `/api/upkeep/register/{kind}` detail/history. Current operational authority remains separate from finance; resident views use publication snapshots.
 
 Maintenance adds protected `/api/maintenance` list/create, `/api/maintenance/{id}` bounded detail, `/api/maintenance/{id}/decision`, `/api/statements/{home}` and explicit `/api/allocations` / `{id}/reverse`. Lists/totals share current financial scope; writes require current Treasury/factor authority and Origin/CSRF. Native tools expose bounded metadata only.
 
@@ -170,7 +174,7 @@ Passwords use Argon2id; sessions use hashed random bearer tokens, HttpOnly/SameS
 
 ## What follows
 
-Next: upkeep tasks/assets/vendor deadlines and the subsequent operations roadmap; then PWA/migration, production recovery and a representative pilot. Real finance examples/receipt policy remain acceptance inputs. Manual financial records describe given charges and money already received; the portal does not initiate payment.
+Next: fund campaigns/external-payment confirmation and the subsequent operations roadmap; then PWA/migration, production recovery and a representative pilot. Real finance examples/receipt policy remain acceptance inputs. Manual financial records describe given charges and money already received; the portal does not initiate payment.
 
 Automated billing, bank matching, payment gateways and Tally integration are conditional future work. No runtime LLM API is required.
 

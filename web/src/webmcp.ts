@@ -3,6 +3,7 @@ import { APIError, request, userAccessScope } from './api'
 import type { Account, AccountPage, User } from './api'
 import type { AccountDetails } from './components/AccountAdministration'
 import type { HomeStatement, MaintenanceCycle, MaintenanceDetail, MaintenancePage } from './maintenance'
+import type { RegisterDetail, RegisterPage, Work, WorkDetail, WorkPage } from './upkeep'
 
 type Tool = {
   name: string
@@ -77,7 +78,7 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
       if (!views.includes(screen) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
@@ -85,7 +86,7 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       window.location.hash = screen
       return { screen }
     }, false)
-    const sections = ['reviews', 'service', 'notices', 'documents', ...(user.can_read_records ? ['finance', 'maintenance'] : [])]
+    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', ...(user.can_read_records ? ['finance', 'maintenance'] : [])]
     add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
       const section = String(input.section)
       if (!sections.includes(section) || (['finance','maintenance'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
@@ -136,6 +137,27 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
         if(!me.can_read_records)throw new Error('Current financial permission is required.')
         const result=await request<HomeStatement>('/api/statements/'+encodeURIComponent(identity(input.home_id))+'?'+new URLSearchParams({charge_page:String(pageNumber(input.charge_page)),credit_page:String(pageNumber(input.credit_page)),allocation_page:String(pageNumber(input.allocation_page))}),signal)
         return {...result,allocations:result.allocations.map(item=>({id:item.id,source_id:item.source_id,charge_id:item.charge_id,amount_paise:item.amount_paise,receipt:item.receipt,source_kind:item.source_kind,description:item.description,state:item.state,created_at:item.created_at,corrected_at:item.corrected_at}))}
+      })
+    }
+    const careIdentity=(value:unknown)=>{if(typeof value!=='string'||!value||value.length>100)throw new Error('A permitted care record identity is required.');return value}
+    const workMetadata=(work:Work)=>({id:work.id,title:work.title,category:work.category,priority:work.priority,state:work.state,due_date:work.due_date,visit_date:work.visit_date,version:work.version,audience:work.audience,building_code:work.building_code,published_at:work.published_at})
+    add('society_find_upkeep','Read a current audience-scoped work page and full work counts. Residents receive frozen published updates for current homes; private work, activity and assignment details are excluded. This cannot assign, check completion, repeat, publish or send anything.',{query:search,state:{type:'string',enum:['','PLANNED','IN_PROGRESS','WAITING','READY_FOR_CHECK','DONE','CANCELLED']},page},[],async(input,signal)=>{
+      const state=String(input.state??'');if(!['','PLANNED','IN_PROGRESS','WAITING','READY_FOR_CHECK','DONE','CANCELLED'].includes(state))throw new Error('Choose a supported work state.')
+      const result=await request<WorkPage>('/api/upkeep?'+new URLSearchParams({q:queryText(input.query),state,page:String(pageNumber(input.page))}),signal)
+      return {...result,items:result.items.map(workMetadata)}
+    })
+    add('society_read_upkeep','Read permitted work metadata. Residents see only the frozen public version. Descriptions, private events, vendor contacts, assignees and service links are excluded. All changes require the ordinary reviewed form.',{task_id:{type:'string',minLength:1,maxLength:100}},['task_id'],async(input,signal)=>workMetadata(await request<WorkDetail>('/api/upkeep/tasks/'+encodeURIComponent(careIdentity(input.task_id)),signal)))
+    if(user.can_handle_complaints){
+      const registerMetadata=(record:RegisterDetail|RegisterPage['items'][number])=>({id:record.id,kind:record.kind,name:record.name,category:record.category,state:record.state,version:record.version,amc_start:record.amc_start,amc_end:record.amc_end,inspection_date:record.inspection_date})
+      const careKind=(value:unknown)=>{if(value!=='ASSET'&&value!=='VENDOR')throw new Error('Choose assets or vendors.');return value}
+      add('society_find_upkeep_register','Read one bounded private register metadata page as a current operational officer. Treasury or auditor access alone does not grant it. Contacts, locations, contracts and private activity are excluded.',{kind:{type:'string',enum:['ASSET','VENDOR']},query:search,state:{type:'string',enum:['','ACTIVE','INACTIVE']},page},['kind'],async(input,signal,me)=>{
+        if(!me.can_handle_complaints)throw new Error('Current operational permission is required.');const kind=careKind(input.kind),state=String(input.state??'');if(!['','ACTIVE','INACTIVE'].includes(state))throw new Error('Choose a supported register state.')
+        const result=await request<RegisterPage>('/api/upkeep/register/'+kind+'?'+new URLSearchParams({q:queryText(input.query),state,page:String(pageNumber(input.page))}),signal)
+        return {...result,items:result.items.map(registerMetadata)}
+      })
+      add('society_read_upkeep_register','Read asset or vendor metadata as a currently eligible operator. Private contacts, locations, contract/source references and activity are excluded. This cannot edit or retire a record.',{kind:{type:'string',enum:['ASSET','VENDOR']},record_id:{type:'string',minLength:1,maxLength:100}},['kind','record_id'],async(input,signal,me)=>{
+        if(!me.can_handle_complaints)throw new Error('Current operational permission is required.')
+        return registerMetadata(await request<RegisterDetail>('/api/upkeep/register/'+careKind(input.kind)+'/'+encodeURIComponent(careIdentity(input.record_id)),signal))
       })
     }
     add('society_find_requests', 'Read the current account’s private submissions or the authorised reviewer queue. Review decisions require the visible form and separate reviewer; this tool never approves an item.', { query: search, page }, [], async (input, signal) => request('/api/reviews?' + new URLSearchParams({ q: queryText(input.query), page: String(pageNumber(input.page)) }), signal))
