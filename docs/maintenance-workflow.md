@@ -1,6 +1,6 @@
 # Maintenance cycles and receipt allocation — expectation brief
 
-Recorded 5 October 2026 before implementation, following step 4 of the [operations roadmap](society-operations-roadmap.md). Account administration is verified locally as release 0.9/schema 8; maintenance implementation and acceptance are pending. This checkpoint uses fictional source amounts and disposable databases. It does not establish society-approved rates, liability or finance policy.
+Recorded 5 October 2026 before implementation, following step 4 of the [operations roadmap](society-operations-roadmap.md). The expectation brief preceded implementation. Maintenance cycles/allocations are now verified locally as release 0.10/schema 9; see [executed acceptance evidence](maintenance-baseline.md). This checkpoint uses fictional source amounts and disposable databases. It does not establish society-approved rates, liability or finance policy.
 
 ## Outcome and authority
 

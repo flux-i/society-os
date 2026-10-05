@@ -67,7 +67,7 @@ func (s *Store) OverviewFor(ctx context.Context, token, section string) (Overvie
 	now := time.Now()
 	day, start := overviewWindow(now)
 	out := Overview{Section: section, AsOf: now.Unix(), Day: day, PeriodStart: start, Calendar: "Asia/Kolkata", Counts: map[string]int64{}, Items: []OverviewItem{}}
-	if section != "finance" && section != "reviews" && section != "service" && section != "notices" && section != "documents" {
+	if section != "finance" && section != "reviews" && section != "service" && section != "notices" && section != "documents" && section != "maintenance" {
 		return out, ErrInvalid
 	}
 	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -82,6 +82,8 @@ func (s *Store) OverviewFor(ctx context.Context, token, section string) (Overvie
 	switch section {
 	case "finance":
 		err = overviewFinance(ctx, tx, p, &out)
+	case "maintenance":
+		err = overviewMaintenance(ctx, tx, p, &out)
 	case "reviews":
 		err = overviewReviews(ctx, tx, p, &out)
 	case "service":
@@ -95,6 +97,26 @@ func (s *Store) OverviewFor(ctx context.Context, token, section string) (Overvie
 		return out, err
 	}
 	return out, tx.Commit()
+}
+
+func overviewMaintenance(ctx context.Context, tx *sql.Tx, p Principal, out *Overview) error {
+	if !p.CanReadRecords {
+		return ErrForbidden
+	}
+	query, args := maintenanceCycleQuery(p, "", "", "")
+	counts := `SELECT COUNT(CASE WHEN state='PENDING' AND submitted_by<>? AND ?=1 THEN 1 END),
+        COUNT(CASE WHEN state='PENDING' AND submitted_by=? THEN 1 END),
+        COUNT(CASE WHEN state='PUBLISHED' THEN 1 END),
+        COALESCE(SUM(active),0),COALESCE(SUM(allocated),0),COALESCE(SUM(outstanding),0),COALESCE(SUM(overdue),0),
+        COUNT(CASE WHEN state='PUBLISHED' AND overdue>0 THEN 1 END) FROM (` + query + ")"
+	// The outer SELECT parameters precede those inside the scoped subquery.
+	if err := overviewCounts(ctx, tx, out, []string{"pending_review", "awaiting_other_reviewer", "published_periods", "active_paise", "allocated_paise", "outstanding_paise", "overdue_paise", "overdue_periods"}, counts, append([]any{p.ID, p.CanManageRecords, p.ID}, args...)...); err != nil {
+		return err
+	}
+	items := `SELECT id,title,'','MAINTENANCE',CASE WHEN state='PENDING' THEN 'PENDING' ELSE 'OVERDUE' END,'NORMAL',due_date,submitted_at,outstanding
+        FROM (` + query + `) WHERE (state='PENDING' AND submitted_by<>? AND ?=1) OR (state='PUBLISHED' AND overdue>0)
+        ORDER BY CASE WHEN state='PENDING' THEN 0 ELSE 1 END,due_date,submitted_at,id LIMIT 4`
+	return overviewItems(ctx, tx, out, items, append(args, p.ID, p.CanManageRecords)...)
 }
 
 func overviewFinance(ctx context.Context, tx *sql.Tx, p Principal, out *Overview) error {

@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test'
 import { login, navigate, completePreviewMFA, chooseOption } from './helpers'
 import { plainPDF } from './document-fixtures'
 import { execFileSync } from 'node:child_process'
+import { apiMaintenance, apiReceived, ensureMaintenanceReviewer } from './maintenance-fixtures'
 
 type ContextDocument = Document & { modelContext: {
   getTools: () => Promise<{ name: string }[]>
@@ -88,7 +89,7 @@ test('native tools rediscover current personal scope after an appointment expire
   }).toEqual(['demo-flat-A-101', 'demo-flat-A-102'])
   const current = await (await resident.request.get('/api/auth/me')).json(); expect(current.id).toBe(before.id); expect(current.roles).toEqual([]); expect(current.can_read_all_records).toBe(false); expect(current.can_read_records).toBe(true)
   await expect(resident.locator('.overview-finance-balance strong')).toHaveText('₹0.00')
-  await expect.poll(() => names(resident)).toHaveLength(11)
+  await expect.poll(() => names(resident)).toHaveLength(14)
   const hidden = JSON.parse(await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-103' })); expect(hidden.items).toEqual([]); expect(hidden.total).toBe(0); expect(hidden.debit_paise).toBe(0); expect(hidden.homes.map((home: { id: string }) => home.id).sort()).toEqual(['demo-flat-A-101', 'demo-flat-A-102']); expect((await resident.request.get('/api/entries/' + entryId)).status()).toBe(404)
   await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-101' }); await expect(resident.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible(); await context.close()
 })
@@ -131,7 +132,7 @@ test('native WebMCP discovers permitted tools after MFA and executes bounded sea
   expect(await page.evaluate(() => !!(document as ContextDocument).modelContext)).toBe(true)
   expect(await names(page)).toEqual([])
   await login(page)
-  await expect.poll(() => names(page)).toEqual(['society_find_accounts', 'society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_account', 'society_read_complaint', 'society_read_document', 'society_read_overview'])
+  await expect.poll(() => names(page)).toEqual(['society_find_accounts', 'society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_maintenance', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_account', 'society_read_complaint', 'society_read_document', 'society_read_home_statement', 'society_read_maintenance', 'society_read_overview'])
   const mutations: string[] = []
   page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) })
   const homes = JSON.parse(await execute(page, 'society_find_homes', { wing: 'B', occupancy: 'RENTED' }))
@@ -291,4 +292,66 @@ test('native document cancellation and bounded arguments fail safely and tools u
  await login(page, 'Owner'); await expect.poll(() => names(page)).toContain('society_find_documents'); await expect(execute(page, 'society_find_documents', { query: 'x'.repeat(101) })).rejects.toThrow(); await expect(execute(page, 'society_read_document', { document_id: 'x'.repeat(101), history_page: -1 })).rejects.toThrow()
  const cancelled = await page.evaluate(async () => { const context = (document as ContextDocument).modelContext; const tool = (await context.getTools()).find(item => item.name === 'society_find_documents')!; const controller = new AbortController(); controller.abort(); const major = Number(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1]); try { await context.executeTool(tool, major < 155 ? '{}' : {}, { signal: controller.signal }); return false } catch { return true } }); expect(cancelled).toBe(true)
  const me = await (await page.request.get('/api/auth/me')).json(); expect((await page.request.post('/api/auth/logout', { headers: { Origin: new URL(page.url()).origin, 'X-CSRF-Token': me.csrf_token }, data: {} })).status()).toBe(200); await expect(execute(page, 'society_find_documents', {})).rejects.toThrow(); await expect.poll(() => names(page)).toEqual([])
+})
+
+test('actual native maintenance metadata matches separately published visible charges and an explicit receipt allocation',async({page,browser})=>{
+  await login(page);await ensureMaintenanceReviewer(page);await expect.poll(()=>names(page)).toContain('society_read_maintenance')
+  const title='NATIVE maintenance '+Date.now(),id=await apiMaintenance(page,title)
+  const pending=JSON.parse(await execute(page,'society_find_maintenance',{query:title}));expect(pending.total).toBe(1);expect(pending.items[0].requested_paise).toBe(175025);expect(pending.totals.active_paise).toBe(0)
+  const context=await browser.newContext({baseURL:new URL(page.url()).origin}),reviewer=await context.newPage();await login(reviewer,'Committee');await navigate(reviewer,'Maintenance');await reviewer.getByRole('button',{name:'Open period '+title,exact:true}).click();await reviewer.getByRole('button',{name:'Approve & publish',exact:true}).click();await reviewer.getByRole('textbox',{name:'Decision reason',exact:true}).fill('PRIVATE native review of every supplied maintenance amount')
+  const metadata=JSON.parse(await execute(reviewer,'society_read_maintenance',{period_id:id}))
+  expect(metadata.lines).toHaveLength(2);expect(metadata.requested_paise).toBe(175025)
+  for(const field of ['source_reference','note','author','decided_by','decision_reason','events'])expect(metadata).not.toHaveProperty(field)
+  await expect(reviewer.getByRole('textbox',{name:'Decision reason',exact:true})).toHaveValue('PRIVATE native review of every supplied maintenance amount')
+  await expect(execute(reviewer,'society_open_workspace',{screen:'overview'})).rejects.toThrow()
+  await reviewer.getByRole('dialog').getByRole('checkbox').check();await reviewer.getByRole('button',{name:'Confirm publication',exact:true}).click();await expect(reviewer.getByText('MAINTENANCE · PUBLISHED',{exact:true})).toBeVisible();await context.close()
+  const receipt=await apiReceived(page,'400.00')
+  await execute(page,'society_open_workspace',{screen:'maintenance'});await expect(page.getByRole('heading',{name:'The maintenance calendar',exact:true})).toBeVisible()
+  await chooseOption(page,'Statement home','Home A-101');await page.getByRole('button',{name:'Open statement',exact:true}).click();await page.getByRole('button',{name:'Allocate credit',exact:true}).click()
+  await chooseOption(page,'Allocation credit source',receipt.receipt_number+' · ₹400.00 available');await chooseOption(page,'Allocation charge','Maintenance · '+title+' · ₹1,000.00 due');await page.getByRole('textbox',{name:'Amount to allocate',exact:true}).fill('400.00');await page.getByRole('textbox',{name:'Allocation reason',exact:true}).fill('PRIVATE native allocation reason checked against original receipt')
+  const mutations:string[]=[];const listener=(request:import('@playwright/test').Request)=>{if(!['GET','HEAD'].includes(request.method()))mutations.push(request.url())};page.on('request',listener)
+  const before=JSON.parse(await execute(page,'society_read_home_statement',{home_id:'demo-flat-A-101'}));expect(before.charges.length).toBeLessThanOrEqual(20);expect(before.credits.length).toBeLessThanOrEqual(20);expect(before.allocations.length).toBeLessThanOrEqual(20);expect(mutations).toEqual([])
+  await expect(page.getByRole('textbox',{name:'Allocation reason',exact:true})).toHaveValue('PRIVATE native allocation reason checked against original receipt');await expect(execute(page,'society_open_workspace',{screen:'maintenance'})).rejects.toThrow();page.off('request',listener)
+  await page.getByRole('dialog').getByRole('checkbox').check();await page.getByRole('button',{name:'Confirm allocation',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'Allocation recorded.'})).toBeVisible()
+  const after=JSON.parse(await execute(page,'society_read_home_statement',{home_id:'demo-flat-A-101'}));expect(after.allocated_paise-before.allocated_paise).toBe(40000);expect(before.outstanding_paise-after.outstanding_paise).toBe(40000)
+  for(const allocation of after.allocations){expect(allocation).not.toHaveProperty('reason');expect(allocation).not.toHaveProperty('actor');expect(allocation).not.toHaveProperty('correction_reason')}
+  const period=JSON.parse(await execute(page,'society_read_maintenance',{period_id:id}));expect(period.active_paise).toBe(175025);expect(period.allocated_paise).toBe(40000);expect(period.outstanding_paise).toBe(135025)
+  await page.getByRole('button',{name:'Close home statement',exact:true}).click()
+})
+
+test('native maintenance tools reject unsupported writes invalid pages and cancellation and are omitted for an unentitled tenant',async({page})=>{
+  await login(page);await expect.poll(()=>names(page)).toContain('society_read_home_statement')
+  const invalid:[string,unknown][]=[
+    ['society_find_maintenance',{state:'APPROVED'}],['society_find_maintenance',{query:'x'.repeat(101)}],['society_find_maintenance',{page:0}],
+    ['society_find_maintenance',{confirmed:true}],['society_read_maintenance',{period_id:'unknown',event_page:1}],['society_read_maintenance',{period_id:'unknown',line_page:10001}],
+    ['society_read_home_statement',{home_id:'demo-flat-A-101',amount:'10.00'}],['society_read_home_statement',{home_id:'demo-flat-A-101',credit_page:-1}],
+  ]
+  for(const [tool,input]of invalid)await expect(execute(page,tool,input)).rejects.toThrow()
+  const cancelled=await page.evaluate(async()=>{
+    const context=(document as ContextDocument).modelContext,tool=(await context.getTools()).find(item=>item.name==='society_read_home_statement')!,controller=new AbortController();controller.abort()
+    const input={home_id:'demo-flat-A-101'},major=Number(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1])
+    try{await context.executeTool(tool,major<155?JSON.stringify(input):input,{signal:controller.signal});return false}catch{return true}
+  });expect(cancelled).toBe(true)
+  await page.getByRole('button',{name:'Sign out',exact:true}).click();await login(page,'Tenant')
+  for(const tool of ['society_find_maintenance','society_read_maintenance','society_read_home_statement'])await expect.poll(()=>names(page)).not.toContain(tool)
+  await expect(execute(page,'society_open_workspace',{screen:'maintenance'})).rejects.toThrow()
+  await expect(execute(page,'society_read_overview',{section:'maintenance'})).rejects.toThrow()
+  expect((await page.request.get('/api/statements/demo-flat-A-101')).status()).toBe(403)
+})
+
+test('native captured home statements are discarded when one financial entitlement ends and the other remains active',async({page})=>{
+  await login(page,'Owner');await expect.poll(()=>names(page)).toContain('society_read_home_statement');await execute(page,'society_open_workspace',{screen:'maintenance'})
+  await chooseOption(page,'Statement home','Home A-102');await page.getByRole('button',{name:'Open statement',exact:true}).click();await expect(page.getByRole('heading',{name:'Home A-102',exact:true})).toBeVisible();await expect(page.getByText('Updating this statement…',{exact:true})).toHaveCount(0)
+  const path=process.env.SOCIETY_BROWSER_DB;if(!path||!path.includes('society-browser-'))throw new Error('A disposable synthetic database is required for this current-entitlement fixture.')
+  const entitlement=(enabled:boolean)=>execFileSync('python3',['-c',"import sqlite3,sys;db=sqlite3.connect(sys.argv[1]);r=db.execute(\"UPDATE flat_memberships SET can_view_finances=? WHERE flat_id='demo-flat-A-102' AND resident_id=(SELECT resident_id FROM users WHERE id='demo-user-owner') AND end_date IS NULL\",(int(sys.argv[2]),));assert r.rowcount==1;db.commit()",path,enabled?'1':'0'])
+  let captured!:()=>void,release!:()=>void;const ready=new Promise<void>(resolve=>{captured=resolve}),pending=new Promise<void>(resolve=>{release=resolve})
+  await page.route('**/api/statements/demo-flat-A-102?**',async route=>{const response=await route.fetch();captured();await pending;await route.fulfill({response}).catch(()=>{})})
+  const reading=execute(page,'society_read_home_statement',{home_id:'demo-flat-A-102'});await ready;entitlement(false)
+  try{
+    release();await expect(reading).rejects.toThrow();await page.unroute('**/api/statements/demo-flat-A-102?**')
+    await expect(page.getByRole('dialog')).toHaveCount(0);await expect.poll(()=>names(page)).toContain('society_read_home_statement')
+    await expect(execute(page,'society_read_home_statement',{home_id:'demo-flat-A-102'})).rejects.toThrow()
+    const allowed=JSON.parse(await execute(page,'society_read_home_statement',{home_id:'demo-flat-A-101'}));expect(allowed.flat_id).toBe('demo-flat-A-101')
+    await page.getByRole('combobox',{name:'Statement home',exact:true}).click();await expect(page.getByRole('option',{name:'Home A-102',exact:true})).toHaveCount(0);await expect(page.getByRole('option',{name:'Home A-101',exact:true})).toBeVisible();await page.keyboard.press('Escape')
+  }finally{entitlement(true);release();await page.unroute('**/api/statements/demo-flat-A-102?**')}
 })

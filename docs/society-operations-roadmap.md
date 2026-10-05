@@ -1,8 +1,8 @@
 # Society operations: overview and next workflows
 
 **Recorded:** 4 October 2026, from the user's explicit product direction.
-**Status:** Accepted development scope; implementation and production acceptance are separate. Release 0.9/schema 8 is the verified preview with documents, changing overview and [account-administration evidence](account-administration-baseline.md). Maintenance implementation is next.
-**Ordering:** Documents, the changing overview and explicit account administration have passed their local gates. Continue with [maintenance cycles and receipt allocations](maintenance-workflow.md), then upkeep deadlines. Deliver the remaining workflows in the order below, with domain, rendered interaction, screenshot and actual native WebMCP checks at every checkpoint.
+**Status:** Accepted development scope; implementation and production acceptance are separate. Release 0.10/schema 9 is the verified preview with documents, changing overview, account administration and [maintenance cycle/allocation evidence](maintenance-baseline.md). Upkeep implementation is next.
+**Ordering:** Documents, the changing overview and explicit account administration have passed their local gates. Maintenance cycles/allocations have also passed; continue with [upkeep tasks/assets/vendor deadlines](upkeep-workflow.md). Deliver the remaining workflows in the order below, with domain, rendered interaction, screenshot and actual native WebMCP checks at every checkpoint.
 
 This document extends the [implementation plan](../housing-society-digital-platform-plan.md) and [execution backlog](../execution-backlog.md). It supersedes their earlier deferral of resident payment reports and configured messaging. Payment gateways, transfers initiated by the platform, bank automation and automatic statutory charge calculations remain outside scope. A collection campaign requests an externally paid contribution; it does not move money.
 
@@ -99,7 +99,7 @@ Visitor gate hardware, parking enforcement, amenity booking, elections, AI, paym
 1. **Verified locally:** private documents with full checks, browser captures, native WebMCP and recovery evidence.
 2. **Verified locally:** changing overview with exact deep links, scoped full counts, partial failures, inspected captures and native WebMCP.
 3. **Verified locally:** explicit role/account administration, preserving separate financial powers, bounded terms, suspension/resumption and current client/native scope.
-4. Deliver maintenance cycles, charge/receipt allocations and upkeep deadlines.
+4. **Partially verified locally:** [maintenance cycles and explicit charge/receipt allocations](maintenance-baseline.md). Complete [upkeep tasks, assets/vendors and deadlines](upkeep-workflow.md) before closing this step.
 5. Deliver fund campaigns and resident reports of external payments, with treasury confirmation.
 6. Add private evidence links and rule-report review, then authorised fine issuance using the financial posting contract.
 7. Deliver contact preferences, recipient targeting, synthetic provider queue and safe channel configuration; enable a real provider only when credentials/onboarding are available.

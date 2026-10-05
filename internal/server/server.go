@@ -31,6 +31,7 @@ func (s *Server) Handler() http.Handler {
 	s.accountRoutes(mux, guard)
 	s.accountAdministrationRoutes(mux)
 	s.recordRoutes(mux)
+	s.maintenanceRoutes(mux)
 	s.reviewRoutes(mux)
 	s.complaintRoutes(mux)
 	s.documentRoutes(mux)

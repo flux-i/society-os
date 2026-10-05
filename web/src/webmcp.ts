@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { APIError, request, userAccessScope } from './api'
 import type { Account, AccountPage, User } from './api'
 import type { AccountDetails } from './components/AccountAdministration'
+import type { HomeStatement, MaintenanceCycle, MaintenanceDetail, MaintenancePage } from './maintenance'
 
 type Tool = {
   name: string
@@ -76,18 +77,18 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
       window.location.hash = screen
       return { screen }
     }, false)
-    const sections = ['reviews', 'service', 'notices', 'documents', ...(user.can_read_records ? ['finance'] : [])]
+    const sections = ['reviews', 'service', 'notices', 'documents', ...(user.can_read_records ? ['finance', 'maintenance'] : [])]
     add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
       const section = String(input.section)
-      if (!sections.includes(section) || (section === 'finance' && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
+      if (!sections.includes(section) || (['finance','maintenance'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
       return request('/api/overview/' + section, signal)
     })
     const accountMetadata = (account: Account) => ({ id: account.id, name: account.name, state: account.state, roles: account.roles, mfa_enrolled: account.mfa_enrolled, active_homes: account.active_homes })
@@ -112,6 +113,31 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       if (input.receipts_only !== undefined && typeof input.receipts_only !== 'boolean') throw new Error('Use a boolean receipt filter.')
       return request('/api/entries?' + new URLSearchParams({ q: queryText(input.query), home: String(input.home_id ?? ''), receipts: String(input.receipts_only ?? false), page: String(pageNumber(input.page)) }), signal)
     })
+    if (user.can_read_records) {
+      const identity = (value:unknown) => {
+        if(typeof value!=='string'||!value||value.length>100)throw new Error('A permitted record identity is required.')
+        return value
+      }
+      const cycleMetadata = (cycle:MaintenanceCycle) => ({ id:cycle.id,title:cycle.title,period_start:cycle.period_start,period_end:cycle.period_end,due_date:cycle.due_date,state:cycle.state,version:cycle.version,participants:cycle.participants,requested_paise:cycle.requested_paise,active_paise:cycle.active_paise,allocated_paise:cycle.allocated_paise,outstanding_paise:cycle.outstanding_paise,overdue_paise:cycle.overdue_paise,reversed_paise:cycle.reversed_paise })
+      add('society_find_maintenance','Read one current financial-scope page of maintenance periods and exact filtered amounts. Residents receive published periods for their entitled homes. Private sources, notes, reviewers and all participant selectors are excluded. This cannot submit, approve, post or allocate.',{query:search,home_id:{type:'string',maxLength:100},state:{type:'string',enum:['','PENDING','PUBLISHED','DECLINED','WITHDRAWN']},page},[],async(input,signal,me)=>{
+        if(!me.can_read_records)throw new Error('Current financial permission is required.')
+        const state=String(input.state??'')
+        if(!['','PENDING','PUBLISHED','DECLINED','WITHDRAWN'].includes(state))throw new Error('Use a supported maintenance state.')
+        const home=input.home_id===undefined||input.home_id===''?'':identity(input.home_id)
+        const result=await request<MaintenancePage>('/api/maintenance?'+new URLSearchParams({q:queryText(input.query),home,state,page:String(pageNumber(input.page))}),signal)
+        return {items:result.items.map(cycleMetadata),total:result.total,page:result.page,page_size:result.page_size,totals:result.totals}
+      })
+      add('society_read_maintenance','Read a permitted maintenance period with at most twenty scoped home lines. Current membership and financial permissions apply. Private approval references, notes and history are excluded. Publication requires the visible form and a separate treasury reviewer.',{period_id:{type:'string',minLength:1,maxLength:100},line_page:page},['period_id'],async(input,signal,me)=>{
+        if(!me.can_read_records)throw new Error('Current financial permission is required.')
+        const result=await request<MaintenanceDetail>('/api/maintenance/'+encodeURIComponent(identity(input.period_id))+'?'+new URLSearchParams({line_page:String(pageNumber(input.line_page))}),signal)
+        return {...cycleMetadata(result),lines:result.lines,line_page:result.line_page,page_size:result.page_size}
+      })
+      add('society_read_home_statement','Read one authorised home statement: exact totals plus at most twenty charges, credits and allocation links per page. Original receipts and opening credits are distinguished. Private operator and correction reasons are excluded. This never moves money or writes allocations.',{home_id:{type:'string',minLength:1,maxLength:100},charge_page:page,credit_page:page,allocation_page:page},['home_id'],async(input,signal,me)=>{
+        if(!me.can_read_records)throw new Error('Current financial permission is required.')
+        const result=await request<HomeStatement>('/api/statements/'+encodeURIComponent(identity(input.home_id))+'?'+new URLSearchParams({charge_page:String(pageNumber(input.charge_page)),credit_page:String(pageNumber(input.credit_page)),allocation_page:String(pageNumber(input.allocation_page))}),signal)
+        return {...result,allocations:result.allocations.map(item=>({id:item.id,source_id:item.source_id,charge_id:item.charge_id,amount_paise:item.amount_paise,receipt:item.receipt,source_kind:item.source_kind,description:item.description,state:item.state,created_at:item.created_at,corrected_at:item.corrected_at}))}
+      })
+    }
     add('society_find_requests', 'Read the current account’s private submissions or the authorised reviewer queue. Review decisions require the visible form and separate reviewer; this tool never approves an item.', { query: search, page }, [], async (input, signal) => request('/api/reviews?' + new URLSearchParams({ q: queryText(input.query), page: String(pageNumber(input.page)) }), signal))
     add('society_find_notices', 'Read approved notices matching current audience and memberships. Unapproved proposals and private reviewer notes are excluded.', { query: search, page }, [], async (input, signal) => request('/api/notices?' + new URLSearchParams({ q: queryText(input.query), page: String(pageNumber(input.page)) }), signal))
     add('society_find_complaints', 'Read the current account’s own service requests or the authorised handling queue. Case ownership is personal; sharing a home does not share another person’s case. Conversation text is not searched.', { query: search, page, status: { type: 'string', enum: ['', 'OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'CLOSED'] } }, [], async (input, signal) => {
