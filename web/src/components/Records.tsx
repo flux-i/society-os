@@ -8,7 +8,7 @@ import { PortalDialog } from './PortalDialog'
 
 type Entry = { id: string; flat_id: string; home: string; kind: string; amount_paise: number; date: string; description: string; payer: string; method: string; reference: string; source_note: string; state: string; created_by: string; created_at: number; posted_by: string; posted_at: number; reversal_reason: string; reversed_by: string; reversed_at: number; receipt_id: string; receipt_number: string; pdf_state: string }
 type Home = { id: string; label: string }
-type RecordPage = { items: Entry[]; total: number; page: number; page_size: number; debit_paise: number; credit_paise: number; balance_paise: number; drafts: number; homes: Home[] }
+type RecordPage = { items: Entry[]; total: number; page: number; page_size: number; debit_paise: number; credit_paise: number; balance_paise: number; voluntary_paise: number; drafts: number; homes: Home[] }
 const stateLabel = (state: string) => ({ POSTED: 'Confirmed', DRAFT: 'Draft', REVERSED: 'Reversed', DISCARDED: 'Discarded' })[state] ?? state
 const kinds: Record<string, string> = { RECEIVED: 'Money received', CHARGE: 'Given charge', OPENING_DEBIT: 'Opening amount due', OPENING_CREDIT: 'Opening credit' }
 const methods: Record<string, string> = { CASH: 'Cash', BANK_TRANSFER: 'Bank transfer', UPI: 'UPI', CHEQUE: 'Cheque' }
@@ -48,7 +48,7 @@ export function Records({ user, receipts }: { user: User; receipts: boolean }) {
     <div className="records-metrics" aria-label="Financial summary">
       <div><span>Charges & opening dues</span><strong>{data && !loading && !error ? money(data.debit_paise) : '—'}</strong><small>Confirmed amounts supplied manually</small></div>
       <div><span>Received & opening credits</span><strong>{data && !loading && !error ? money(data.credit_paise) : '—'}</strong><small>Confirmed credits for these homes</small></div>
-      <div className="records-balance"><span>{(data?.balance_paise ?? 0) < 0 ? 'Credit balance' : 'Balance to account for'}</span><strong>{data && !loading && !error ? money(Math.abs(data.balance_paise)) : '—'}</strong><small>{home ? 'For the selected home' : user.can_read_all_records ? 'Across the community' : 'Across your permitted homes'} · reversals excluded</small></div>
+      <div className="records-balance"><span>{(data?.balance_paise ?? 0) < 0 ? 'Credit balance' : 'Balance to account for'}</span><strong>{data && !loading && !error ? money(Math.abs(data.balance_paise)) : '—'}</strong><small>{home ? 'For the selected home' : user.can_read_all_records ? 'Across the community' : 'Across your permitted homes'} · reversals excluded{(data?.voluntary_paise??0)>0&&` · voluntary funds ${money(data!.voluntary_paise)} excluded from home credit`}</small></div>
     </div>
     <section className="registry-panel" aria-labelledby="records-title">
       <div className="registry-toolbar"><div><h2 id="records-title">{receipts ? 'Your receipt collection' : 'The entry book'}</h2><p>{receipts ? 'Open a receipt to view the record and download its PDF.' : user.can_manage_records ? 'Save a draft, review the details, then confirm. Every change has a trail.' : 'Confirmed entries for your permitted homes.'}</p></div><span className="result-count" role="status">{loading ? 'Opening records…' : error ? 'Connection unavailable' : `${data?.total ?? 0} ${receipts ? 'receipts' : 'entries'} found`}</span></div>

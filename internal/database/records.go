@@ -93,15 +93,16 @@ type Entry struct {
 	FileHash       string `json:"-"`
 }
 type EntryPage struct {
-	Items        []Entry      `json:"items"`
-	Total        int          `json:"total"`
-	Page         int          `json:"page"`
-	PageSize     int          `json:"page_size"`
-	DebitPaise   int64        `json:"debit_paise"`
-	CreditPaise  int64        `json:"credit_paise"`
-	BalancePaise int64        `json:"balance_paise"`
-	Drafts       int          `json:"drafts"`
-	Homes        []RecordHome `json:"homes"`
+	Items          []Entry      `json:"items"`
+	Total          int          `json:"total"`
+	Page           int          `json:"page"`
+	PageSize       int          `json:"page_size"`
+	DebitPaise     int64        `json:"debit_paise"`
+	CreditPaise    int64        `json:"credit_paise"`
+	VoluntaryPaise int64        `json:"voluntary_paise"`
+	BalancePaise   int64        `json:"balance_paise"`
+	Drafts         int          `json:"drafts"`
+	Homes          []RecordHome `json:"homes"`
 }
 type RecordHome struct {
 	ID    string `json:"id"`
@@ -311,7 +312,10 @@ func (s *Store) EntriesFor(ctx context.Context, token, home, query, state string
 	if err != nil {
 		return out, err
 	}
-	out.BalancePaise = out.DebitPaise - out.CreditPaise
+	if err = tx.QueryRowContext(ctx, "SELECT COALESCE(SUM((SELECT COALESCE(SUM(fc.amount_paise),0) FROM live_fund_contributions fc WHERE fc.source_id=e.id)),0) FROM entries e WHERE "+scope, args...).Scan(&out.VoluntaryPaise); err != nil {
+		return out, err
+	}
+	out.BalancePaise = out.DebitPaise - out.CreditPaise + out.VoluntaryPaise
 	if query != "" {
 		scope += ` AND (instr(lower(e.description||' '||e.payer||' '||b.code||'-'||f.flat_number||' '||COALESCE(r.number,'')),lower(?))>0)`
 		args = append(args, query)
@@ -389,25 +393,8 @@ func (s *Store) PostEntry(ctx context.Context, token, id string, in EntryAction)
 	if err != nil {
 		return "", err
 	}
-	if e.Kind == "RECEIVED" {
-		year := now.In(time.FixedZone("IST", 19800)).Format("2006")
-		var seq int
-		err = tx.QueryRowContext(ctx, `INSERT INTO receipt_counter VALUES (?,1) ON CONFLICT(year) DO UPDATE SET next_number=next_number+1 RETURNING next_number`, year).Scan(&seq)
-		if err != nil {
-			return "", err
-		}
-		snapshot := ReceiptSnapshot{Number: fmt.Sprintf("SOS-%s-%06d", year, seq), Home: e.Home, Payer: e.Payer, AmountPaise: e.AmountPaise, Date: e.Date, Description: e.Description, Method: e.Method, Reference: e.Reference, SourceNote: e.SourceNote, Operator: p.Name, IssuedAt: now.Unix()}
-		blob, err := json.Marshal(snapshot)
-		if err != nil {
-			return "", err
-		}
-		receiptID := randomToken()
-		if _, err = tx.ExecContext(ctx, "INSERT INTO receipts VALUES(?,?,?,?,?)", receiptID, id, snapshot.Number, string(blob), now.Unix()); err != nil {
-			return "", err
-		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO receipt_jobs(receipt_id,state,available_at) VALUES(?,'PENDING',?)", receiptID, now.Unix()); err != nil {
-			return "", err
-		}
+	if err = issueReceipt(ctx, tx, p, e, now); err != nil {
+		return "", err
 	}
 	if err = appendAudit(ctx, tx, p.ID, e.FlatID, "ENTRY_POSTED", e.Description, map[string]any{"entry_id": id, "state": "DRAFT"}, map[string]any{"entry_id": id, "state": "POSTED", "amount_paise": e.AmountPaise}); err != nil {
 		return "", err

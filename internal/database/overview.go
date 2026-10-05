@@ -67,7 +67,7 @@ func (s *Store) OverviewFor(ctx context.Context, token, section string) (Overvie
 	now := time.Now()
 	day, start := overviewWindow(now)
 	out := Overview{Section: section, AsOf: now.Unix(), Day: day, PeriodStart: start, Calendar: "Asia/Kolkata", Counts: map[string]int64{}, Items: []OverviewItem{}}
-	if section != "finance" && section != "reviews" && section != "service" && section != "notices" && section != "documents" && section != "maintenance" && section != "upkeep" {
+	if section != "finance" && section != "reviews" && section != "service" && section != "notices" && section != "documents" && section != "maintenance" && section != "upkeep" && section != "collections" {
 		return out, ErrInvalid
 	}
 	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -80,6 +80,8 @@ func (s *Store) OverviewFor(ctx context.Context, token, section string) (Overvie
 		return out, err
 	}
 	switch section {
+	case "collections":
+		err = overviewCollections(ctx, tx, p, &out)
 	case "upkeep":
 		err = overviewUpkeep(ctx, tx, p, &out)
 	case "finance":
@@ -127,11 +129,14 @@ func overviewFinance(ctx context.Context, tx *sql.Tx, p Principal, out *Overview
 	}
 	scope, args := recordScope(p)
 	posted := `e.state='POSTED' AND NOT EXISTS(SELECT 1 FROM entry_reversals r WHERE r.entry_id=e.id)`
-	query := `WITH balances AS (SELECT e.flat_id,SUM(CASE WHEN e.kind IN('CHARGE','OPENING_DEBIT') THEN e.amount_paise ELSE -e.amount_paise END) AS balance FROM entries e WHERE ` + scope + ` AND ` + posted + ` GROUP BY e.flat_id) SELECT COALESCE(SUM(balance),0),COALESCE(SUM(MAX(balance,0)),0),COALESCE(SUM(MAX(-balance,0)),0),COUNT(CASE WHEN balance>0 THEN 1 END) FROM balances`
+	query := `WITH balances AS (SELECT e.flat_id,SUM(CASE WHEN e.kind IN('CHARGE','OPENING_DEBIT') THEN e.amount_paise ELSE -e.amount_paise+COALESCE((SELECT SUM(fc.amount_paise) FROM live_fund_contributions fc WHERE fc.source_id=e.id),0) END) AS balance FROM entries e WHERE ` + scope + ` AND ` + posted + ` GROUP BY e.flat_id) SELECT COALESCE(SUM(balance),0),COALESCE(SUM(MAX(balance,0)),0),COALESCE(SUM(MAX(-balance,0)),0),COUNT(CASE WHEN balance>0 THEN 1 END) FROM balances`
 	if err := overviewCounts(ctx, tx, out, []string{"balance_paise", "positive_balance_paise", "credit_balance_paise", "homes_with_balance"}, query, args...); err != nil {
 		return err
 	}
 	if err := overviewCounts(ctx, tx, out, []string{"received_paise"}, `SELECT COALESCE(SUM(e.amount_paise),0) FROM entries e WHERE `+scope+` AND `+posted+` AND e.kind='RECEIVED' AND e.entry_date BETWEEN ? AND ?`, append(append([]any{}, args...), out.PeriodStart, out.Day)...); err != nil {
+		return err
+	}
+	if err := overviewCounts(ctx, tx, out, []string{"voluntary_paise"}, "SELECT COALESCE(SUM((SELECT COALESCE(SUM(fc.amount_paise),0) FROM live_fund_contributions fc WHERE fc.source_id=e.id)),0) FROM entries e WHERE "+scope, args...); err != nil {
 		return err
 	}
 	draft := `e.state='DRAFT' AND NOT EXISTS(SELECT 1 FROM draft_discards d WHERE d.entry_id=e.id)`

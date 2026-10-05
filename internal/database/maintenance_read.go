@@ -173,14 +173,15 @@ func (s *Store) MaintenanceCycleFor(ctx context.Context, token, id string, lineP
 	return result, tx.Commit()
 }
 
-const statementQuery = `WITH used_source AS (SELECT source_id,SUM(amount_paise) allocated FROM live_entry_allocations GROUP BY source_id),
+const statementQuery = `WITH used_source AS (SELECT source_id,SUM(amount_paise) allocated FROM live_credit_uses GROUP BY source_id),
     used_charge AS (SELECT charge_id,SUM(amount_paise) allocated FROM live_entry_allocations GROUP BY charge_id),
     active_statement AS (SELECT e.id,e.kind,e.description,e.entry_date,e.amount_paise,
         CASE WHEN e.kind IN ('CHARGE','OPENING_DEBIT') THEN COALESCE(c.allocated,0) ELSE COALESCE(s.allocated,0) END allocated,
-        COALESCE(r.number,'') receipt,COALESCE(l.cycle_id,'') cycle_id,COALESCE(m.due_date,'') due_date
+        COALESCE(r.number,'') receipt,COALESCE(l.cycle_id,'') cycle_id,COALESCE(m.due_date,cf.due_date,'') due_date
         FROM entries e LEFT JOIN used_source s ON s.source_id=e.id LEFT JOIN used_charge c ON c.charge_id=e.id
         LEFT JOIN receipts r ON r.entry_id=e.id LEFT JOIN maintenance_lines l ON l.entry_id=e.id
         LEFT JOIN maintenance_cycles m ON m.id=l.cycle_id AND m.state='PUBLISHED'
+ LEFT JOIN fund_participants fp ON fp.current_entry_id=e.id LEFT JOIN fund_campaigns cf ON cf.id=fp.campaign_id AND cf.state IN ('PUBLISHED','CLOSED')
         WHERE e.flat_id=? AND e.state='POSTED' AND NOT EXISTS(SELECT 1 FROM entry_reversals v WHERE v.entry_id=e.id)) `
 
 func (s *Store) HomeStatementFor(ctx context.Context, token, home string, chargePage, creditPage, allocationPage int) (HomeStatement, error) {
@@ -207,6 +208,9 @@ func (s *Store) HomeStatementFor(ctx context.Context, token, home string, charge
         COALESCE(SUM(kind IN ('CHARGE','OPENING_DEBIT')),0),COALESCE(SUM(kind IN ('RECEIVED','OPENING_CREDIT')),0)
         FROM active_statement`, home, today()).Scan(&result.DebitPaise, &result.CreditPaise, &result.AllocatedPaise, &result.OutstandingPaise, &result.UnallocatedPaise, &result.OverduePaise, &result.ChargeTotal, &result.CreditTotal)
 	if err != nil {
+		return result, err
+	}
+	if err = tx.QueryRowContext(ctx, "SELECT COALESCE(SUM(amount_paise),0) FROM live_fund_contributions WHERE flat_id=?", home).Scan(&result.VoluntaryPaise); err != nil {
 		return result, err
 	}
 	result.ChargePage = clampMaintenancePage(chargePage, result.ChargeTotal, result.PageSize)

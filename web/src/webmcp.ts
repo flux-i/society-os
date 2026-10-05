@@ -4,6 +4,7 @@ import type { Account, AccountPage, User } from './api'
 import type { AccountDetails } from './components/AccountAdministration'
 import type { HomeStatement, MaintenanceCycle, MaintenanceDetail, MaintenancePage } from './maintenance'
 import type { RegisterDetail, RegisterPage, Work, WorkDetail, WorkPage } from './upkeep'
+import type { ContributionPage, Fund, FundDetail, FundPage, FundWaiver, PaymentReport, ReportPage, WaiverPage } from './collections'
 
 type Tool = {
   name: string
@@ -78,18 +79,18 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
       window.location.hash = screen
       return { screen }
     }, false)
-    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', ...(user.can_read_records ? ['finance', 'maintenance'] : [])]
+    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
     add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
       const section = String(input.section)
-      if (!sections.includes(section) || (['finance','maintenance'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
+      if (!sections.includes(section) || (['finance','maintenance','collections'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
       return request('/api/overview/' + section, signal)
     })
     const accountMetadata = (account: Account) => ({ id: account.id, name: account.name, state: account.state, roles: account.roles, mfa_enrolled: account.mfa_enrolled, active_homes: account.active_homes })
@@ -120,6 +121,49 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
         return value
       }
       const cycleMetadata = (cycle:MaintenanceCycle) => ({ id:cycle.id,title:cycle.title,period_start:cycle.period_start,period_end:cycle.period_end,due_date:cycle.due_date,state:cycle.state,version:cycle.version,participants:cycle.participants,requested_paise:cycle.requested_paise,active_paise:cycle.active_paise,allocated_paise:cycle.allocated_paise,outstanding_paise:cycle.outstanding_paise,overdue_paise:cycle.overdue_paise,reversed_paise:cycle.reversed_paise })
+      const fundMetadata = (fund:Fund) => ({id:fund.id,title:fund.title,contribution_type:fund.contribution_type,start_date:fund.start_date,due_date:fund.due_date,target_paise:fund.target_paise,state:fund.state,version:fund.version,participants:fund.participants,requested_paise:fund.requested_paise,active_paise:fund.active_paise,allocated_paise:fund.allocated_paise,outstanding_paise:fund.outstanding_paise,overdue_paise:fund.overdue_paise,waived_paise:fund.waived_paise,voluntary_paise:fund.voluntary_paise,pending_reports:fund.pending_reports,paid_homes:fund.paid_homes,partial_homes:fund.partial_homes,unpaid_homes:fund.unpaid_homes,exempt_homes:fund.exempt_homes})
+      const reportMetadata = (report:PaymentReport) => ({id:report.id,campaign_id:report.campaign_id,campaign:report.campaign,flat_id:report.flat_id,home:report.home,amount_paise:report.amount_paise,payment_date:report.payment_date,state:report.state,current_state:report.current_state,version:report.version,receipt:report.receipt,entry_id:report.entry_id})
+      add('society_find_collections','Read at most twelve fund metadata rows and scoped exact totals. Current home and financial access apply. Private source references, supporting notes, participant selectors and activity are excluded. This cannot publish a fund or initiate payments.',{query:search,home_id:{type:'string',maxLength:100},state:{type:'string',enum:['','PENDING','PUBLISHED','CLOSED','DECLINED','WITHDRAWN']},page},[],async(input,signal,me)=>{
+        if(!me.can_read_records)throw new Error('Current financial permission is required.')
+        const state=String(input.state??'');if(!['','PENDING','PUBLISHED','CLOSED','DECLINED','WITHDRAWN'].includes(state))throw new Error('Choose a supported fund state.')
+        const result=await request<FundPage>('/api/collections?'+new URLSearchParams({q:queryText(input.query),home:input.home_id===undefined||input.home_id===''?'':identity(input.home_id),state,page:String(pageNumber(input.page))}),signal)
+        return {items:result.items.map(fundMetadata),total:result.total,page:result.page,page_size:result.page_size,totals:result.totals}
+      })
+      add('society_read_collection','Read a permitted fund with at most twenty currently scoped participant lines. Voluntary funds create no debt. Private approval records and history are excluded. Separate human review is required for publication, verification and exemptions.',{campaign_id:{type:'string',minLength:1,maxLength:100},line_page:page},['campaign_id'],async(input,signal,me)=>{
+        if(!me.can_read_records)throw new Error('Current financial permission is required.')
+        const result=await request<FundDetail>('/api/collections/'+encodeURIComponent(identity(input.campaign_id))+'?line_page='+pageNumber(input.line_page),signal)
+        return {...fundMetadata(result),lines:result.lines,line_page:result.line_page,page_size:result.page_size}
+      })
+      add('society_find_payment_reports','Read at most twelve payment-report metadata rows. Residents receive only their own reports for current financially entitled homes. Reported money is a claim until verified. Payer, reference, evidence, verification sources, identities, comments and review history are excluded. This cannot verify or issue a receipt.',{query:search,campaign_id:{type:'string',maxLength:100},home_id:{type:'string',maxLength:100},state:{type:'string',enum:['','PENDING','NEEDS_INFO','REJECTED','WITHDRAWN','CONFIRMED','DUPLICATE']},page},[],async(input,signal,me)=>{
+        if(!me.can_read_records)throw new Error('Current financial permission is required.')
+        const state=String(input.state??'');if(!['','PENDING','NEEDS_INFO','REJECTED','WITHDRAWN','CONFIRMED','DUPLICATE'].includes(state))throw new Error('Choose a supported report state.')
+        const optional=(value:unknown)=>value===undefined||value===''?'':identity(value)
+        const result=await request<ReportPage>('/api/payment-reports?'+new URLSearchParams({q:queryText(input.query),campaign:optional(input.campaign_id),home:optional(input.home_id),state,page:String(pageNumber(input.page))}),signal)
+        return {items:result.items.map(reportMetadata),total:result.total,page:result.page,page_size:result.page_size,counts:result.counts}
+      })
+      add('society_read_payment_report','Read one currently permitted report’s claim amount, current status and linked original receipt metadata. Payer, external reference, photos/file identities, private comments and verification/decision history are excluded. Nothing is submitted or confirmed.',{report_id:{type:'string',minLength:1,maxLength:100}},['report_id'],async(input,signal,me)=>{
+        if(!me.can_read_records)throw new Error('Current financial permission is required.')
+        return reportMetadata(await request<PaymentReport>('/api/payment-reports/'+encodeURIComponent(identity(input.report_id)),signal))
+      })
+      add('society_find_fund_contributions','Read a bounded current-home page of voluntary purpose assignments and original receipt metadata. Private operator and correction reasons are excluded. This cannot assign, correct or receive money.',{campaign_id:{type:'string',maxLength:100},home_id:{type:'string',maxLength:100},page},[],async(input,signal,me)=>{
+        if(!me.can_read_records)throw new Error('Current financial permission is required.')
+        const optional=(value:unknown)=>value===undefined||value===''?'':identity(value)
+        const result=await request<ContributionPage>('/api/fund-contributions?'+new URLSearchParams({campaign:optional(input.campaign_id),home:optional(input.home_id),page:String(pageNumber(input.page))}),signal)
+        return {...result,items:result.items.map(item=>({id:item.id,campaign_id:item.campaign_id,campaign:item.campaign,home:item.home,amount_paise:item.amount_paise,receipt:item.receipt,state:item.state,created_at:item.created_at}))}
+      })
+      if(user.can_read_all_records){
+        const waiverMetadata=(item:FundWaiver)=>({id:item.id,campaign_id:item.campaign_id,campaign:item.campaign,home:item.home,amount_paise:item.amount_paise,state:item.state,version:item.version})
+        add('society_find_fund_exemptions','Read one bounded financial-reviewer page of exemption metadata. Sources, reasons, proposers, reviewers and history are excluded. Resident financial access does not grant private exemption records. This cannot propose or approve exemptions.',{campaign_id:{type:'string',maxLength:100},state:{type:'string',enum:['','PENDING','APPROVED','DECLINED','WITHDRAWN']},page},[],async(input,signal,me)=>{
+          if(!me.can_read_all_records)throw new Error('Current financial reviewer permission is required.')
+          const state=String(input.state??'');if(!['','PENDING','APPROVED','DECLINED','WITHDRAWN'].includes(state))throw new Error('Choose a supported exemption state.')
+          const result=await request<WaiverPage>('/api/fund-waivers?'+new URLSearchParams({campaign:input.campaign_id===undefined||input.campaign_id===''?'':identity(input.campaign_id),state,page:String(pageNumber(input.page))}),signal)
+          return {...result,items:result.items.map(waiverMetadata)}
+        })
+        add('society_read_fund_exemption','Read permitted financial-reviewer exemption metadata. Private reasons, source records and reviewer history are excluded. All exemptions require explicit visible forms and different-person review.',{waiver_id:{type:'string',minLength:1,maxLength:100}},['waiver_id'],async(input,signal,me)=>{
+          if(!me.can_read_all_records)throw new Error('Current financial reviewer permission is required.')
+          return waiverMetadata(await request<FundWaiver>('/api/fund-waivers/'+encodeURIComponent(identity(input.waiver_id)),signal))
+        })
+      }
       add('society_find_maintenance','Read one current financial-scope page of maintenance periods and exact filtered amounts. Residents receive published periods for their entitled homes. Private sources, notes, reviewers and all participant selectors are excluded. This cannot submit, approve, post or allocate.',{query:search,home_id:{type:'string',maxLength:100},state:{type:'string',enum:['','PENDING','PUBLISHED','DECLINED','WITHDRAWN']},page},[],async(input,signal,me)=>{
         if(!me.can_read_records)throw new Error('Current financial permission is required.')
         const state=String(input.state??'')

@@ -1,0 +1,10 @@
+import type { ReactNode } from 'react'
+import { fundActions, useFundWrite } from '../collections'
+import type { FundEvent } from '../collections'
+import { careTime } from '../upkeep'
+import { PageControls } from './Maintenance'
+import { Icon } from './Icon'
+export function FundFeedback({writer,onReload}:{writer:ReturnType<typeof useFundWrite>;onReload?:()=>void}){return <>{writer.error&&<div className="form-error" role="alert" ref={writer.feedback}><p>{writer.error}</p>{writer.conflict&&onReload&&<button type="button" className="text-link" onClick={onReload}>Reload current record<Icon name="refresh"/></button>}</div>}{writer.locked&&!writer.conflict&&<p className="form-help">Retry keeps these reviewed details and the same submission identity.</p>}</>}
+export function FundHistory({events,total,page,size,onPage,disabled=false}:{events:FundEvent[];total:number;page:number;size:number;onPage:(page:number)=>void;disabled?:boolean}){return <section className="review-history upkeep-history" aria-label="Fund activity"><h3>The record, kept together.</h3><ol>{events.map(event=><li key={event.version}><strong>{fundActions[event.action]??event.action}</strong><p>{event.reason}</p><small>{event.actor} · {careTime(event.at)}</small></li>)}</ol>{total>size&&<PageControls label="fund activity" page={page} total={total} size={size} onPage={onPage} disabled={disabled}/>}</section>}
+export function FundUnavailable({error,loading,onRetry,children}:{error:string;loading:boolean;onRetry:()=>void;children:ReactNode}){return error?<div className="empty-state" role="alert"><h3>This record is unavailable.</h3><p>{error}</p><button className="button button-dark" onClick={onRetry}>Try again<Icon name="refresh"/></button></div>:loading?<p role="status">Opening the current record…</p>:<>{children}</>}
+export function FundCheck({checked,onChange,disabled=false,children}:{checked:boolean;onChange:(checked:boolean)=>void;disabled?:boolean;children:ReactNode}){return <label className="checkbox-label"><input type="checkbox" checked={checked} disabled={disabled} onChange={event=>onChange(event.target.checked)}/><span>{children}</span></label>}

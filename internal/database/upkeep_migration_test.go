@@ -47,8 +47,9 @@ func TestSchemaNineUpkeepUpgradePreservesMaintenanceReceiptAllocationAndAuthorit
 	reviewer := maintenanceReviewer(t, s, admin)
 	cycle := publishMaintenance(t, s, admin, reviewer, maintenanceProposal())
 	received := post(t, s, admin, received("400.00"))
-	allocate(t, s, admin, received, cycle.Lines[0].EntryID, "300.00")
-	beforeStatement := statement(t, s, admin, "demo-flat-A-101")
+	// Build the accepted legacy allocation using its schema-nine contract. The
+	// current reader/writer require views introduced by later migrations.
+	accessExec(t, s, "INSERT INTO entry_allocations(id,source_id,charge_id,amount_paise,reason,actor_id,created_at) VALUES(?,?,?,30000,?,?,?)", randomToken(), received, cycle.Lines[0].EntryID, "Legacy supplied same-home allocation", "demo-user-admin", 2)
 	beforeEntry, err := s.EntryFor(ctx, admin, received)
 	if err != nil {
 		t.Fatal(err)
@@ -103,8 +104,9 @@ func TestSchemaNineUpkeepUpgradePreservesMaintenanceReceiptAllocationAndAuthorit
 	if !reflect.DeepEqual(before, snapshot()) {
 		t.Fatal("accepted schema-nine records changed")
 	}
-	if !reflect.DeepEqual(beforeStatement, statement(t, s, admin, "demo-flat-A-101")) {
-		t.Fatal("statement changed")
+	gotStatement := statement(t, s, admin, "demo-flat-A-101")
+	if gotStatement.DebitPaise != 100000 || gotStatement.CreditPaise != 40000 || gotStatement.AllocatedPaise != 30000 || gotStatement.OutstandingPaise != 70000 || gotStatement.UnallocatedPaise != 10000 || gotStatement.VoluntaryPaise != 0 {
+		t.Fatal("legacy statement changed", gotStatement)
 	}
 	entry, err := s.EntryFor(ctx, admin, received)
 	if err != nil || !reflect.DeepEqual(entry, beforeEntry) {

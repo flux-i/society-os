@@ -1,8 +1,8 @@
 # Society operations: overview and next workflows
 
 **Recorded:** 4 October 2026, from the user's explicit product direction.
-**Status:** Accepted development scope; implementation and production acceptance are separate. Release 0.11/schema 10 is the verified preview with documents, changing overview, account administration, [maintenance cycles/allocations](maintenance-baseline.md) and [upkeep work/assets/vendor deadlines](upkeep-baseline.md). Fund campaigns/payment reports are next.
-**Ordering:** Documents, the changing overview and explicit account administration have passed their local gates. Maintenance cycles/allocations and upkeep have also passed; continue with [fund campaigns and externally paid reports](collections-workflow.md). Deliver the remaining workflows in the order below, with domain, rendered interaction, screenshot and actual native WebMCP checks at every checkpoint.
+**Status:** Accepted development scope; implementation and production acceptance are separate. Release 0.12/schema 11 is the verified preview with documents, changing overview, account administration, [maintenance cycles/allocations](maintenance-baseline.md), [upkeep work/assets/vendor deadlines](upkeep-baseline.md) and [collection campaigns/payment verification/exemptions](collections-baseline.md). Private incident review and separately authorised fines are next.
+**Ordering:** Documents, the changing overview and explicit account administration have passed their local gates. Maintenance cycles/allocations, upkeep and collections have also passed; continue with [private incidents and separate fine issuance](incidents-workflow.md). Deliver the remaining workflows in the order below, with domain, rendered interaction, screenshot and actual native WebMCP checks at every checkpoint.
 
 This document extends the [implementation plan](../housing-society-digital-platform-plan.md) and [execution backlog](../execution-backlog.md). It supersedes their earlier deferral of resident payment reports and configured messaging. Payment gateways, transfers initiated by the platform, bank automation and automatic statutory charge calculations remain outside scope. A collection campaign requests an externally paid contribution; it does not move money.
 
@@ -100,8 +100,8 @@ Visitor gate hardware, parking enforcement, amenity booking, elections, AI, paym
 2. **Verified locally:** changing overview with exact deep links, scoped full counts, partial failures, inspected captures and native WebMCP.
 3. **Verified locally:** explicit role/account administration, preserving separate financial powers, bounded terms, suspension/resumption and current client/native scope.
 4. **Verified locally:** [maintenance cycles and explicit charge/receipt allocations](maintenance-baseline.md), and [upkeep tasks, assets/vendors and deadlines](upkeep-baseline.md).
-5. Deliver [fund campaigns and resident reports of external payments](collections-workflow.md), with treasury confirmation. The expectation brief is saved before code.
-6. Add private evidence links and rule-report review, then authorised fine issuance using the financial posting contract.
+5. **Verified locally:** [fund campaigns and resident reports of external payments](collections-baseline.md), with separate treasury verification, original receipts and exemptions.
+6. Deliver [private evidence/rule-report review and response notices](incidents-workflow.md), then a separate authorised fine checkpoint using the financial posting contract. Its expectation brief is saved before code.
 7. Deliver contact preferences, recipient targeting, synthetic provider queue and safe channel configuration; enable a real provider only when credentials/onboarding are available.
 8. Extend financial statement types, safe spreadsheet originals, deliberate publication and configured sharing; add scoped exports and the prioritised asset/vendor/community slices.
 9. Finish PWA/offline/update behavior, migration rehearsals and production/pilot acceptance. Prepare independent infrastructure steps throughout; real-data/policy/provider inputs block only dependent activation.

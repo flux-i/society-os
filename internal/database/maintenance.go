@@ -137,6 +137,7 @@ type HomeStatement struct {
 	CreditPaise      int64              `json:"credit_paise"`
 	AllocatedPaise   int64              `json:"allocated_paise"`
 	OutstandingPaise int64              `json:"outstanding_paise"`
+	VoluntaryPaise   int64              `json:"voluntary_paise"`
 	UnallocatedPaise int64              `json:"unallocated_paise"`
 	OverduePaise     int64              `json:"overdue_paise"`
 	Charges          []StatementEntry   `json:"charges"`
@@ -351,7 +352,7 @@ func (s *Store) AllocateCredit(ctx context.Context, token string, in CreditAlloc
 		return "", invalid("Allocate only confirmed unreversed credit and charges from the same home.")
 	}
 	var sourceUsed, chargeUsed int64
-	if err := tx.QueryRowContext(ctx, "SELECT COALESCE(SUM(CASE WHEN source_id=? THEN amount_paise ELSE 0 END),0),COALESCE(SUM(CASE WHEN charge_id=? THEN amount_paise ELSE 0 END),0) FROM live_entry_allocations WHERE source_id=? OR charge_id=?", source.ID, charge.ID, source.ID, charge.ID).Scan(&sourceUsed, &chargeUsed); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT COALESCE((SELECT SUM(amount_paise) FROM live_credit_uses WHERE source_id=?),0),COALESCE((SELECT SUM(amount_paise) FROM live_entry_allocations WHERE charge_id=?),0)", source.ID, charge.ID).Scan(&sourceUsed, &chargeUsed); err != nil {
 		return "", err
 	}
 	if amount > source.AmountPaise-sourceUsed || amount > charge.AmountPaise-chargeUsed {
