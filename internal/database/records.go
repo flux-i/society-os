@@ -113,7 +113,7 @@ func (s *Store) SeedDemoTreasury(ctx context.Context) error {
 	if err := s.RequireDemo(ctx); err != nil {
 		return err
 	}
-	_, err := s.DB.ExecContext(ctx, `INSERT OR IGNORE INTO role_grants VALUES ('demo-treasury-grant','demo-user-admin','TREASURER',?,?,NULL,'demo-user-admin')`, time.Now().Unix(), time.Now().Add(365*24*time.Hour).Unix())
+	_, err := s.DB.ExecContext(ctx, `INSERT OR IGNORE INTO role_grants(id,user_id,role,valid_from,valid_until,revoked_at,granted_by) VALUES ('demo-treasury-grant','demo-user-admin','TREASURER',?,?,NULL,'demo-user-admin')`, time.Now().Unix(), time.Now().Add(365*24*time.Hour).Unix())
 	return err
 }
 

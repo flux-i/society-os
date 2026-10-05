@@ -17,12 +17,12 @@ func reviewLogin(t *testing.T, s *Store, email string) string {
 				t.Fatal(err)
 			}
 		}
-		code, _, err := s.DemoVerificationCode(context.Background(), token)
+		code, recovery, err := s.DemoVerificationCode(context.Background(), token)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if p.MFAEnrolled {
-			_, err = s.VerifyMFA(context.Background(), token, code, false)
+			_, err = s.VerifyMFA(context.Background(), token, code, recovery)
 		} else {
 			_, err = s.ConfirmMFA(context.Background(), token, code)
 		}

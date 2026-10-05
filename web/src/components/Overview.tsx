@@ -70,7 +70,10 @@ export function Overview({ user }: { user: User }) {
   const busy = allSources.some(source => source.busy)
   const complete = allSources.every(source => source.data)
   useEffect(() => {
-    if (!busy && refreshFocus.current) { refreshFocus.current = false; refreshButton.current?.focus({ preventScroll: true }) }
+    if (!busy && refreshFocus.current) {
+      refreshFocus.current = false
+      if (document.activeElement === document.body || document.activeElement === refreshButton.current) refreshButton.current?.focus({ preventScroll: true })
+    }
   }, [busy])
   useEffect(() => {
     if (busy) return

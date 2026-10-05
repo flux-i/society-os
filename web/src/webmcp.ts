@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { APIError, request } from './api'
-import type { User } from './api'
+import { APIError, request, userAccessScope } from './api'
+import type { Account, AccountPage, User } from './api'
+import type { AccountDetails } from './components/AccountAdministration'
 
 type Tool = {
   name: string
@@ -14,6 +15,7 @@ type ModelContext = { registerTool: (tool: Tool, options: { signal: AbortSignal 
 // Optional browser API: ordinary browsers use the same screens without a polyfill.
 // No tool posts money, approves a request, publishes content or changes permissions.
 export function useSocietyTools(user: User, openHome: (id: string) => void) {
+  const accessScope = userAccessScope(user)
   useEffect(() => {
     const context = (document as Document & { modelContext?: ModelContext }).modelContext
     if (!context || user.mfa_pending) return
@@ -23,7 +25,12 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
         if (error instanceof APIError && error.status === 401) window.dispatchEvent(new Event('session-expired'))
         throw error
       })
+      if (me.mfa_pending && !lifetime.signal.aborted) window.dispatchEvent(new Event('session-recheck'))
       if (me.id !== user.id || me.mfa_pending || lifetime.signal.aborted) throw new Error('The signed-in account changed. Discover tools again.')
+      if (userAccessScope(me) !== accessScope) {
+        window.dispatchEvent(new Event('session-recheck'))
+        throw new Error('Current permissions changed. Discover tools again.')
+      }
       return me
     }
     const add = (name: string, description: string, properties: Record<string, unknown>, required: string[], run: (input: Record<string, unknown>, signal: AbortSignal, me: User) => Promise<unknown>, readOnly = true) => {
@@ -69,10 +76,10 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', ...(user.can_manage_registry ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen === 'access' && !me.can_manage_registry) || (['entries', 'receipts'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
       window.location.hash = screen
       return { screen }
@@ -83,6 +90,20 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       if (!sections.includes(section) || (section === 'finance' && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
       return request('/api/overview/' + section, signal)
     })
+    const accountMetadata = (account: Account) => ({ id: account.id, name: account.name, state: account.state, roles: account.roles, mfa_enrolled: account.mfa_enrolled, active_homes: account.active_homes })
+    if (user.can_manage_accounts) {
+      add('society_find_accounts', 'Read one page of account names, states and current appointments as an authorised administrator. Email addresses, security material and verification notes are excluded. This cannot invite, change roles, suspend or resume an account.', { query: { ...search, description: 'At most 100 characters from an account name or verified login.' }, page }, [], async (input, signal, me) => {
+        if (!me.can_manage_accounts) throw new Error('Current account administration permission is required.')
+        const result = await request<AccountPage>('/api/admin/accounts?' + new URLSearchParams({ q: queryText(input.query), page: String(pageNumber(input.page)), page_size: '12' }), signal)
+        return { ...result, items: result.items.map(accountMetadata) }
+      })
+      add('society_read_account', 'Read bounded appointment metadata for a currently permitted account as an administrator. Email addresses, activity/verification notes, passwords, factors and tokens are excluded. Visible forms are required for all access changes.', { account_id: { type: 'string', minLength: 1, maxLength: 100 }, grant_page: page }, ['account_id'], async (input, signal, me) => {
+        if (!me.can_manage_accounts) throw new Error('Current account administration permission is required.')
+        if (typeof input.account_id !== 'string' || !input.account_id || input.account_id.length > 100) throw new Error('An account identity is required.')
+        const result = await request<AccountDetails>('/api/admin/accounts/' + encodeURIComponent(input.account_id) + '?' + new URLSearchParams({ grant_page: String(pageNumber(input.grant_page)) }), signal)
+        return { account: accountMetadata(result.account), version: result.version, grants: result.grants.map(grant => ({ id: grant.id, role: grant.role, state: grant.state, valid_from: grant.valid_from, valid_until: grant.valid_until, revoked_at: grant.revoked_at })), grant_total: result.grant_total, grant_page: result.grant_page, page_size: result.page_size }
+      })
+    }
     if (user.can_read_records) add('society_find_records', 'Read permitted manual entries or receipt states. Totals describe supplied records. This never confirms entries, creates receipts or initiates payments.', {
       query: search, home_id: { type: 'string', maxLength: 100 }, receipts_only: { type: 'boolean' }, page,
     }, [], async (input, signal, me) => {
@@ -108,5 +129,5 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       return request('/api/documents/' + encodeURIComponent(input.document_id) + '?' + new URLSearchParams({ history_page: String(pageNumber(input.history_page)) }), signal)
     })
     return () => lifetime.abort()
-  }, [user.id, user.mfa_pending, user.can_read_registry, user.can_manage_registry, user.can_read_records, openHome])
+  }, [user.id, user.mfa_pending, accessScope, openHome])
 }

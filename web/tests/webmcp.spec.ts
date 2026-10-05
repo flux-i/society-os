@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { login, navigate, completePreviewMFA, chooseOption } from './helpers'
 import { plainPDF } from './document-fixtures'
+import { execFileSync } from 'node:child_process'
 
 type ContextDocument = Document & { modelContext: {
   getTools: () => Promise<{ name: string }[]>
@@ -20,6 +21,94 @@ async function execute(page: Page, name: string, args: unknown) {
     return context.executeTool(tool, major < 155 ? JSON.stringify(args) : args)
   }, { name, args })
 }
+
+async function nativeManageAccount(page: Page, name: string) {
+  await navigate(page, 'Access & invitations')
+  await page.getByRole('button', { name: 'Manage access for ' + name, exact: true }).click()
+  await expect(page.getByRole('dialog').getByRole('heading', { name, exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByText('Opening this account…', { exact: true })).toHaveCount(0)
+}
+async function nativeAccessDecision(page: Page, button: string) {
+  await page.getByRole('textbox', { name: 'Reason', exact: true }).fill('Verified fictional appointment against the approved society register for native checks.')
+  await page.getByRole('dialog').getByRole('checkbox').check()
+  await page.getByRole('button', { name: button, exact: true }).click()
+  await expect(page.getByRole('dialog').locator('.form-success')).toBeVisible()
+  await expect(page.getByRole('dialog').getByText('Updating this account…', { exact: true })).toHaveCount(0)
+}
+
+test('native account metadata matches a visible appointment and preserves its human form without security or activity content', async ({ page }) => {
+  await login(page); await expect.poll(() => names(page)).toContain('society_read_account')
+  const before = JSON.parse(await execute(page, 'society_read_account', { account_id: 'demo-user-owner' })); expect(before.version).toBe(1); expect(before.account.roles).toEqual([])
+  await nativeManageAccount(page, 'Demo Owner A-101'); await page.getByRole('button', { name: 'Add appointment', exact: true }).click(); await chooseOption(page, 'Appointment', 'Accountant / auditor'); await page.getByRole('textbox', { name: 'Reason', exact: true }).fill('A private fictional verification note that must stay out of native metadata.')
+  const mutations: string[] = []; const listener = (request: import('@playwright/test').Request) => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) }; page.on('request', listener)
+  const results = JSON.parse(await execute(page, 'society_find_accounts', { query: 'owner@demo.society' })); expect(results.total).toBe(1); expect(results.items[0].name).toBe('Demo Owner A-101'); expect(Object.keys(results.items[0]).sort()).toEqual(['active_homes', 'id', 'mfa_enrolled', 'name', 'roles', 'state'])
+  await execute(page, 'society_read_account', { account_id: 'demo-user-owner' }); await expect(page.getByRole('textbox', { name: 'Reason', exact: true })).toHaveValue('A private fictional verification note that must stay out of native metadata.'); await expect(execute(page, 'society_open_workspace', { screen: 'overview' })).rejects.toThrow(); await expect(page.getByRole('dialog')).toBeVisible(); expect(mutations).toEqual([]); page.off('request', listener)
+  await nativeAccessDecision(page, 'Save appointment'); const after = JSON.parse(await execute(page, 'society_read_account', { account_id: 'demo-user-owner' })); expect(after.version).toBe(2); expect(after.account.roles).toEqual(['AUDITOR']); expect(after.grants).toHaveLength(1); expect(after.grants[0].state).toBe('ACTIVE'); expect(after.grants[0].valid_until - after.grants[0].valid_from).toBe(90 * 86400)
+  for (const forbidden of ['email', 'events', 'reason', 'csrf_token', 'password_hash', 'secret_ciphertext', 'verification note', 'download_url']) expect(JSON.stringify(after)).not.toContain(forbidden)
+  await page.getByRole('button', { name: 'End Accountant / auditor appointment', exact: true }).click(); await nativeAccessDecision(page, 'End appointment'); const ended = JSON.parse(await execute(page, 'society_read_account', { account_id: 'demo-user-owner' })); expect(ended.version).toBe(3); expect(ended.account.roles).toEqual([]); expect(ended.grants[0].state).toBe('REVOKED'); await page.getByRole('button', { name: 'Close account access', exact: true }).click()
+})
+
+test('native account discovery denies residents and rejects unsupported unbounded and cancelled metadata requests', async ({ page }) => {
+  await login(page); await expect.poll(() => names(page)).toContain('society_find_accounts')
+  for (const [tool, input] of [['society_find_accounts', { page: 0 }], ['society_find_accounts', { query: 'x'.repeat(101) }], ['society_read_account', { account_id: 'demo-user-owner', grant_page: 10001 }], ['society_read_account', { account_id: 'demo-user-owner', history_page: 1 }], ['society_read_account', { account_id: 'demo-user-owner', action: 'SUSPEND' }]] as const) await expect(execute(page, tool, input)).rejects.toThrow()
+  const cancelled = await page.evaluate(async () => {
+    const context = (document as ContextDocument).modelContext; const tool = (await context.getTools()).find(item => item.name === 'society_read_account')!; const controller = new AbortController(); controller.abort(); const args = { account_id: 'demo-user-owner' }; const major = Number(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1])
+    try { await context.executeTool(tool, major < 155 ? JSON.stringify(args) : args, { signal: controller.signal }); return false } catch { return true }
+  }); expect(cancelled).toBe(true)
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await login(page, 'Tenant'); await expect.poll(() => names(page)).not.toContain('society_read_account'); await expect.poll(() => names(page)).not.toContain('society_find_accounts'); await expect(execute(page, 'society_open_workspace', { screen: 'access' })).rejects.toThrow(); expect((await page.request.get('/api/admin/accounts/demo-user-admin')).status()).toBe(403)
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await login(page); await expect.poll(() => names(page)).toContain('society_read_account')
+  const path = process.env.SOCIETY_BROWSER_DB; if (!path || !path.includes('society-browser-')) throw new Error('An isolated synthetic database is required for the factor fixture.')
+  execFileSync('python3', ['-c', "import sqlite3,sys;db=sqlite3.connect(sys.argv[1]);db.execute(\"DELETE FROM mfa_factors WHERE user_id='demo-user-admin'\");db.commit()", path])
+  await expect(execute(page, 'society_read_account', { account_id: 'demo-user-owner' })).rejects.toThrow(); await expect.poll(() => names(page)).toEqual([]); await expect(page.getByRole('button', { name: 'Use a preview code', exact: true })).toBeVisible(); await completePreviewMFA(page); await expect.poll(() => names(page)).toContain('society_read_account')
+})
+
+test('an actual successor ends an administrator appointment and invalidates the prior native tools and session', async ({ page, browser }) => {
+  await login(page); await nativeManageAccount(page, 'Demo Committee Member'); await page.getByRole('button', { name: 'Add appointment', exact: true }).click(); await chooseOption(page, 'Appointment', 'Administrator'); await nativeAccessDecision(page, 'Save appointment'); await page.getByRole('button', { name: 'Close account access', exact: true }).click()
+  const context = await browser.newContext({ baseURL: new URL(page.url()).origin }); const successor = await context.newPage(); await login(successor, 'Committee'); await nativeManageAccount(successor, 'Demo Registry Officer'); await successor.getByRole('button', { name: 'End Administrator appointment', exact: true }).click(); await nativeAccessDecision(successor, 'End appointment')
+  await expect(execute(page, 'society_read_account', { account_id: 'demo-user-owner' })).rejects.toThrow(); await expect.poll(() => names(page)).toEqual([]); await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible(); await expect(page.getByRole('dialog')).toHaveCount(0)
+  await successor.getByRole('button', { name: 'Add appointment', exact: true }).click(); await chooseOption(successor, 'Appointment', 'Administrator'); await nativeAccessDecision(successor, 'Save appointment'); await successor.getByRole('button', { name: 'Close account access', exact: true }).click()
+  await login(page); await expect.poll(() => names(page)).toContain('society_read_account'); await nativeManageAccount(page, 'Demo Committee Member'); await page.getByRole('button', { name: 'End Administrator appointment', exact: true }).click(); await nativeAccessDecision(page, 'End appointment'); await page.getByRole('button', { name: 'Close account access', exact: true }).click(); await context.close()
+})
+
+test('native tools rediscover current personal scope after an appointment expires without signing the resident out', async ({ page, browser }) => {
+  await login(page); await nativeManageAccount(page, 'Demo Owner A-101'); await page.getByRole('button', { name: 'Add appointment', exact: true }).click(); await chooseOption(page, 'Appointment', 'Accountant / auditor'); await nativeAccessDecision(page, 'Save appointment'); await page.getByRole('button', { name: 'Close account access', exact: true }).click()
+  const me = await (await page.request.get('/api/auth/me')).json(); const headers = { Origin: new URL(page.url()).origin, 'X-CSRF-Token': me.csrf_token }
+  const date = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date())
+  const draft = await page.request.post('/api/entries', { headers, data: { operation_key: crypto.randomUUID(), flat_id: 'demo-flat-A-103', kind: 'CHARGE', amount: '37.25', date, description: 'NATIVE Supplied charge outside the auditor resident homes', payer: '', method: '', reference: '' } }); expect(draft.status()).toBe(200); const entryId = (await draft.json()).id
+  expect((await page.request.post('/api/entries/' + entryId + '/post', { headers, data: { operation_key: crypto.randomUUID(), confirmed: true, reason: '' } })).status()).toBe(200)
+  const context = await browser.newContext({ baseURL: new URL(page.url()).origin }); const resident = await context.newPage(); await login(resident, 'Owner'); await expect.poll(() => names(resident)).toContain('society_find_records')
+  const before = await (await resident.request.get('/api/auth/me')).json(); expect(before.can_read_all_records).toBe(true)
+  await expect(resident.locator('.overview-finance-balance strong')).toHaveText('₹37.25')
+  const wide = JSON.parse(await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-103' })); expect(wide.total).toBe(1); expect(wide.debit_paise).toBe(3725)
+  const path = process.env.SOCIETY_BROWSER_DB; if (!path || !path.includes('society-browser-')) throw new Error('An isolated synthetic database is required for the expiry fixture.')
+  execFileSync('python3', ['-c', "import sqlite3,sys,time;db=sqlite3.connect(sys.argv[1]);now=int(time.time());db.execute(\"UPDATE role_grants SET valid_from=?,valid_until=? WHERE user_id='demo-user-owner' AND role='AUDITOR' AND revoked_at IS NULL\",(now-172800,now-1));db.commit()", path])
+  await expect(execute(resident, 'society_find_homes', {})).rejects.toThrow()
+  await expect.poll(async () => {
+    try { const homes = JSON.parse(await execute(resident, 'society_find_homes', {})); return homes.items.map((home: { id: string }) => home.id).sort() } catch { return [] }
+  }).toEqual(['demo-flat-A-101', 'demo-flat-A-102'])
+  const current = await (await resident.request.get('/api/auth/me')).json(); expect(current.id).toBe(before.id); expect(current.roles).toEqual([]); expect(current.can_read_all_records).toBe(false); expect(current.can_read_records).toBe(true)
+  await expect(resident.locator('.overview-finance-balance strong')).toHaveText('₹0.00')
+  await expect.poll(() => names(resident)).toHaveLength(11)
+  const hidden = JSON.parse(await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-103' })); expect(hidden.items).toEqual([]); expect(hidden.total).toBe(0); expect(hidden.debit_paise).toBe(0); expect(hidden.homes.map((home: { id: string }) => home.id).sort()).toEqual(['demo-flat-A-101', 'demo-flat-A-102']); expect((await resident.request.get('/api/entries/' + entryId)).status()).toBe(404)
+  await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-101' }); await expect(resident.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible(); await context.close()
+})
+
+test('native reads reject a response captured before a home entitlement ends and clear its old visible details', async ({ page }) => {
+  await login(page, 'Owner'); await navigate(page, 'Your homes'); await expect(page.locator('.home-card')).toHaveCount(2); await execute(page, 'society_open_home', { home_id: 'demo-flat-A-102' }); await expect(page.getByRole('dialog').getByRole('heading', { name: 'Home 102', exact: true })).toBeVisible()
+  const path = process.env.SOCIETY_BROWSER_DB; if (!path || !path.includes('society-browser-')) throw new Error('An isolated synthetic database is required for the membership fixture.')
+  const date = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date())
+  const membership = (restore: boolean) => execFileSync('python3', ['-c', "import sqlite3,sys;db=sqlite3.connect(sys.argv[1]);result=db.execute(\"UPDATE flat_memberships SET end_date=? WHERE flat_id='demo-flat-A-102' AND resident_id=(SELECT resident_id FROM users WHERE id='demo-user-owner') AND end_date IS \"+('NULL' if sys.argv[3]=='end' else '?'),([sys.argv[2]] if sys.argv[3]=='end' else [None,sys.argv[2]]));assert result.rowcount==1;db.commit()", path, date, restore ? 'restore' : 'end'])
+  let ready: () => void = () => {}; const captured = new Promise<void>(resolve => { ready = resolve }); let release: () => void = () => {}; const pending = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/api/flats?**', async route => { const response = await route.fetch(); ready(); await pending; await route.fulfill({ response }).catch(() => {}) })
+  const reading = execute(page, 'society_find_homes', {}); await captured
+  membership(false)
+  try {
+    release(); await expect(reading).rejects.toThrow(); await page.unroute('**/api/flats?**')
+    await expect(page.getByRole('dialog')).toHaveCount(0); await expect(page.locator('.home-card')).toHaveCount(1)
+    await expect.poll(async () => { try { const homes = JSON.parse(await execute(page, 'society_find_homes', {})); return homes.items.map((home: { id: string }) => home.id) } catch { return [] } }).toEqual(['demo-flat-A-101'])
+    await expect(execute(page, 'society_open_home', { home_id: 'demo-flat-A-102' })).rejects.toThrow(); await execute(page, 'society_open_home', { home_id: 'demo-flat-A-101' }); await expect(page.getByRole('dialog').getByRole('heading', { name: 'Home 101', exact: true })).toBeVisible()
+  } finally { membership(true); release(); await page.unroute('**/api/flats?**') }
+})
 
 test('native WebMCP reads the same personal overview after an actual UI report and preserves its dialog', async ({ page }) => {
   await login(page, 'Owner'); await expect.poll(() => names(page)).toContain('society_read_overview')
@@ -42,7 +131,7 @@ test('native WebMCP discovers permitted tools after MFA and executes bounded sea
   expect(await page.evaluate(() => !!(document as ContextDocument).modelContext)).toBe(true)
   expect(await names(page)).toEqual([])
   await login(page)
-  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document', 'society_read_overview'])
+  await expect.poll(() => names(page)).toEqual(['society_find_accounts', 'society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_open_home', 'society_open_workspace', 'society_read_account', 'society_read_complaint', 'society_read_document', 'society_read_overview'])
   const mutations: string[] = []
   page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) })
   const homes = JSON.parse(await execute(page, 'society_find_homes', { wing: 'B', occupancy: 'RENTED' }))

@@ -1,8 +1,8 @@
 # Society OS
 
-A thoughtful community portal for a 118-flat society. The working **local preview** includes a changing role-scoped overview, occupancy and owner/tenant counts on Homes & people, scoped homes, registry administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices, personal service requests with private handler notes, validated private document versions and verified SQLite snapshot/restore tools.
+A thoughtful community portal for a 118-flat society. The working **local preview** includes a changing role-scoped overview, occupancy and owner/tenant counts on Homes & people, scoped homes, registry and account administration, invitations/password recovery, authenticator protection, manual entries/receipt PDFs, separate-reviewer requests, audience-scoped approved notices, personal service requests with private handler notes, validated private document versions and verified SQLite snapshot/restore tools.
 
-The [next operations roadmap](docs/society-operations-roadmap.md) preserves the user's maintenance, fund campaigns/external-payment verification, targeted WhatsApp/email, approved rule/fine workflows and financial statement publication. The overview is verified under the [overview baseline](docs/overview-baseline.md); the other workflows are next development slices; the existing portal does not initiate payment or send provider messages.
+The [operations roadmap](docs/society-operations-roadmap.md) preserves maintenance, fund campaigns/external-payment verification, targeted WhatsApp/email, approved rule/fine workflows and financial statement publication. [Account administration](docs/account-administration-baseline.md) is verified in release 0.9/schema 8; [maintenance cycles and receipt allocation](docs/maintenance-workflow.md) are next. The existing portal does not initiate payment or send provider messages.
 
 ## Run locally
 
@@ -15,7 +15,7 @@ make run
 
 Open **http://127.0.0.1:8080**. `make run` builds the application, creates the isolated fictional registry if needed, and serves the frontend and API from one Go process. Stop with Ctrl+C. Repeated seeding preserves the same fixture without duplicating records.
 
-The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 7 without replacing registry records. The earlier identity upgrade signs out old sessions.
+The database lives at `var/demo/society.db`. An alternative isolated database can be selected with `make run DB=var/another-demo/society.db`. The preview accepts synthetic-marked databases, requires `--demo` and binds only to a loopback IP. Production deployment remains disabled. Existing previews migrate to schema 8 while preserving registry, account and audit history. The earlier identity upgrade signs out old sessions.
 
 Choose an account on the sign-in screen, then select **Sign in**. The fictional credentials are prefilled; every demo account uses the public preview password `Community-preview-2026!`.
 
@@ -34,6 +34,8 @@ Open a home as the registry officer and choose **Manage home** to change occupan
 
 **Account security** supports authenticator setup, recovery-code replacement, five-minute identity confirmation and password changes. Reset/change signs out every target-account session and preserves MFA. Administrator access remains locked until factor verification succeeds. Passwords require at least 12 characters.
 
+**Manage access** opens each account's bounded appointment/activity history. A current administrator can grant or end Administrator, Committee, Treasurer or Accountant/auditor appointments for 1–365 days, or explicitly suspend/resume an account. Changes require a reason, authority/identity attestation and fresh password/factor verification. Self-changes and removal of the last recoverable administrator are denied. Suspension ends credentials and appointments; resumption never revives them. Auditors read financial records without posting or registry-wide administration. Current scope checks clear old protected data when roles or home entitlements change, while unchanged checks preserve forms. See [account acceptance](docs/account-administration-baseline.md).
+
 Homes & people distinguishes homes from people: the fresh fixture contains **109 occupied homes, 9 vacant homes, 118 distinct active owners and 35 distinct active tenants**. Occupied homes comprise 74 owner-occupied and 35 rented homes. Joint owners count separately; multi-home owners count once society-wide; former/future memberships do not count as active. Wing counts deduplicate people within each wing, so summing wings need not equal the society total when someone owns homes in different wings.
 
 For frontend hot reload, keep the Go server running and run `make dev` in another terminal. Vite serves a local development URL and proxies API calls to `127.0.0.1:8080`.
@@ -46,11 +48,11 @@ make bench
 make report
 ```
 
-`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 72 backend test declarations, including exact financial amounts, concurrent operation retries, immutable corrections, leased receipt jobs, private PDF access, separate approvals, scoped notices, personal/private service conversations and document validation/version/quota/snapshot cases.
+`make check` verifies formatting, Go vet, race-enabled backend tests and TypeScript. Tests cover registry constraints/counts, transactional mutations, concurrent stale edits, immutable audit, cross-flat and role denial, session/account/membership expiry, logout, Origin/CSRF, login/factor throttling, link expiry/revocation/concurrent consumption, TOTP replay, single-use codes, key loss, recovery and engine/migration provenance. There are 83 Go test declarations, including exact financial amounts, operation retries, immutable corrections, leased receipt jobs, private PDFs, separate approvals, scoped notices/service conversations, document validation/version/quota/recovery, account appointments/suspension and current authority/home-scope changes.
 
 `make bench` runs the representative registry query three times. `make report` creates an independent fresh synthetic database, measures 100 warm local HTTP reads after ten warmups, snapshots the live database and restores it into a new environment. It verifies SHA-256 independently in Python and records measured times, engine settings and counts in `reports/local/account-security-baseline.json`. These are local measurements, not production performance commitments.
 
-`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. The overview gate passes 69 ordinary browser cases and 12 native WebMCP cases. The browser API is optional for using the portal, and no tool approves, uploads, publishes or posts records. See [approval and notice evidence](docs/approvals-notices-baseline.md), [service-request evidence](docs/complaints-baseline.md), [document acceptance](docs/documents-baseline.md), [overview acceptance](docs/overview-baseline.md) and the ongoing [development process](docs/development-workflow.md).
+`make eval` is the checkpoint gate: backend formatting/vet/race tests, TypeScript/build, ordinary rendered browser journeys and actual native WebMCP discovery/execution in installed Chrome. Each ordinary suite gets an isolated synthetic server/database; native tests require Chrome with the WebMCP feature enabled. `make webmcp-check` runs that integration separately. Release 0.9 passes 81 ordinary browser cases and 17 native WebMCP cases. The browser API is optional for using the portal, and no tool approves, uploads, publishes or posts records. See [account acceptance](docs/account-administration-baseline.md) and the ongoing [development process](docs/development-workflow.md); earlier workflow baselines retain their historical evidence.
 
 Browser checks use a fresh fictional database on an ephemeral loopback port and leave your preview untouched:
 
@@ -60,7 +62,7 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. The 69 browser cases cover scoped overview queues and balances, deep links, independent source failures/retries, the registry, all 118 home cards, opened dropdowns, manual entry/receipt/discard/reversal/retry workflows, invitations, password reset/session revocation, authenticators, separate review/publication, service requests and original-document upload/download/version/retry workflows across desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the original inventory and global Claude Code/Codex browser tooling; subsequent workflow baselines record the added controls.
+Build first with `make build`, or use `make browser-check`. Follow this machine's `AGENTS.md` instruction to launch Playwright outside any command sandbox. The current workspace has unrestricted execution. The 81 browser cases cover scoped overview queues/balances, deep links, source failures/retries, all 118 home cards, opened menus, manual entries/receipts, invitations/recovery/MFA, separate reviews, service requests, validated document workflows and account appointment/suspension/current-scope changes. Specific cases exercise desktop, tablet, narrow phone and reduced-height layouts. The [UI review](docs/ui-review-baseline.md) records the original inventory and global Claude Code/Codex browser tooling; subsequent baselines record added controls and their coverage limits.
 
 **Overview** shows changing decisions, service work, document attention/deadlines and approved notices for the current account. Financial cards require their own entitlement and distinguish positive home balances from credits, confirmed money received in the last 30 India calendar days, draft work and receipt-generation attention. Each section has its own retry; unavailable values remain unknown. Refresh rereads current sources, and actionable rows open their exact permitted record.
 
@@ -73,8 +75,8 @@ Build first with `make build`, or use `make browser-check`. Follow this machine'
 To keep an already verified preview running while developing the next checkpoint, retain its binary and assets together:
 
 ```sh
-python3 scripts/pin-preview.py --name 0.8
-./var/preview-releases/0.8/society-server serve --demo --db var/demo/society.db --mfa-key-file var/keys/mfa.key --addr 127.0.0.1:8080 --web-dir var/preview-releases/0.8/web
+python3 scripts/pin-preview.py --name 0.9
+./var/preview-releases/0.9/society-server serve --demo --db var/demo/society.db --mfa-key-file var/keys/mfa.key --addr 127.0.0.1:8080 --web-dir var/preview-releases/0.9/web
 ```
 
 Stop the earlier server before starting the retained one. The pin command refuses an existing name. Verify the build first, then pin it; the command packages files and does not run the checks. It does not copy databases or keys. Use a new name for the next verified release.
@@ -121,6 +123,10 @@ This records supplied custodians; it does not verify their real-world authority.
 | `POST /api/auth/change-password` | Change password and revoke all sessions |
 | `POST /api/auth/link`, `/api/auth/link/complete` | Inspect/redeem an invitation or reset link |
 | `GET /api/admin/accounts` | Administrator account directory |
+| `GET /api/admin/accounts/{id}` | Current administrator's bounded appointments/activity and expected access version |
+| `POST /api/admin/accounts/{id}/roles` | Fresh, version-checked bounded appointment |
+| `POST /api/admin/accounts/{id}/roles/{grant}/revoke` | End the target appointment while preserving history |
+| `POST /api/admin/accounts/{id}/status` | Explicit suspension/resumption; never resurrect credentials or appointments |
 | `POST /api/admin/invitations` | Invite a currently related registry person |
 | `POST /api/admin/accounts/{id}/link` | Reissue invitation or assisted password recovery |
 | `GET /api/overview/{section}` | Current scoped finance/reviews/service/notices/documents totals with up to four metadata rows |
@@ -156,11 +162,11 @@ This records supplied custodians; it does not verify their real-world authority.
 
 The frontend is served alongside the binary in `build/web`; production Node is unnecessary under this packaging decision. Sensitive data responses are not cached. Request logs contain method, route template, status and elapsed time, without query terms or record identities. No service-worker data caching is implemented.
 
-Passwords use Argon2id; sessions use hashed random bearer tokens, HttpOnly/SameSite Strict cookies, 30-minute idle and 8-hour absolute expiry. State-changing requests require an exact Origin and session CSRF token. Account status, current role terms and memberships are checked on each request; mutations recheck identity/role inside the same transaction as the version check and audit. Invitations/password recovery and privileged MFA work locally; production contact verification, custodian recovery, role/account administration and HTTPS remain pending. See [account-security acceptance](docs/account-security-baseline.md).
+Passwords use Argon2id; sessions use hashed random bearer tokens, HttpOnly/SameSite Strict cookies, 30-minute idle and 8-hour absolute expiry. State-changing requests require an exact Origin and session CSRF token. Account status, current role terms and memberships are checked on each request; mutations recheck identity/role inside the same transaction as the version check and audit. Invitations/password recovery, privileged MFA and role/account administration work locally; production contact verification, custodial authority and HTTPS remain pending. See [account-security acceptance](docs/account-security-baseline.md) and [account-administration acceptance](docs/account-administration-baseline.md).
 
 ## What follows
 
-Next: private documents, subsequent role/account administration, PWA/migration, approved finance examples/receipt policy, production recovery and a representative pilot. Manual financial records describe given charges and money already received; the portal does not initiate payment.
+Next: approved maintenance cycles and explicit receipt allocations, upkeep deadlines, and the subsequent operations roadmap; then PWA/migration, production recovery and a representative pilot. Real finance examples/receipt policy remain acceptance inputs. Manual financial records describe given charges and money already received; the portal does not initiate payment.
 
 Automated billing, bank matching, payment gateways and Tally integration are conditional future work. No runtime LLM API is required.
 

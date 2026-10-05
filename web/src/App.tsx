@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { APIError, mutate, request, setSession, statuses } from './api'
+import { APIError, mutate, request, setSession, statuses, userAccessScope } from './api'
 import type { Building, Flat, FlatDetail, FlatPage, Summary, User } from './api'
 import { Icon } from './components/Icon'
 import type { IconName } from './components/Icon'
@@ -41,7 +41,7 @@ function Sidebar({ view, user, onAbout }: { view: View; user: User; onAbout: () 
       <nav aria-label="Main navigation" className="nav-list">
         {<a href="#overview" className={`nav-item ${view === 'overview' ? 'active' : ''}`} aria-current={view === 'overview' ? 'page' : undefined}><Icon name="overview" /><span>Overview</span>{view === 'overview' && <span className="active-dot" />}</a>}
         <a href="#homes" className={`nav-item ${view === 'homes' ? 'active' : ''}`} aria-current={view === 'homes' ? 'page' : undefined}><Icon name="homes" /><span>{user.can_read_registry ? 'Homes & people' : 'Your homes'}</span>{view === 'homes' && <span className="active-dot" />}</a>
-        {user.can_manage_registry && <a href="#access" className={`nav-item ${view === 'access' ? 'active' : ''}`} aria-current={view === 'access' ? 'page' : undefined}><Icon name="community" /><span>Access & invitations</span></a>}
+        {user.can_manage_accounts && <a href="#access" className={`nav-item ${view === 'access' ? 'active' : ''}`} aria-current={view === 'access' ? 'page' : undefined}><Icon name="community" /><span>Access & invitations</span></a>}
         {user.can_read_records && (['entries', 'receipts'] as const).map(item => <a key={item} href={'#' + item} className={`nav-item ${view === item ? 'active' : ''}`} aria-current={view === item ? 'page' : undefined}><Icon name={item === 'entries' ? 'records' : 'receipt'} /><span>{item === 'entries' ? 'Entries' : 'Receipts'}</span></a>)}
         <a href="#reviews" className={`nav-item ${view === 'reviews' ? 'active' : ''}`} aria-current={view === 'reviews' ? 'page' : undefined}><Icon name="check" /><span>{user.can_review_requests ? 'Requests & approvals' : 'Your requests'}</span></a>
         <a href="#community" className={`nav-item ${view === 'community' ? 'active' : ''}`} aria-current={view === 'community' ? 'page' : undefined}><Icon name="community" /><span>Community</span></a>
@@ -191,11 +191,11 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Skip to content</a>
     <Sidebar view={view} user={user} onAbout={() => setAbout(true)} />
     <div className="main-shell">
-      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_registry ? 'Access & invitations' : view === 'overview' ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
+      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_accounts ? 'Access & invitations' : view === 'overview' ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
       <div className="preview-banner"><span><Icon name="spark" />A first look at your community workspace.</span><span>Fictional data <i /> Live local registry</span></div>
       <main id="main-content" tabIndex={-1} className="main-content">
         {view === 'homes' && error && <div className="connection-error" role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Reconnect<Icon name="refresh" /></button></div>}
-        {view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_registry ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
+        {view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
         <footer className="page-footer"><span><span className="footer-wordmark">society.</span> Made for everyday life.</span><button onClick={() => setAbout(true)}>About this preview<Icon name="arrow" /></button></footer>
       </main>
     </div>
@@ -239,5 +239,5 @@ export default function App() {
   if (loading) return <main className="session-loading" role="status"><span className="footer-wordmark">society.</span><p>Opening your workspace…</p></main>
   if (linkToken) return <AccountLink key={linkToken} token={linkToken} onDone={() => { setLinkToken(''); if (user) void logout() }} />
   if (user?.mfa_pending) return <MFAGate key={user.id} user={user} onVerified={acceptUser} onLogout={() => void logout()} />
-  return user ? <>{message && <div className="session-message" role="alert">{message}</div>}<Workspace key={user.id} user={user} onUser={acceptUser} onLogout={() => { setMessage(''); void logout() }} /></> : <Login message={message} onLogin={acceptUser} />
+  return user ? <>{message && <div className="session-message" role="alert">{message}</div>}<Workspace key={userAccessScope(user)} user={user} onUser={acceptUser} onLogout={() => { setMessage(''); void logout() }} /></> : <Login message={message} onLogin={acceptUser} />
 }

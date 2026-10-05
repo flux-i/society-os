@@ -996,3 +996,81 @@
 @media (max-width:1150px) { .overview-main-grid { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap: 16px; }.overview-without-finance { grid-template-columns: minmax(0,1fr); }.overview-panel { padding: 20px; }.overview-metric { padding: 17px; }.overview-calendar { width: 135px; }.overview-metrics { gap: 10px; } }
 @media (max-width:850px) { .overview-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }.overview-main-grid { grid-template-columns: minmax(0,1fr); }.overview-finance-balance strong { font-size: 44px; } }
 @media (max-width:600px) { .overview-heading { gap: 10px; margin-top: 5px; }.overview-heading h1 { font-size: 40px; max-width: 300px; }.overview-heading p { font-size: 12px; }.overview-calendar { display: none; }.overview-metric { padding: 17px 15px; }.overview-metric > div { font-size: 11px; min-height: 34px; }.overview-metric > strong { font-size: 41px; }.overview-metric > small { font-size: 9px; }.overview-panel { padding: 20px 16px; }.overview-panel-heading h2 { font-size: 28px; }.overview-panel-heading { align-items: start; }.overview-panel-heading .eyebrow { font-size: 7px; }.overview-notice-grid { grid-template-columns: minmax(0,1fr); }.overview-notices .overview-panel-heading { flex-wrap: wrap; }.overview-action-list a { gap: 10px; }.overview-action-icon { width: 32px; height: 32px; }.overview-attention-foot { flex-wrap: wrap; }.overview-freshness { gap: 12px; } }
+@layer components {
+  .account-manage-button { display: inline-flex; align-items: center; gap: 11px; border: 1px solid #cdd7c4; border-radius: 8px; padding: 9px 12px; color: var(--color-forest); background: #eef1e7; font-size: 11px; }
+  .account-manage-button:hover { background: #e2e8d7; border-color: #859670; }
+  .account-manage-button svg { width: 14px; height: 14px; }
+  .state-suspended { color: #885735; background: #f3e8dc; }
+  .account-access-dialog { max-width: 760px; }
+  .account-access-heading { padding: 30px 34px 23px; background: #edf0e6; border-bottom: 1px solid var(--color-line); }
+  .account-access-heading h2 { font: 400 clamp(27px, 4vw, 39px)/1.08 var(--font-display); letter-spacing: -.6px; margin: 12px 32px 8px 0; overflow-wrap: anywhere; }
+  .account-access-heading > p { font-size: 12px; color: var(--color-muted); overflow-wrap: anywhere; margin: 0; }
+  .account-access-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 17px; margin-top: 20px; font-size: 10px; color: var(--color-muted); }
+  .account-access-content { padding: 25px 34px 30px; }
+  .account-access-content .form-success:focus { outline: 2px solid #819667; outline-offset: 3px; }
+  .access-care-note { display: flex; align-items: flex-start; gap: 10px; background: #f0eee6; padding: 14px 16px; border-radius: 8px; font-size: 12px; line-height: 1.65; margin: 0 0 22px; }
+  .access-care-note svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .account-access-content .detail-tabs { margin-bottom: 23px; }
+  .account-access-content .detail-tabs button { display: inline-flex; align-items: center; gap: 8px; }
+  .account-access-content .detail-tabs button span { background: #e5eadb; border-radius: 20px; padding: 2px 6px; font-size: 10px; }
+  .access-appointments-heading { align-items: flex-end; gap: 20px; margin: 0 0 24px; }
+  .access-appointments-heading h3 { font: 400 29px/1.05 var(--font-display); margin: 0; letter-spacing: -.3px; }
+  .access-appointments-heading h3 em { color: #798956; }
+  .access-appointments-heading p { font-size: 11px; line-height: 1.7; color: var(--color-muted); max-width: 340px; margin: 9px 0 0; }
+  .access-appointments-heading .button { flex-shrink: 0; font-size: 11px; }
+  .appointment-list { display: grid; gap: 11px; }
+  .appointment-card { border: 1px solid #d4ddca; border-radius: 11px; padding: 17px 19px; background: #f8faf3; }
+  .appointment-revoked, .appointment-expired { background: #f5f3ed; border-color: var(--color-line); }
+  .appointment-top { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+  .appointment-top h4 { font-size: 14px; font-weight: 500; margin: 0; }
+  .appointment-state { font-size: 10px; color: #596c43; background: #e5edda; padding: 4px 8px; border-radius: 20px; }
+  .appointment-revoked .appointment-state, .appointment-expired .appointment-state { color: #807466; background: #ece7df; }
+  .appointment-card > p { font-size: 12px; line-height: 1.6; margin: 12px 0 6px; }
+  .appointment-card > small { display: block; font-size: 10px; line-height: 1.8; color: var(--color-muted); overflow-wrap: anywhere; }
+  .appointment-card .text-link { font-size: 11px; margin-top: 14px; }
+  .access-appointments-empty { padding: 24px; background: #f2f1ea; border: 1px dashed #cbd2c0; border-radius: 11px; text-align: center; }
+  .access-appointments-empty > svg { width: 25px; height: 25px; margin: 0 auto 10px; color: #7a8a60; }
+  .access-appointments-empty h4 { font: 400 25px var(--font-display); margin: 0 0 8px; }
+  .access-appointments-empty p { font-size: 12px; color: var(--color-muted); line-height: 1.7; margin: 0; }
+  .account-status-care { display: flex; align-items: center; gap: 25px; margin-top: 28px; padding-top: 25px; border-top: 1px solid var(--color-line); }
+  .account-status-care > div { flex: 1; }
+  .account-status-care strong { font-size: 12px; font-weight: 500; }
+  .account-status-care p { font-size: 11px; color: var(--color-muted); line-height: 1.7; margin: 8px 0 0; }
+  .account-status-care .button { flex-shrink: 0; font-size: 11px; }
+  .access-change-panel { border: 1px solid #d4ddca; background: #f8faf4; padding: 20px; border-radius: 11px; }
+  .access-change-caution { background: #fbf6ef; border-color: #e1d3be; }
+  .access-change-panel .section-heading { align-items: flex-start; gap: 12px; margin: 0 0 23px; }
+  .access-change-panel h3 { font: 400 29px/1.15 var(--font-display); margin: 8px 0 0; }
+  .access-change-panel .section-heading .text-link { font-size: 11px; margin-top: 3px; flex-shrink: 0; }
+  .access-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 18px; }
+  .access-change-panel .portal-form label { font-size: 12px; }
+  .access-powers { border-left: 2px solid #9cab86; padding: 2px 0 2px 13px; font-size: 12px; line-height: 1.8; color: var(--color-forest); margin: 0; }
+  .access-change-caution .access-powers { border-color: #b49470; }
+  .access-change-error .form-error { margin: 0 0 10px; }
+  .access-history-intro h3 { font: 400 29px var(--font-display); margin: 0 0 8px; }
+  .access-history-intro p { font-size: 12px; color: var(--color-muted); line-height: 1.7; margin: 0 0 24px; }
+  .access-history { list-style: none; margin: 0; padding: 0; }
+  .access-history li { display: flex; gap: 17px; position: relative; padding: 0 0 24px; }
+  .access-history li:not(:last-child)::before { content: ''; position: absolute; left: 4px; top: 12px; bottom: 0; width: 1px; background: #dce2d3; }
+  .access-history-dot { width: 9px; height: 9px; flex-shrink: 0; border-radius: 50%; background: #8b9c72; margin-top: 5px; z-index: 1; }
+  .access-history li > div { min-width: 0; }
+  .access-history strong { font-size: 12px; font-weight: 500; }
+  .access-history p { font-size: 12px; color: var(--color-muted); line-height: 1.7; margin: 8px 0 7px; overflow-wrap: anywhere; }
+  .access-history small { font-size: 10px; color: #849080; line-height: 1.6; }
+}
+
+@media (max-width: 600px) {
+  .account-actions { margin-left: 0; flex-wrap: wrap; }
+  .account-manage-button { order: 3; }
+  .account-access-heading { padding: 24px 21px 19px; }
+  .account-access-summary { gap: 9px 12px; margin-top: 15px; }
+  .account-access-content { padding: 22px 21px; }
+  .access-appointments-heading { flex-wrap: wrap; align-items: start; gap: 13px; }
+  .account-status-care { flex-direction: column; align-items: start; gap: 14px; }
+  .appointment-card { padding: 16px; }
+  .appointment-top { align-items: start; gap: 10px; }
+  .access-change-panel { padding: 16px; }
+  .access-change-panel .section-heading { flex-direction: column; gap: 8px; }
+  .account-access-dialog .dialog-actions { padding: 15px 21px; }
+  .account-access-dialog .dialog-actions > .form-help { display: none; }
+}

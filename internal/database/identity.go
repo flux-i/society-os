@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -75,7 +76,9 @@ type Principal struct {
 	ResidentID          string   `json:"-"`
 	Name                string   `json:"name"`
 	Roles               []string `json:"roles"`
+	ScopeKey            string   `json:"scope_key"`
 	CanReadRegistry     bool     `json:"can_read_registry"`
+	CanManageAccounts   bool     `json:"can_manage_accounts"`
 	CanManageRegistry   bool     `json:"can_manage_registry"`
 	CanManageRecords    bool     `json:"can_manage_records"`
 	CanReadAllRecords   bool     `json:"can_read_all_records"`
@@ -104,7 +107,7 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
         u.is_demo, EXISTS(SELECT 1 FROM mfa_factors WHERE user_id = u.id),
         COALESCE(s.reauthenticated_at,0), COALESCE(s.mfa_verified_at,0)
         FROM sessions s JOIN users u ON u.id = s.user_id
-        WHERE s.token_hash = ? AND u.status = 'ACTIVE' AND s.auth_version = u.auth_version
+        WHERE s.token_hash = ? AND u.status = 'ACTIVE' AND u.suspended_at IS NULL AND s.auth_version = u.auth_version
         AND u.verified_at IS NOT NULL AND s.expires_at > ? AND s.last_seen_at > ?`, hash, now.Unix(), now.Add(-SessionIdle).Unix()).Scan(&p.ID, &p.ResidentID, &p.Name, &p.CSRF, &p.IsDemo, &p.MFAEnrolled, &p.passwordAt, &p.factorAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return p, ErrUnauthenticated
@@ -128,18 +131,19 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		if role == "TREASURER" {
 			p.CanManageRecords = true
 		}
-		if role == "TREASURER" || role == "COMMITTEE" {
+		if role == "TREASURER" || role == "COMMITTEE" || role == "AUDITOR" {
 			p.CanReadAllRecords = true
 		}
 		if role == "ADMINISTRATOR" {
 			p.CanManageRegistry = true
+			p.CanManageAccounts = true
 		}
 		if role == "ADMINISTRATOR" || role == "COMMITTEE" {
 			p.CanReviewRequests = true
 			p.CanHandleComplaints = true
 			p.CanManageDocuments = true
 		}
-		if role == "ADMINISTRATOR" || role == "TREASURER" || role == "COMMITTEE" {
+		if role == "ADMINISTRATOR" || role == "TREASURER" || role == "COMMITTEE" || role == "AUDITOR" {
 			p.MFARequired = true
 		}
 		if role == "ADMINISTRATOR" || role == "COMMITTEE" || role == "TREASURER" {
@@ -150,18 +154,20 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		return p, err
 	}
 	rows.Close()
+	date := now.In(societyZone).Format("2006-01-02")
 	p.CanReadRecords = p.CanReadAllRecords
 	if !p.CanReadRecords && p.ResidentID != "" {
-		err = q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM flat_memberships WHERE resident_id = ? AND can_view_finances = 1 AND start_date <= ? AND (end_date IS NULL OR end_date > ?))`, p.ResidentID, today(), today()).Scan(&p.CanReadRecords)
+		err = q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM flat_memberships WHERE resident_id = ? AND can_view_finances = 1 AND start_date <= ? AND (end_date IS NULL OR end_date > ?))`, p.ResidentID, date, date).Scan(&p.CanReadRecords)
 		if err != nil {
 			return p, err
 		}
 	}
-	p.MFAPending = (p.MFARequired || p.MFAEnrolled) && p.factorAt == 0
-	p.Fresh = p.passwordAt > now.Add(-5*time.Minute).Unix() && (!(p.MFARequired || p.MFAEnrolled) || p.factorAt > now.Add(-5*time.Minute).Unix())
+	p.MFAPending = (p.MFARequired || p.MFAEnrolled || p.factorAt > 0) && (p.factorAt == 0 || !p.MFAEnrolled)
+	p.Fresh = !p.MFAPending && p.passwordAt > now.Add(-5*time.Minute).Unix() && (!(p.MFARequired || p.MFAEnrolled) || p.factorAt > now.Add(-5*time.Minute).Unix())
 	if p.MFAPending {
 		p.CanReadRegistry = false
 		p.CanManageRegistry = false
+		p.CanManageAccounts = false
 		p.CanManageRecords = false
 		p.CanReadAllRecords = false
 		p.CanReadRecords = false
@@ -169,7 +175,47 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		p.CanHandleComplaints = false
 		p.CanManageDocuments = false
 	}
-	return p, rows.Err()
+	p.ScopeKey, err = principalScope(ctx, q, p, date)
+	return p, err
+}
+
+// An opaque cache boundary, not an authorisation credential. Include the current
+// membership set even when another home or appointment keeps a permission true.
+// Callers use the same transaction as the principal's current authority checks.
+func principalScope(ctx context.Context, q identityReader, p Principal, date string) (string, error) {
+	type membership struct {
+		ID, Home, Relationship string
+		Finance                bool
+	}
+	members := []membership{}
+	if p.ResidentID != "" {
+		rows, err := q.QueryContext(ctx, `SELECT id,flat_id,relationship,can_view_finances FROM flat_memberships
+            WHERE resident_id=? AND start_date<=? AND (end_date IS NULL OR end_date>?) ORDER BY id`, p.ResidentID, date, date)
+		if err != nil {
+			return "", err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var member membership
+			if err := rows.Scan(&member.ID, &member.Home, &member.Relationship, &member.Finance); err != nil {
+				return "", err
+			}
+			members = append(members, member)
+		}
+		if err := rows.Err(); err != nil {
+			return "", err
+		}
+	}
+	body, err := json.Marshal(struct {
+		UserID  string
+		Roles   []string
+		Members []membership
+	}{p.ID, p.Roles, members})
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func fullPrincipal(ctx context.Context, q identityReader, hash string, now time.Time) (Principal, error) {
@@ -217,7 +263,7 @@ func (s *Store) authenticate(ctx context.Context, token string, touch bool) (Pri
 func (s *Store) Login(ctx context.Context, login, password, dummyHash string) (string, Principal, error) {
 	var id, encoded string
 	var version int
-	err := s.DB.QueryRowContext(ctx, `SELECT id, password_hash, auth_version FROM users WHERE login = ? AND status = 'ACTIVE' AND verified_at IS NOT NULL`, strings.ToLower(strings.TrimSpace(login))).Scan(&id, &encoded, &version)
+	err := s.DB.QueryRowContext(ctx, `SELECT id, password_hash, auth_version FROM users WHERE login = ? AND status = 'ACTIVE' AND suspended_at IS NULL AND verified_at IS NOT NULL`, strings.ToLower(strings.TrimSpace(login))).Scan(&id, &encoded, &version)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", Principal{}, err
 	}
@@ -237,7 +283,7 @@ func (s *Store) Login(ctx context.Context, login, password, dummyHash string) (s
 	// Recheck the password/version/account in the insertion, after expensive password work.
 	result, err := tx.ExecContext(ctx, `INSERT INTO sessions(token_hash,user_id,auth_version,csrf_token,created_at,last_seen_at,expires_at,reauthenticated_at)
         SELECT ?, id, auth_version, ?, ?, ?, ?, ? FROM users
-        WHERE id = ? AND password_hash = ? AND auth_version = ? AND status = 'ACTIVE' AND verified_at IS NOT NULL`,
+        WHERE id = ? AND password_hash = ? AND auth_version = ? AND status = 'ACTIVE' AND suspended_at IS NULL AND verified_at IS NOT NULL`,
 		TokenHash(token), randomToken(), now.Unix(), now.Unix(), now.Add(SessionAbsolute).Unix(), now.Unix(), id, encoded, version)
 	if err != nil {
 		return "", Principal{}, err
@@ -304,7 +350,7 @@ func (s *Store) SeedDemoAccounts(ctx context.Context) error {
 			return err
 		}
 		if a.role != "" {
-			if _, err := tx.ExecContext(ctx, "INSERT INTO role_grants VALUES (?, ?, ?, ?, ?, NULL, ?)", "demo-grant-"+id, id, a.role, now, now+int64((365*24*time.Hour)/time.Second), "demo-user-admin"); err != nil {
+			if _, err := tx.ExecContext(ctx, "INSERT INTO role_grants(id,user_id,role,valid_from,valid_until,revoked_at,granted_by) VALUES (?, ?, ?, ?, ?, NULL, ?)", "demo-grant-"+id, id, a.role, now, now+int64((365*24*time.Hour)/time.Second), "demo-user-admin"); err != nil {
 				return err
 			}
 		}

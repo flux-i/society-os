@@ -80,7 +80,7 @@ func requireAccountAdmin(p Principal) error {
 	if err := requireFresh(p); err != nil {
 		return err
 	}
-	if !p.CanManageRegistry {
+	if !p.CanManageAccounts {
 		return ErrForbidden
 	}
 	return nil
@@ -153,7 +153,7 @@ func (s *Store) Invite(ctx context.Context, token string, input Invitation) (Iss
 		return IssuedLink{}, err
 	}
 	if input.Role != "RESIDENT" {
-		if _, err := tx.ExecContext(ctx, "INSERT INTO role_grants VALUES (?, ?, ?, ?, ?, NULL, ?)", randomToken(), id, input.Role, now, now+int64(input.TermDays)*86400, p.ID); err != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO role_grants(id,user_id,role,valid_from,valid_until,revoked_at,granted_by) VALUES (?, ?, ?, ?, ?, NULL, ?)", randomToken(), id, input.Role, now, now+int64(input.TermDays)*86400, p.ID); err != nil {
 			return IssuedLink{}, err
 		}
 	}
@@ -180,9 +180,13 @@ func (s *Store) IssueAccountLink(ctx context.Context, token, userID, purpose str
 		return IssuedLink{}, err
 	}
 	var status string
+	var suspended bool
 	var verifiedAt *int64
-	if err := tx.QueryRowContext(ctx, "SELECT status,verified_at FROM users WHERE id=?", userID).Scan(&status, &verifiedAt); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT status,verified_at,suspended_at IS NOT NULL FROM users WHERE id=?", userID).Scan(&status, &verifiedAt, &suspended); err != nil {
 		return IssuedLink{}, err
+	}
+	if suspended {
+		return IssuedLink{}, invalid("Resume this account before issuing an invitation or recovery link.")
 	}
 	if purpose == "INVITE" && verifiedAt != nil {
 		return IssuedLink{}, invalid("This account is already activated.")
@@ -214,7 +218,7 @@ func inspectAccountLink(ctx context.Context, q identityReader, token string) (Li
 	var user, id string
 	err := q.QueryRowContext(ctx, `SELECT u.display_name,u.login,t.purpose,t.expires_at,u.id,t.id FROM account_tokens t JOIN users u ON u.id=t.user_id
         WHERE t.token_hash=? AND t.consumed_at IS NULL AND t.revoked_at IS NULL AND t.expires_at>?
-        AND t.auth_version=u.auth_version AND ((t.purpose='INVITE' AND u.verified_at IS NULL
+        AND u.suspended_at IS NULL AND t.auth_version=u.auth_version AND ((t.purpose='INVITE' AND u.verified_at IS NULL
             AND EXISTS(SELECT 1 FROM flat_memberships m WHERE m.resident_id=u.resident_id AND m.start_date<=? AND (m.end_date IS NULL OR m.end_date>?)))
         OR (t.purpose='PASSWORD_RESET' AND u.verified_at IS NOT NULL AND u.status='ACTIVE'))`, TokenHash(token), time.Now().Unix(), today(), today()).Scan(&result.Name, &result.Email, &result.Purpose, &result.ExpiresAt, &user, &id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -326,7 +330,7 @@ func (s *Store) AccountsFor(ctx context.Context, token, query string, page, page
 	if err != nil {
 		return AccountPage{}, err
 	}
-	if !p.CanManageRegistry {
+	if !p.CanManageAccounts {
 		return AccountPage{}, ErrForbidden
 	}
 	where := ` FROM users u LEFT JOIN residents r ON r.id=u.resident_id WHERE instr(lower(u.display_name || ' ' || u.login),lower(?))>0`
@@ -336,7 +340,7 @@ func (s *Store) AccountsFor(ctx context.Context, token, query string, page, page
 	}
 	now := time.Now().Unix()
 	rows, err := tx.QueryContext(ctx, `SELECT u.id,u.display_name,u.login,COALESCE(r.full_name,''),
-        CASE WHEN u.verified_at IS NULL THEN 'PENDING' ELSE u.status END,
+        CASE WHEN u.suspended_at IS NOT NULL THEN 'SUSPENDED' WHEN u.verified_at IS NULL THEN 'PENDING' ELSE u.status END,
         EXISTS(SELECT 1 FROM mfa_factors mf WHERE mf.user_id=u.id),
         (SELECT COUNT(DISTINCT flat_id) FROM flat_memberships m WHERE m.resident_id=u.resident_id AND m.start_date<=? AND (m.end_date IS NULL OR m.end_date>?)),
         COALESCE((SELECT group_concat(role,',') FROM (SELECT DISTINCT role FROM role_grants WHERE user_id=u.id AND valid_from<=? AND valid_until>? AND revoked_at IS NULL ORDER BY role)), '')`+where+` ORDER BY u.created_at,u.id LIMIT ? OFFSET ?`, today(), today(), now, now, query, pageSize, (page-1)*pageSize)

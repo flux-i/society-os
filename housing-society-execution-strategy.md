@@ -1,12 +1,12 @@
 # Housing Society Execution Strategy
 
-**Date:** 4 October 2026
-**Status:** Verified local release 0.8/schema 7 includes the foundation, registry/identity/MFA, manual entries/private receipts, separate reviews/approved notices, private service requests and validated document versions. The changing overview is verified; role/account administration is next. Production identity/custody acceptance, infrastructure and later workflows remain pending.
+**Date:** 5 October 2026
+**Status:** Verified local release 0.9/schema 8 includes the foundation, registry/identity/MFA, manual entries/private receipts, separate reviews/notices, private service requests, validated document versions, changing overview and explicit account administration. Maintenance cycles/allocations and upkeep are next. Production identity/custody acceptance, infrastructure and subsequent roadmap workflows remain pending.
 **Applies to:** [Housing Society Digital Platform implementation plan](housing-society-digital-platform-plan.md), especially Sections 39, 40, 43, 52 and 54
 
 **Current scope:** Tracking/monitoring, manually entered charges and already-paid records, derived balances and generated receipts are included. Payment initiation/gateways, bank automation, automated billing and Tally integration are conditional future work.
 
-**Next development priorities, added 4 October:** The [society operations roadmap](docs/society-operations-roadmap.md) preserves the user's requested changing overview, maintenance, fund campaigns/external-payment verification, targeted messaging, private rule reports/approved fines and financial statement publication. Finish the document gate, then deliver the overview and the roadmap's subsequent slices. These requested extensions keep payment initiation excluded and do not claim live providers, production policy or real-data acceptance.
+**Next development priorities, added 4 October:** The [society operations roadmap](docs/society-operations-roadmap.md) preserves the requested overview, maintenance, fund campaigns/external-payment verification, targeted messaging, private rule reports/approved fines and financial statement publication. Documents, overview and account administration have passed local gates. Continue with maintenance and subsequent slices, preserving payment-initiation exclusion and separate live-provider/policy/real-data acceptance.
 
 Build the 118-flat Society OS through small, complete workflows whose correctness, recovery, performance and operating cost can be demonstrated. Use a coding assistant from the start to accelerate implementation and investigation. Keep the resident-facing AI assistant in the later phase already defined in the implementation plan.
 
@@ -18,7 +18,7 @@ The first local milestone is runnable with `make run`. It established a fictiona
 
 The subsequent local slice adds password sessions, current-role/current-membership authorization, version-checked registry writes and immutable change history. Its overview separates homes from active owners/tenants, and residents see only their own homes. [Acceptance evidence](docs/registry-identity-baseline.md) records six browser journeys and the authenticated baseline. This advances Milestone B without claiming production identity/recovery completion.
 
-The account-security slice adds invitation/assisted recovery, required privileged authenticator verification, single-use recovery codes and fresh identity checks. Its historical evidence records ten isolated browser journeys and 31 backend checks; see [account-security acceptance](docs/account-security-baseline.md). Subsequent verified slices added manual entries/receipts, reviews/notices and service requests. Current release evidence and next work are recorded in the execution backlog; production identity/custody and role administration remain pending.
+The account-security slice adds invitation/assisted recovery, privileged authenticator verification, single-use recovery codes and fresh checks; its historical baseline records ten browser journeys and 31 backend declarations. Subsequent verified slices add records, reviews/notices, service requests, documents, overview and [account administration](docs/account-administration-baseline.md). Current evidence and next work are in the backlog; real identity/custody acceptance remains pending.
 
 ## 1 What we take from the articles
 
@@ -103,7 +103,7 @@ Start with **12 reviewable scenarios**, using synthetic records and approved per
 | Logout and account switching | Another user's cached records are not exposed | Maintainer |
 | Restore from a snapshot | Registry, document versions, current-access review and paused external jobs verified | Custodians |
 
-Expand this into a proposed **42-scenario baseline** as V1 develops: 12 identity/registry/authorization, 10 documents/jobs/PWA, 8 notices/complaints, 6 manual entries/receipts and 6 recovery/operations. Counts organize the backlog; all required current-scope behaviors in Section 40 remain necessary even if they need more cases. Advanced billing/allocations/Tally cases are reserved for future work.
+The original proposed **42-scenario baseline** organised 12 identity/registry/authorization, 10 documents/jobs/PWA, 8 notices/complaints, 6 manual entries/receipts and 6 recovery/operations cases. Actual coverage has grown beyond that planning count; required behaviors remain necessary regardless of inventory. Requested manual maintenance/allocation expectations are now in the maintenance brief. Automatic charge calculations and Tally integration remain conditional future work.
 
 Store scenario setup, user/role, action sequence, expected outcome, assertions, source of the expectation and reviewer separately. For later AI cases, keep task inputs separate from expected answers and metadata. This separation is also described in [Langfuse's dataset guide](https://langfuse.com/academy/datasets); local files are sufficient for the initial strategy.
 

@@ -39,7 +39,11 @@ export interface FlatDetail extends Flat {
   members: { id: string; name: string; relationship: string; start_date: string; end_date: string | null; membership_id: string; primary_contact: boolean; active: boolean }[]
 }
 
-export interface User { id: string; name: string; roles: string[]; can_read_registry: boolean; can_manage_registry: boolean; can_manage_records: boolean; can_read_all_records: boolean; can_read_records: boolean; can_review_requests: boolean; can_handle_complaints: boolean; can_manage_documents: boolean; csrf_token: string; mfa_required: boolean; mfa_enrolled: boolean; mfa_pending: boolean; is_demo: boolean; fresh_authentication: boolean }
+export interface User { id: string; name: string; roles: string[]; scope_key: string; can_read_registry: boolean; can_manage_registry: boolean; can_manage_accounts: boolean; can_manage_records: boolean; can_read_all_records: boolean; can_read_records: boolean; can_review_requests: boolean; can_handle_complaints: boolean; can_manage_documents: boolean; csrf_token: string; mfa_required: boolean; mfa_enrolled: boolean; mfa_pending: boolean; is_demo: boolean; fresh_authentication: boolean }
+const permissionKeys = ['can_manage_accounts', 'can_manage_registry', 'can_read_registry', 'can_manage_records', 'can_read_all_records', 'can_read_records', 'can_review_requests', 'can_handle_complaints', 'can_manage_documents'] as const
+// Normal identity refreshes preserve forms; a changed authority or home scope
+// discards data loaded under the earlier scope, including when flags stay true.
+export const userAccessScope = (user: User) => JSON.stringify([user.id, user.scope_key, user.mfa_pending, user.roles, ...permissionKeys.map(key => user[key])])
 export interface MFAResult { user: User; recovery_codes?: string[] }
 export interface Account { id: string; name: string; email: string; resident_name: string; state: string; roles: string[]; mfa_enrolled: boolean; active_homes: number }
 export interface AccountPage { items: Account[]; total: number; page: number; page_size: number }
@@ -69,7 +73,7 @@ export async function request<T>(path: string, signal?: AbortSignal, init?: Requ
       401: path === '/api/auth/login' ? 'That email and password didn’t match. Please try again.' : 'Please sign in again to continue.',
       403: 'Your account does not have permission for this action.',
       404: 'This record is unavailable for your current account.',
-      409: ['/api/entries', '/api/receipts', '/api/reviews', '/api/complaints', '/api/documents'].some(prefix => path.startsWith(prefix)) ? 'This record has changed or this retry has different details. Reload the record before continuing.' : 'Someone has updated this home. Reload the details before saving.',
+      409: ['/api/entries', '/api/receipts', '/api/reviews', '/api/complaints', '/api/documents', '/api/admin/accounts'].some(prefix => path.startsWith(prefix)) ? 'This record has changed or this retry has different details. Reload the record before continuing.' : 'Someone has updated this home. Reload the details before saving.',
       429: 'Please wait a little before trying to sign in again.',
     }
     const codes: Record<string, string> = {
@@ -79,6 +83,7 @@ export async function request<T>(path: string, signal?: AbortSignal, init?: Requ
       verification_rate_limited: 'Too many attempts. Wait 15 minutes before trying again.',
     }
     if (body.error === 'mfa_required' && !path.startsWith('/api/auth/')) window.dispatchEvent(new Event('session-recheck'))
+    if (body.error === 'permission_required' && !path.startsWith('/api/auth/')) window.dispatchEvent(new Event('session-recheck'))
     throw new APIError(response.status, body.message ?? codes[body.error ?? ''] ?? messages[response.status] ?? 'The workspace could not be reached. Please try again.', body.error)
   }
   return response.json() as Promise<T>

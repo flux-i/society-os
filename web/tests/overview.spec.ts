@@ -26,6 +26,18 @@ test('the empty overview and every new destination work with keyboard and exact 
   await page.getByRole('button', { name: 'Refresh overview' }).focus(); const read = page.waitForResponse(response => response.url().endsWith('/api/overview/service')); await page.keyboard.press('Enter'); expect((await read).status()).toBe(200); await expect(page.getByRole('button', { name: 'Refresh overview' })).toBeFocused()
 })
 
+test('overview refresh preserves a destination the user focuses before the refresh finishes', async ({ page }) => {
+  await login(page); await expect(page.getByRole('button', { name: 'Refresh overview' })).toBeEnabled()
+  let release: () => void = () => {}; const pending = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/api/overview/service', async route => { await pending; await route.continue() })
+  await page.getByRole('button', { name: 'Refresh overview' }).click(); await expect(page.getByRole('button', { name: 'Refresh overview' })).toBeDisabled()
+  const destination = page.getByRole('link', { name: 'View receipts', exact: true }); await destination.focus(); await expect(destination).toBeFocused(); release()
+  await expect(page.getByRole('button', { name: 'Refresh overview' })).toBeEnabled()
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+  await destination.scrollIntoViewIfNeeded(); await expect(destination).toBeInViewport()
+  await capture(page, 'refresh-preserved-destination-focus'); await expect(destination).toBeFocused(); await page.keyboard.press('Enter'); await expect(page.getByRole('heading', { name: 'Your receipt collection', exact: true })).toBeVisible()
+})
+
 test('real resident reports and uploads become scoped staff work with full counts and exact detail links', async ({ page }) => {
   test.setTimeout(90000); await login(page, 'Owner'); await navigate(page, 'Help & repairs'); await page.getByRole('button', { name: 'Report an issue', exact: true }).click(); await chooseOption(page,'Service request home','Home A-101'); await chooseOption(page,'Service category','Plumbing'); await chooseOption(page,'Service priority','Urgent'); await page.getByRole('textbox',{name:'Subject',exact:true}).fill('DAY Urgent water leak'); await page.getByRole('textbox',{name:'Details',exact:true}).fill('A fictional urgent water leak needs a handler and a progress update.'); await page.getByRole('button',{name:'Save service request',exact:true}).click(); await expect(page.getByRole('dialog').locator('.case-status')).toHaveText('Open'); await page.getByRole('button',{name:'Close service request details',exact:true}).click()
   const requests: string[] = []; for (let i=0;i<6;i++) requests.push(await reviewFixture(page,'DAY Maintenance decision '+i)); const notice = await reviewFixture(page,'DAY Water supply update','ALL_RESIDENTS'); const ownersNotice = await reviewFixture(page,'DAY Owners meeting update','OWNERS_ONLY')
