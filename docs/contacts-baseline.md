@@ -66,3 +66,5 @@ Windows amd64 cross-compilation passes: **20,986,368 bytes**, SHA-256 `e66e00e29
 ## Next and limits
 
 Continue the [targeted synthetic delivery workflow](messaging-workflow.md): exact source/audience/consent preview, separate approval, persistent provider-neutral attempts, suppression and unknown-outcome reconciliation, signed/deduplicated synthetic callbacks and truthful states. No delivery implementation or live channel acceptance is claimed here. Real provider credentials/onboarding, approved templates, identity/policy acceptance, infrastructure/key custody and Windows/pilot inputs remain separate. Payment initiation, runtime LLMs, bank automation and Tally remain outside the current scope.
+
+The accepted application is published in the personal public [flux-i/society-os repository](https://github.com/flux-i/society-os/commit/e2d57ffa1f89a9f5f295a41d1e3b70d3bc4a78dc). At publication the GitHub API main matched local HEAD and the worktree was clean; personal account/owner/author and credential-free origin were verified. Private publication evidence is `reports/local/contacts-publication.json`.
