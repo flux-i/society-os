@@ -8,6 +8,7 @@ import type { Incident, IncidentDetail, IncidentNotice, IncidentPage, NoticePage
 import type { ContributionPage, Fund, FundDetail, FundPage, FundWaiver, PaymentReport, ReportPage, WaiverPage } from './collections'
 import type { Fine, FineDetail, FinePage, FineNotice, FineNoticePage, FineReport, FineReportPage, FineAppeal, FineAppealPage, FineWaiver, FineWaiverPage } from './fines'
 import type { Contact, ContactDetail, ContactPage } from './contacts'
+import type { MessageBatch, MessageDetail, MessagePage } from './messages'
 
 type Tool = {
   name: string
@@ -82,7 +83,7 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', 'fines', ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
       if (!views.includes(screen) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
@@ -90,13 +91,24 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       window.location.hash = screen
       return { screen }
     }, false)
-    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
+    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
     add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
       const section = String(input.section)
       if (!sections.includes(section) || (['finance','maintenance','collections'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
       return request('/api/overview/' + section, signal)
     })
     const accountMetadata = (account: Account) => ({ id: account.id, name: account.name, state: account.state, roles: account.roles, mfa_enrolled: account.mfa_enrolled, active_homes: account.active_homes })
+    const messageMetadata=(x:MessageBatch)=>({id:x.id,source_kind:x.source.kind,state:x.state,channel:x.channel,purpose:x.purpose,simulation:x.simulation,version:x.version,snapshot_version:x.snapshot_version,counts:x.counts,outcomes:x.outcomes,retryable_deliveries:x.retryable_deliveries})
+    add('society_find_messages','Read at most twelve currently permitted delivery-status snapshots. Resident history contains only own approved recipient decisions. Source identities, wording, destinations, recipients, actors and private reasons are excluded. This cannot compose, approve, dispatch, cancel, retry or reconcile messages.',{kind:{type:'string',enum:['','NOTICE','RECEIPT']},state:{type:'string',enum:['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED']},page},[],async(input,signal)=>{
+      const kind=input.kind??'',state=input.state??''
+      if(typeof kind!=='string'||!['','NOTICE','RECEIPT'].includes(kind)||typeof state!=='string'||!['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED'].includes(state))throw new Error('Choose a supported source kind and decision state.')
+      const data=await request<MessagePage>('/api/messages?'+new URLSearchParams({kind,state,page:String(pageNumber(input.page))}),signal)
+      return {items:data.items.map(messageMetadata),total:data.total,page:data.page,page_size:data.page_size}
+    })
+    add('society_read_message','Read one currently permitted delivery-status snapshot. Source identifiers, titles, content, destinations, recipient decisions, actors and private events are excluded. This cannot submit a delivery decision or manufacture provider proof.',{message_id:{type:'string',minLength:1,maxLength:100}},['message_id'],async(input,signal)=>{
+      if(typeof input.message_id!=='string'||!input.message_id||input.message_id.length>100)throw new Error('A permitted message identity is required.')
+      return messageMetadata(await request<MessageDetail>('/api/messages/'+encodeURIComponent(input.message_id),signal))
+    })
     if (user.can_read_contacts) {
       const metadata = (x: Contact) => ({ id: x.id, name: x.name, state: x.state, current: x.current, version: x.version, preferred_channel: x.preferred_channel, destinations_recorded: { whatsapp: !!x.phone, email: !!x.email }, permissions: { community_whatsapp: x.community_whatsapp, community_email: x.community_email, finance_whatsapp: x.finance_whatsapp, finance_email: x.finance_email }, eligible: x.eligible })
       add('society_find_contacts', 'Read at most twelve current people’s contact-status metadata with community authority, or only the signed-in person’s own retained profile. It excludes destinations, identity/permission references, home identifiers, actors, private reasons and history. Eligibility is a current snapshot; sending must independently recheck it. This cannot register, verify, opt in, opt out or send.', { query: search, relationship: { type: 'string', enum: ['', 'OWNER', 'TENANT'] }, wing: { type: 'string', enum: ['', 'A', 'B', 'C'] }, state: { type: 'string', enum: ['', 'NONE', 'PENDING', 'VERIFIED', 'DECLINED', 'WITHDRAWN'] }, page }, [], async (input, signal, me) => {

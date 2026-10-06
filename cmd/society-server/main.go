@@ -16,11 +16,12 @@ import (
 	"society.local/portal/internal/backup"
 	"society.local/portal/internal/database"
 	"society.local/portal/internal/documents"
+	"society.local/portal/internal/messaging"
 	"society.local/portal/internal/security"
 	"society.local/portal/internal/server"
 )
 
-var version = "0.15.0-dev"
+var version = "0.16.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -45,6 +46,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	output := flags.String("out", "", "new snapshot bundle or restored database path")
 	snapshot := flags.String("snapshot", "", "snapshot bundle to restore")
 	keyPath := flags.String("mfa-key-file", "var/keys/mfa.key", "private MFA encryption key held separately from snapshots")
+	messageKeyPath := flags.String("message-key-file", "", "separate private simulation signing key; defaults to keys/messages.key beside the database")
 	userEmail := flags.String("user", "", "account email for offline MFA recovery")
 	custodianOne := flags.String("custodian-one", "", "first verified recovery custodian")
 	custodianTwo := flags.String("custodian-two", "", "second verified recovery custodian")
@@ -171,6 +173,27 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		if err := store.VerifyMFAKey(ctx); err != nil {
 			return err
 		}
+		var messages, bound int
+		if err = store.DB.QueryRowContext(ctx, "SELECT (SELECT COUNT(*) FROM simulation_messages),(SELECT COUNT(*) FROM app_metadata WHERE key='message_key_fingerprint')").Scan(&messages, &bound); err != nil {
+			return err
+		}
+		if *messageKeyPath == "" {
+			*messageKeyPath = messaging.DefaultKeyPath(*dbPath)
+		}
+		signingKey, err := messaging.LoadKey(*messageKeyPath, messages == 0 && bound == 0)
+		if err != nil {
+			return err
+		}
+		messageEngine, err := messaging.New(store, signingKey)
+		if err != nil {
+			return err
+		}
+		if err = messageEngine.VerifyKey(ctx, messages == 0 && bound == 0); err != nil {
+			return err
+		}
+		if err = store.RecoverMessageClaims(ctx); err != nil {
+			return err
+		}
 		documentStore, err := documents.Open(documents.DefaultPath(*dbPath))
 		if err != nil {
 			return err
@@ -185,7 +208,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		validationDone := make(chan struct{})
 		go func() { defer close(validationDone); documents.RunValidation(workerCtx, store, logger) }()
 		defer func() { stopWorker(); <-workerDone; <-validationDone }()
-		app := &server.Server{Documents: documentStore, Store: store, Logger: logger, Version: version, Web: os.DirFS(*webDir)}
+		app := &server.Server{Documents: documentStore, Messages: messageEngine, Store: store, Logger: logger, Version: version, Web: os.DirFS(*webDir)}
 		httpServer := &http.Server{Addr: *address, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
 		errCh := make(chan error, 1)
 		go func() { errCh <- httpServer.ListenAndServe() }()

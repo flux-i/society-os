@@ -1,6 +1,6 @@
 # Targeted notices and receipt sharing — before-code expectations
 
-Recorded 6 October 2026. This is the next workflow after contact acceptance; it is not implemented or accepted yet. It fulfils the [operations roadmap](society-operations-roadmap.md) and follows the [contact and messaging contract](contacts-messaging-workflow.md). Preserve the continuing accepted preview and use disposable synthetic data for all development dispatches.
+Recorded before implementation on 6 October 2026. Messaging is accepted locally in release 0.16/schema 15; [executed evidence and limits](messaging-baseline.md) record its checks and retained preview. It fulfils the [operations roadmap](society-operations-roadmap.md) and follows the [contact and messaging contract](contacts-messaging-workflow.md). Preserve the continuing accepted preview and use disposable synthetic data for development dispatches. Real-provider activation remains separate.
 
 ## User outcome
 
@@ -43,3 +43,9 @@ While queued, separately change contact, opt-out, end a membership/finance flag,
 Exercise actual composition/review/dispatch/reconciliation controls and every relevant opened menu at 1,440px, 768px, 375px and 320px, including short phones. Verify selection, hover, focus/keyboard, exact preview counts, scrolling/dismissal, loading/empty/error/local retry, stale attestation, unknown-write locks and allow/deny/current-scope behavior. Actual native Chrome WebMCP exposes bounded scoped status/count metadata only, omitting destinations, envelopes, private sources and history; it cannot compose, approve, dispatch or reconcile. Test native discovery, execution, cancellation and held-result revocation.
 
 Run backend/HTTP/meaningful recovery, TypeScript/build, full ordinary regression and actual native WebMCP before closure. Capture and inspect final screenshots, fix observed defects and rerun affected checks. Promote a matching binary/assets pair only after consistent pre/post restoration of existing records and new delivery/history/uncertainty state. Record finite coverage and provider/target-host limits; a written contract alone is not acceptance.
+
+## Implementation decisions fixed before the new schema
+
+The first adapter is an explicit local simulation. Live WhatsApp/email remain unconfigured and unavailable. Proposals use the existing authenticated `#community?notice=…` and `#receipts?entry=…` links, scoped source choices and a server-computed preview fingerprint. People without a current active portal account are omitted. Submission and approval recheck the complete fingerprint. A proposer may refresh a pending snapshot; older immutable recipient/envelope rows remain retained and the separate reviewer must attest the new version. Changed destinations are suppressed after approval rather than replaced.
+
+Recipient/history pages are bounded; dispatch claims at most 25 envelopes per decision. Failed definite outcomes permit at most three attempts; unresolved claims become unknown on startup and require reconciliation. Synthetic handoffs persist separately from portal outcome completion so restart/response-loss cases can prove one handoff identity. Signed simulation callbacks use a separate private key, bounded body, five-minute timestamp window and immutable event IDs. Finance recipient previews mask destinations unless the operator separately has contact-review authority. Receipt reversal stops new sharing; original receipts/history remain retained. These decisions do not claim implementation or acceptance.

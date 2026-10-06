@@ -5,7 +5,10 @@ ADDR ?= 127.0.0.1:8080
 SNAPSHOT ?= var/snapshots/local-$(shell date +%Y%m%d-%H%M%S)
 RESTORED_DB ?= var/restored/check-$(shell date +%Y%m%d-%H%M%S)/society.db
 MFA_KEY_FILE ?= var/keys/mfa.key
+MESSAGE_KEY_FILE ?= var/keys/messages.key
 REPORT ?= reports/local/account-security-baseline.json
+# Full race coverage retains real password hashing and isolated fixtures.
+GO_TEST_TIMEOUT ?= 20m
 
 setup:
 	go mod download
@@ -18,14 +21,14 @@ build:
 check:
 	@test -z "$$(gofmt -l cmd internal)" || (gofmt -l cmd internal; exit 1)
 	go vet ./...
-	go test -race ./...
+	go test -race -timeout "$(GO_TEST_TIMEOUT)" ./...
 	npm run check --prefix web
 
 seed: build
 	./build/society-server seed-demo --demo --db "$(DB)"
 
 run: seed
-	./build/society-server serve --demo --db "$(DB)" --mfa-key-file "$(MFA_KEY_FILE)" --addr "$(ADDR)" --web-dir build/web
+	./build/society-server serve --demo --db "$(DB)" --mfa-key-file "$(MFA_KEY_FILE)" --message-key-file "$(MESSAGE_KEY_FILE)" --addr "$(ADDR)" --web-dir build/web
 
 dev:
 	npm run dev --prefix web

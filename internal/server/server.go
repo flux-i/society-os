@@ -15,6 +15,7 @@ import (
 
 	"society.local/portal/internal/database"
 	"society.local/portal/internal/documents"
+	"society.local/portal/internal/messaging"
 )
 
 type Server struct {
@@ -23,6 +24,7 @@ type Server struct {
 	Version   string
 	Web       fs.FS
 	Documents *documents.Store
+	Messages  *messaging.Engine
 }
 
 func (s *Server) Handler() http.Handler {
@@ -39,6 +41,7 @@ func (s *Server) Handler() http.Handler {
 	s.reviewRoutes(mux)
 	s.complaintRoutes(mux)
 	s.contactRoutes(mux)
+	s.messageRoutes(mux)
 	s.documentRoutes(mux)
 	s.overviewRoutes(mux)
 	mux.HandleFunc("POST /api/auth/login", s.login(guard))
@@ -57,6 +60,12 @@ func (s *Server) Handler() http.Handler {
 		if err := s.Store.VerifyMFAKey(ctx); err != nil {
 			respond(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable"})
 			return
+		}
+		if s.Messages != nil {
+			if err := s.Messages.VerifyKey(ctx, false); err != nil {
+				respond(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable"})
+				return
+			}
 		}
 		respond(w, http.StatusOK, map[string]string{"status": "ready"})
 	})

@@ -65,7 +65,7 @@ func TestSchemaThirteenContactUpgradePreservesFineMoneyHistoryAndAllPriorPersist
 	snapshot := func() map[string]string {
 		t.Helper()
 		out := map[string]string{}
-		rows, e := s.DB.Query(`SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes','resident_contacts','contact_events') ORDER BY name`)
+		rows, e := s.DB.Query(`SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'message_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes','resident_contacts','contact_events','simulation_messages') ORDER BY name`)
 		if e != nil {
 			t.Fatal(e)
 		}
