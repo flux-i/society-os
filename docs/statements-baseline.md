@@ -1,6 +1,6 @@
 # Prepared financial originals — local acceptance
 
-**Accepted locally:** 7 October 2026. **Release:** 0.17.0-dev, schema 16. The [before-code contract](statements-workflow.md) separates externally prepared originals, internal approval and deliberate portal publication from the next channel-sharing and operational-export checkpoint. All required stages passed separately; the paired retained preview and matching recovery are verified. Public commit verification is recorded separately after publication.
+**Accepted locally:** 7 October 2026. **Release:** 0.17.0-dev, schema 16. The [before-code contract](statements-workflow.md) separates externally prepared originals, internal approval and deliberate portal publication from the next channel-sharing and operational-export checkpoint. All required stages passed separately; the paired retained preview and matching recovery are verified. Application [1aca4a1d80a494ee5e294814bb33107a6798ef48](https://github.com/flux-i/society-os/commit/1aca4a1d80a494ee5e294814bb33107a6798ef48) is published and independently verified under the personal public `flux-i/society-os` repository. All 312 archived source files match that commit and all 533 private archive hashes pass. Later documentation commits may advance main. Evidence: `reports/local/statements-publication.json`; the frozen archive is `reports/local/checkpoints/statements-0.17-accepted` and is not changed by publication metadata.
 
 ## Outcome and permissions
 
