@@ -1,0 +1,52 @@
+# Prepared financial originals — local acceptance
+
+**Accepted locally:** 7 October 2026. **Release:** 0.17.0-dev, schema 16. The [before-code contract](statements-workflow.md) separates externally prepared originals, internal approval and deliberate portal publication from the next channel-sharing and operational-export checkpoint. All required stages passed separately; the paired retained preview and matching recovery are verified. Public commit verification is recorded separately after publication.
+
+## Outcome and permissions
+
+An eligible current Treasury operator uploads an externally prepared income statement, balance sheet, budget or audit report with its period, preparer and source. Checks preserve the exact original bytes. A different current eligible finance reviewer decides on that immutable original. A separate publication proposal freezes the original and chosen current audience; a different eligible reviewer releases it. Current owners and tenants see only the original deliberately published to their current relationship. Statement publication does not grant access to a private home ledger, receipt or evidence.
+
+Replacing an original retains the previous publication until the replacement is internally approved and deliberately published through another separate decision. Removing publication prevents new portal downloads, preserves originals and decisions, and cannot retrieve copies already downloaded. Actor-bound operations, current authority checks before successful replay, version checks and exact audience fingerprints prevent duplicate or stale decisions. Shared files create no charge, allocation, money transfer or received-money receipt.
+
+Lists, searches, totals, downloads, history and overview follow current permission. Registry administration alone grants no finance access. Resident views omit private reasons, operators and unpublished replacements. Downloads record server response identity/checksum without claiming the client saved a file. Original and publication events are immutable; a replacement or withdrawal retains linked history.
+
+## Bounded file handling
+
+PDF and UTF-8 CSV originals are limited to 4 MiB, plain worksheet XLSX originals to 10 MiB. PDF validation uses the bounded actual qpdf check, rejects encryption/active content and limits pages to 250. CSV validation bounds consistent rows, columns, fields and cells and rejects unsupported formula-leading text while accepting ordinary signed decimal amounts. XLSX checks ZIP paths, duplicate entries, CRC/size, expansion, content types, root namespaces, relationships, sheet identities and bounded XML/worksheet content. Supported worksheet formulas are inspected, never evaluated; accepted bytes are unchanged.
+
+Initial XLSX compatibility deliberately covers plain worksheets, shared strings, styles and themes, with at most 256 archive parts, 30 MiB expansion, 32 sheets and 100,000 cells. Macros, external relationships, embedded objects, charts, unsupported active formulas and excessive content are rejected. Validation is not an antivirus service or a claim of arbitrary Excel compatibility. A leased worker fences stale results, bounds attempts and exposes unavailable checks for explicit retry. Shared original reservations/storage include document and incident originals in the existing 100 MiB/person and 1 GiB/society limits.
+
+## Rendered and native coverage
+
+The eight statement journeys cover actual file selection/upload, checked preview, separate internal/publication review, owner/tenant/wing/selected-home/selected-person choices, retained replacement and withdrawal, unchanged downloads, malformed/active originals, lost accepted responses with one side effect, stale approval disabling, paging and independent overview/loading/error/retry states. Controls are exercised at 1440px, 768px, 375px and 320px, including a 320×440 dialog, selected/hover/focus states, keyboard navigation, dismissal locks and focus return. These are finite synthetic journeys, not proof of every possible interaction.
+
+All **41 final captures** were visually inspected. The initial gallery's 32 sheets/128 parts were actually viewed; 37 final captures retain those exact hashes. Four empty-register captures were replaced after a private probe reproduced incomplete painting despite correct DOM bounds. The capture helper now waits for the entrance animation and two rendered frames; that affected four-width control journey passed again. All four replacements were viewed at original size, within ten unique final original-size inspections. No unviewed replacement gallery is represented as inspected. The fictional PDF fixture was also rendered and visually inspected. Evidence and hashes: `reports/local/statements-review-final/review.json`.
+
+Two new read-only native WebMCP tools find and read bounded financial-statement status metadata. They expose no file bytes, figures, title/preparer/source, checksum, private reasons, contact destination or review history. They perform no upload, review, publication, download or dispatch. The three new cases execute the installed Chrome native API, check current owner/tenant/finance scope, strict arguments and bounded outputs, preserve human form input, and discard held results after cancellation or membership changes. The full native run passes 42 cases across five isolated suites.
+
+## Executed gates and findings
+
+Five product groups were independently reproduced, repaired and verified: worksheet root namespace/duplicate sheet identity checks; collision with the existing household-statement route; filter wrappers stacking controls; unuploaded reservations counted as checking; and a stale approval button enabled after a decision already existed. The new financial-original API is `/api/financial-statements`; `/api/statements/{home}` retains the existing home balance behavior. Cumulative accepted findings are **75 unique groups: 73 product/UI and two operational**. Fixture, selector, inventory, package-timeout and capture corrections are not additional product findings.
+
+| Gate | Executed result |
+|---|---|
+| Format, Go vet, full race and TypeScript | Pass, 171 Go test declarations; database package 882.821 seconds; final stage ended 6 October 19:53:06.347495 UTC |
+| Production build | Pass; JS 919.66 kB / 245.83 kB gzip, CSS 146.24 kB / 27.31 kB gzip |
+| Ordinary rendered regression | 165 cases pass across 24 isolated suites; final run ended 20:03:55.471728 UTC |
+| Actual native WebMCP | 42 cases pass across five isolated suites, including three new statement cases |
+| Visual review | 41 final captures, with the exact inspected continuity described above |
+| Matching local recovery and retained preview | Pass; 67 prior and 74 post-upgrade persistent tables verified |
+
+All Go/migration sources stayed unchanged during the final race stage. Documentation and browser-QA changes during it are recorded explicitly. A historical schema-13 migration test was repaired to freeze its 56 prior tables before upgrade, retaining independent row, fine and receipt checks. An older combined Overview outage case was extended from 14 to 16 alerts to verify the new statement source and its two explicit retries; expected recoveries are 16, 15, 13, 11 and 9. The affected ten cases passed, then the complete ordinary regression passed. Those changes correct QA inventories rather than weaken the product expectations.
+
+The final build, full ordinary and full native stages use the same 18-file binary/web pair. A separate Windows cross-build appeared during the native run; the whole build directory changed while the runtime pair stayed unchanged. Capture-only and outage-inventory changes affect two browser test files, with their affected checks and final full ordinary run retained. Evidence: `statements-check-verification.json`, `statements-gates-verification.json` and the failed/affected/final logs under `reports/local`. No literal green aggregate `make eval` invocation or complete plan is claimed.
+
+## Recovery, preview and operating limits
+
+The pre-upgrade schema-15 bundle is `var/snapshots/statements-0.17-pre-upgrade-20261007`: **1,085,440 bytes**, SHA-256 `e60d565ae51679344036983b432672916c9dae1ec7e069b73e40bc24c35cbb9c`; matching 0.16 restore **52.713 ms**. The post-upgrade schema-16 bundle is `var/snapshots/statements-0.17-20261007`: **1,175,552 bytes**, SHA-256 `9a2b174fe23a84bbd30db2e4aa2f9897f5d12bd07735c7eabd358998793e2333`; matching 0.17 restore **44.272 ms**. All 67 prior persistent tables retain exact rows and migration provenance 1–15. Seven empty statement tables are added; all 74 tables restore exactly. Integrity and foreign keys pass, four temporary credential tables are purged, and separately held MFA and bound messaging keys remain unchanged. Startup changes neither prior rows nor key fingerprints. Separate populated recovery verifies approved/published original bytes, a pending replacement, access audit, immutable history and original ₹432.19 received money.
+
+The retained pair is `var/preview-releases/0.17`, served at `http://127.0.0.1:8080` by exec session **10582**, PID **84003** when started. Verify the current PID and exact command before process action. All 18 packaged files equal the tested build and all 17 served files equal that pair; readiness is 200 and all 74 persistent tables remain unchanged after startup. Keep `var/demo/society.db`, `var/keys/mfa.key` and `var/keys/messages.key`. Statement tables in this continuing preview are empty; browser mutations used disposable databases. Private evidence: `statements-recovery-verification.json` and `statements-preview-verification.json`.
+
+Windows amd64 cross-compilation passes: **21,751,296 bytes**, SHA-256 `d3804451da8ffbd82da3aa5749a8502f07343b977dbb16dfc1979ee3d3c4bb16`. Actual Windows execution and resource use remain untested. The build's chunk warning remains for the measured-performance checkpoint. Private evidence, binaries, screenshots, original fixtures, logs, databases and keys stay outside Git; older accepted archives stay unchanged.
+
+Statement WhatsApp/email source integration and bounded operational exports are the next sequential checkpoint. Production provider onboarding/templates, finance/accountant/retention acceptance, society-owned infrastructure/key custody, real identities/data and actual Windows execution remain separate inputs. The Windows cross-build alone does not establish performance on that computer.

@@ -62,26 +62,28 @@ func TestSchemaThirteenContactUpgradePreservesFineMoneyHistoryAndAllPriorPersist
 	if wantFine.OutstandingPaise != 15025 || paid.AmountPaise != 10000 || paid.ReceiptID == "" {
 		t.Fatal("independent populated money", wantFine, paid)
 	}
+	// Freeze the schema-13 inventory before upgrading. Later migrations may add
+	// tables; every original table and populated amount must still compare exactly.
+	rows, e := s.DB.Query(`SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'message_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes','resident_contacts','contact_events','simulation_messages') ORDER BY name`)
+	if e != nil {
+		t.Fatal(e)
+	}
+	tables := []string{}
+	for rows.Next() {
+		var name string
+		if e = rows.Scan(&name); e != nil {
+			t.Fatal(e)
+		}
+		tables = append(tables, name)
+	}
+	e = rows.Err()
+	rows.Close()
+	if e != nil {
+		t.Fatal(e)
+	}
 	snapshot := func() map[string]string {
 		t.Helper()
 		out := map[string]string{}
-		rows, e := s.DB.Query(`SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'message_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes','resident_contacts','contact_events','simulation_messages') ORDER BY name`)
-		if e != nil {
-			t.Fatal(e)
-		}
-		tables := []string{}
-		for rows.Next() {
-			var name string
-			if e = rows.Scan(&name); e != nil {
-				t.Fatal(e)
-			}
-			tables = append(tables, name)
-		}
-		e = rows.Err()
-		rows.Close()
-		if e != nil {
-			t.Fatal(e)
-		}
 		for _, table := range tables {
 			rows, e := s.DB.Query("SELECT * FROM " + table + " ORDER BY rowid")
 			if e != nil {

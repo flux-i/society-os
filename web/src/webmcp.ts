@@ -9,6 +9,7 @@ import type { ContributionPage, Fund, FundDetail, FundPage, FundWaiver, PaymentR
 import type { Fine, FineDetail, FinePage, FineNotice, FineNoticePage, FineReport, FineReportPage, FineAppeal, FineAppealPage, FineWaiver, FineWaiverPage } from './fines'
 import type { Contact, ContactDetail, ContactPage } from './contacts'
 import type { MessageBatch, MessageDetail, MessagePage } from './messages'
+import type { StatementFile, StatementDetail, StatementPage } from './statements'
 
 type Tool = {
   name: string
@@ -83,7 +84,7 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
       if (!views.includes(screen) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
@@ -91,13 +92,24 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       window.location.hash = screen
       return { screen }
     }, false)
-    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
+    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', 'statements', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
     add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
       const section = String(input.section)
       if (!sections.includes(section) || (['finance','maintenance','collections'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
       return request('/api/overview/' + section, signal)
     })
     const accountMetadata = (account: Account) => ({ id: account.id, name: account.name, state: account.state, roles: account.roles, mfa_enrolled: account.mfa_enrolled, active_homes: account.active_homes })
+    const statementMetadata=(x:StatementFile)=>({id:x.id,kind:x.kind,state:x.state,validation:x.validation,revision:x.revision,version:x.version,current:x.current,published:!!x.publication_id,can_download:x.can_download,can_review:x.can_review,can_publish:x.can_publish})
+    add('society_find_financial_statements','Read at most twelve currently permitted prepared-statement status snapshots. Private originals remain finance scoped; residents see only deliberate current publications. Titles, filenames, preparers, source references, original bytes, financial figures, actors and reasons are excluded. This cannot upload, approve, publish, revoke, download or send a statement.',{kind:{type:'string',enum:['','INCOME','BALANCE','BUDGET','AUDIT']},state:{type:'string',enum:['','PENDING','APPROVED','DECLINED','WITHDRAWN']},page},[],async(input,signal)=>{
+      const kind=input.kind??'',state=input.state??''
+      if(typeof kind!=='string'||!['','INCOME','BALANCE','BUDGET','AUDIT'].includes(kind)||typeof state!=='string'||!['','PENDING','APPROVED','DECLINED','WITHDRAWN'].includes(state))throw new Error('Choose a supported statement type and decision.')
+      const data=await request<StatementPage>('/api/financial-statements?'+new URLSearchParams({kind,state,page:String(pageNumber(input.page))}),signal)
+      return {items:data.items.map(statementMetadata),total:data.total,page:data.page,page_size:data.page_size}
+    })
+    add('society_read_financial_statement','Read one currently permitted prepared-statement status. Financial figures, original metadata/content and private review/publication history are excluded. This cannot download, approve, publish or send anything.',{statement_id:{type:'string',minLength:1,maxLength:100}},['statement_id'],async(input,signal)=>{
+      if(typeof input.statement_id!=='string'||!input.statement_id||input.statement_id.length>100)throw new Error('A permitted statement identity is required.')
+      return statementMetadata(await request<StatementDetail>('/api/financial-statements/'+encodeURIComponent(input.statement_id),signal))
+    })
     const messageMetadata=(x:MessageBatch)=>({id:x.id,source_kind:x.source.kind,state:x.state,channel:x.channel,purpose:x.purpose,simulation:x.simulation,version:x.version,snapshot_version:x.snapshot_version,counts:x.counts,outcomes:x.outcomes,retryable_deliveries:x.retryable_deliveries})
     add('society_find_messages','Read at most twelve currently permitted delivery-status snapshots. Resident history contains only own approved recipient decisions. Source identities, wording, destinations, recipients, actors and private reasons are excluded. This cannot compose, approve, dispatch, cancel, retry or reconcile messages.',{kind:{type:'string',enum:['','NOTICE','RECEIPT']},state:{type:'string',enum:['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED']},page},[],async(input,signal)=>{
       const kind=input.kind??'',state=input.state??''

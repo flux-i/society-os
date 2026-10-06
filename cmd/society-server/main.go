@@ -21,7 +21,7 @@ import (
 	"society.local/portal/internal/server"
 )
 
-var version = "0.16.0-dev"
+var version = "0.17.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -207,7 +207,12 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		go func() { defer close(workerDone); documentStore.Run(workerCtx, store, logger) }()
 		validationDone := make(chan struct{})
 		go func() { defer close(validationDone); documents.RunValidation(workerCtx, store, logger) }()
-		defer func() { stopWorker(); <-workerDone; <-validationDone }()
+		statementValidationDone := make(chan struct{})
+		go func() {
+			defer close(statementValidationDone)
+			documents.RunStatementValidation(workerCtx, store, logger)
+		}()
+		defer func() { stopWorker(); <-workerDone; <-validationDone; <-statementValidationDone }()
 		app := &server.Server{Documents: documentStore, Messages: messageEngine, Store: store, Logger: logger, Version: version, Web: os.DirFS(*webDir)}
 		httpServer := &http.Server{Addr: *address, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
 		errCh := make(chan error, 1)

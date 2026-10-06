@@ -107,6 +107,18 @@ func documentStorageUsage(ctx context.Context, q identityReader, actor string) (
 		own += picOwn
 		total += picTotal
 	}
+	if e != nil {
+		return 0, 0, e
+	}
+	if e = q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='statement_files')`).Scan(&exists); e != nil {
+		return 0, 0, e
+	}
+	if exists {
+		var statementOwn, statementTotal int64
+		e = q.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN uploaded_by=? THEN size_bytes ELSE 0 END),0),COALESCE(SUM(size_bytes),0) FROM statement_files WHERE uploaded_at>0 OR (state='PENDING' AND validation='PENDING' AND expires_at>?)`, actor, time.Now().Unix()).Scan(&statementOwn, &statementTotal)
+		own += statementOwn
+		total += statementTotal
+	}
 	return own, total, e
 }
 func (s *Store) UploadIncidentPicture(ctx context.Context, token, key, filename string, data []byte) (IncidentPicture, error) {
