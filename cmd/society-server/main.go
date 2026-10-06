@@ -20,7 +20,7 @@ import (
 	"society.local/portal/internal/server"
 )
 
-var version = "0.14.0-dev"
+var version = "0.15.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))

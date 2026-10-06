@@ -7,6 +7,7 @@ import type { RegisterDetail, RegisterPage, Work, WorkDetail, WorkPage } from '.
 import type { Incident, IncidentDetail, IncidentNotice, IncidentPage, NoticePage, Rule, RulePage } from './incidents'
 import type { ContributionPage, Fund, FundDetail, FundPage, FundWaiver, PaymentReport, ReportPage, WaiverPage } from './collections'
 import type { Fine, FineDetail, FinePage, FineNotice, FineNoticePage, FineReport, FineReportPage, FineAppeal, FineAppealPage, FineWaiver, FineWaiverPage } from './fines'
+import type { Contact, ContactDetail, ContactPage } from './contacts'
 
 type Tool = {
   name: string
@@ -81,10 +82,10 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', 'fines', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', 'fines', ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
       window.location.hash = screen
       return { screen }
@@ -96,6 +97,21 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       return request('/api/overview/' + section, signal)
     })
     const accountMetadata = (account: Account) => ({ id: account.id, name: account.name, state: account.state, roles: account.roles, mfa_enrolled: account.mfa_enrolled, active_homes: account.active_homes })
+    if (user.can_read_contacts) {
+      const metadata = (x: Contact) => ({ id: x.id, name: x.name, state: x.state, current: x.current, version: x.version, preferred_channel: x.preferred_channel, destinations_recorded: { whatsapp: !!x.phone, email: !!x.email }, permissions: { community_whatsapp: x.community_whatsapp, community_email: x.community_email, finance_whatsapp: x.finance_whatsapp, finance_email: x.finance_email }, eligible: x.eligible })
+      add('society_find_contacts', 'Read at most twelve current people’s contact-status metadata with community authority, or only the signed-in person’s own retained profile. It excludes destinations, identity/permission references, home identifiers, actors, private reasons and history. Eligibility is a current snapshot; sending must independently recheck it. This cannot register, verify, opt in, opt out or send.', { query: search, relationship: { type: 'string', enum: ['', 'OWNER', 'TENANT'] }, wing: { type: 'string', enum: ['', 'A', 'B', 'C'] }, state: { type: 'string', enum: ['', 'NONE', 'PENDING', 'VERIFIED', 'DECLINED', 'WITHDRAWN'] }, page }, [], async (input, signal, me) => {
+        if (!me.can_read_contacts) throw new Error('Current community or own-person permission is required.')
+        const relationship = input.relationship ?? '', wing = input.wing ?? '', state = input.state ?? ''
+        if (typeof relationship !== 'string' || !['', 'OWNER', 'TENANT'].includes(relationship) || typeof wing !== 'string' || !['', 'A', 'B', 'C'].includes(wing) || typeof state !== 'string' || !['', 'NONE', 'PENDING', 'VERIFIED', 'DECLINED', 'WITHDRAWN'].includes(state)) throw new Error('Choose a supported relationship, wing and contact state.')
+        const data = await request<ContactPage>('/api/contacts?' + new URLSearchParams({ q: queryText(input.query), relationship, building: wing, state, page: String(pageNumber(input.page)) }), signal)
+        return { items: data.items.map(metadata), total: data.total, page: data.page, page_size: data.page_size }
+      })
+      add('society_read_contact', 'Read one permitted contact-status and selected-preference snapshot. Destinations, source references, home identities, actors, private reasons and history are excluded. Residents read only their own profile, including after a relationship ends. Verification and opt-outs require the ordinary visible form; this sends nothing.', { contact_id: { type: 'string', minLength: 1, maxLength: 100 } }, ['contact_id'], async (input, signal, me) => {
+        if (!me.can_read_contacts) throw new Error('Current community or own-person permission is required.')
+        if (typeof input.contact_id !== 'string' || !input.contact_id || input.contact_id.length > 100) throw new Error('A permitted person identity is required.')
+        return metadata(await request<ContactDetail>('/api/contacts/' + encodeURIComponent(input.contact_id), signal))
+      })
+    }
     const fineIdentity = (value: unknown) => { if (typeof value !== 'string' || !value || value.length > 100) throw new Error('A permitted fine record identity is required.'); return value }
     const optionalFine = (value: unknown) => value === undefined || value === '' ? '' : fineIdentity(value)
     const fineMetadata = (x: Fine) => ({ id: x.id, title: x.title, home: x.home, state: x.state, version: x.version, due_date: x.due_date, response_by: x.response_by, active_paise: x.active_paise, allocated_paise: x.allocated_paise, outstanding_paise: x.outstanding_paise, waived_paise: x.waived_paise, pause_until: x.pause_until ?? '' })

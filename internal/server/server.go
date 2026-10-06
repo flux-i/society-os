@@ -38,6 +38,7 @@ func (s *Server) Handler() http.Handler {
 	s.fineRoutes(mux)
 	s.reviewRoutes(mux)
 	s.complaintRoutes(mux)
+	s.contactRoutes(mux)
 	s.documentRoutes(mux)
 	s.overviewRoutes(mux)
 	mux.HandleFunc("POST /api/auth/login", s.login(guard))

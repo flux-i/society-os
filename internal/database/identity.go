@@ -86,6 +86,8 @@ type Principal struct {
 	CanReviewRequests   bool     `json:"can_review_requests"`
 	CanHandleComplaints bool     `json:"can_handle_complaints"`
 	CanManageDocuments  bool     `json:"can_manage_documents"`
+	CanReadContacts     bool     `json:"can_read_contacts"`
+	CanManageContacts   bool     `json:"can_manage_contacts"`
 	CSRF                string   `json:"csrf_token"`
 	MFARequired         bool     `json:"mfa_required"`
 	MFAEnrolled         bool     `json:"mfa_enrolled"`
@@ -175,6 +177,8 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		p.CanHandleComplaints = false
 		p.CanManageDocuments = false
 	}
+	p.CanReadContacts = !p.MFAPending && (p.CanReviewRequests || p.ResidentID != "")
+	p.CanManageContacts = !p.MFAPending && p.CanReviewRequests
 	p.ScopeKey, err = principalScope(ctx, q, p, date)
 	return p, err
 }

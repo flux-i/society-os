@@ -12,8 +12,10 @@ import {
 import { careDate } from './upkeep-fixtures'
 
 async function overview(page: Page) {
-  if (await page.getByRole('dialog').count())
+  if (await page.getByRole('dialog').count()) {
     await page.getByRole('dialog').locator('.dialog-close').click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+  }
   await navigate(page, 'Overview')
   await expect(
     page.getByRole('button', { name: 'Refresh overview', exact: true })
@@ -113,6 +115,7 @@ test('independent rules private reviews and personal response attention open exa
     })
     .click()
   expect(new URL(page.url()).hash).toBe('#conduct?case=' + id)
+  await expect(page.getByRole('dialog').getByRole('heading', { name: title, exact: true, level: 2 })).toBeVisible()
   await capture(page, 'overview-exact-private-case')
   await apiIncidentAction(page, id, 'NEEDS_INFO')
   await overview(page)

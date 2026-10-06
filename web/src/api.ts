@@ -39,8 +39,8 @@ export interface FlatDetail extends Flat {
   members: { id: string; name: string; relationship: string; start_date: string; end_date: string | null; membership_id: string; primary_contact: boolean; active: boolean }[]
 }
 
-export interface User { id: string; name: string; roles: string[]; scope_key: string; can_read_registry: boolean; can_manage_registry: boolean; can_manage_accounts: boolean; can_manage_records: boolean; can_read_all_records: boolean; can_read_records: boolean; can_review_requests: boolean; can_handle_complaints: boolean; can_manage_documents: boolean; csrf_token: string; mfa_required: boolean; mfa_enrolled: boolean; mfa_pending: boolean; is_demo: boolean; fresh_authentication: boolean }
-const permissionKeys = ['can_manage_accounts', 'can_manage_registry', 'can_read_registry', 'can_manage_records', 'can_read_all_records', 'can_read_records', 'can_review_requests', 'can_handle_complaints', 'can_manage_documents'] as const
+export interface User { id: string; name: string; roles: string[]; scope_key: string; can_read_registry: boolean; can_manage_registry: boolean; can_manage_accounts: boolean; can_manage_records: boolean; can_read_all_records: boolean; can_read_records: boolean; can_review_requests: boolean; can_handle_complaints: boolean; can_manage_documents: boolean; can_read_contacts: boolean; can_manage_contacts: boolean; csrf_token: string; mfa_required: boolean; mfa_enrolled: boolean; mfa_pending: boolean; is_demo: boolean; fresh_authentication: boolean }
+const permissionKeys = ['can_manage_accounts', 'can_manage_registry', 'can_read_registry', 'can_manage_records', 'can_read_all_records', 'can_read_records', 'can_review_requests', 'can_handle_complaints', 'can_manage_documents', 'can_read_contacts', 'can_manage_contacts'] as const
 // Normal identity refreshes preserve forms; a changed authority or home scope
 // discards data loaded under the earlier scope, including when flags stay true.
 export const userAccessScope = (user: User) => JSON.stringify([user.id, user.scope_key, user.mfa_pending, user.roles, ...permissionKeys.map(key => user[key])])
@@ -73,7 +73,7 @@ export async function request<T>(path: string, signal?: AbortSignal, init?: Requ
       401: path === '/api/auth/login' ? 'That email and password didn’t match. Please try again.' : 'Please sign in again to continue.',
       403: 'Your account does not have permission for this action.',
       404: 'This record is unavailable for your current account.',
-      409: ['/api/entries', '/api/receipts', '/api/reviews', '/api/complaints', '/api/documents', '/api/admin/accounts', '/api/maintenance', '/api/allocations', '/api/upkeep', '/api/collections', '/api/payment-reports', '/api/fund-waivers', '/api/fund-contributions', '/api/rules', '/api/incidents', '/api/incident-notices', '/api/incident-pictures', '/api/fines', '/api/fine-'].some(prefix => path.startsWith(prefix)) ? 'This record has changed or this retry has different details. Reload the record before continuing.' : 'Someone has updated this home. Reload the details before saving.',
+      409: ['/api/entries', '/api/receipts', '/api/reviews', '/api/complaints', '/api/documents', '/api/admin/accounts', '/api/maintenance', '/api/allocations', '/api/upkeep', '/api/collections', '/api/payment-reports', '/api/fund-waivers', '/api/fund-contributions', '/api/rules', '/api/incidents', '/api/incident-notices', '/api/incident-pictures', '/api/fines', '/api/fine-', '/api/contacts'].some(prefix => path.startsWith(prefix)) ? 'This record has changed or this retry has different details. Reload the record before continuing.' : 'Someone has updated this home. Reload the details before saving.',
       429: 'Please wait a little before trying to sign in again.',
     }
     const codes: Record<string, string> = {
