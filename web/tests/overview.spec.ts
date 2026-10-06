@@ -80,8 +80,23 @@ test('denied and stale request or entry deep links disclose no hidden record and
 
 test('a combined source outage shows unknowns and section retries restore usable work', async ({ page }) => {
   await login(page); await page.route('**/api/overview/*', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' })); await overview(page)
-  await expect(page.locator('.overview-metric > strong')).toHaveText(['—','—','—','—']); await expect(page.getByRole('alert')).toHaveCount(8); await expect(page.getByRole('region', { name: 'Maintenance, in view.', exact: true }).locator('.overview-maintenance-amounts strong')).toHaveText(['—','—','—']); await expect(page.getByRole('region', { name: 'Collections, in view.', exact: true }).locator('.overview-maintenance-amounts strong')).toHaveText(['—','—','—']); await expect(page.getByRole('heading', { name: 'All clear for now.' })).toHaveCount(0); await expect(page.getByText('Some sections need a retry', { exact: true })).toBeVisible(); await capture(page, 'combined-source-outage', true)
-  await page.unroute('**/api/overview/*'); await page.getByRole('button', { name: 'Retry service requests', exact: true }).click(); await expect(page.getByRole('alert')).toHaveCount(7); await expect(page.getByRole('link', { name: 'Urgent service request: DAY Urgent water leak', exact: true })).toBeVisible(); await capture(page, 'partial-outage-recovery', true); await page.getByRole('button', { name: 'Refresh overview' }).click(); await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(page.locator('.overview-metric > strong')).toHaveText(['—','—','—','—'])
+  const unavailable = ['Financial records','Requests','Service requests','Notices','Documents','Maintenance','Upkeep','Collections','Rules & conduct']
+  for (const label of unavailable) {
+    // Conduct needs a recovery action in both its attention queue and its own summary.
+    await expect(page.getByRole('alert').filter({has:page.getByText(label+' unavailable',{exact:true})})).toHaveCount(label==='Rules & conduct'?2:1)
+  }
+  await expect(page.getByRole('alert')).toHaveCount(10)
+  for (const label of ['Maintenance, in view.','Collections, in view.','Rules, with care.']) await expect(page.getByRole('region',{name:label,exact:true}).locator('.overview-maintenance-amounts strong')).toHaveText(['—','—','—'])
+  await expect(page.getByRole('heading', { name: 'All clear for now.' })).toHaveCount(0); await expect(page.getByText('Some sections need a retry', { exact: true })).toBeVisible(); await capture(page, 'combined-source-outage', true)
+  await page.unroute('**/api/overview/*'); await page.getByRole('button', { name: 'Retry service requests', exact: true }).click(); await expect(page.getByRole('alert')).toHaveCount(9); await expect(page.getByRole('link', { name: 'Urgent service request: DAY Urgent water leak', exact: true })).toBeVisible()
+  const conduct=page.getByRole('region',{name:'Rules, with care.',exact:true})
+  await conduct.getByRole('button',{name:'Retry rules & conduct',exact:true}).click()
+  await expect(conduct.locator('.overview-maintenance-amounts strong')).toHaveText(['0','0','0'])
+  await expect(page.getByText('Rules & conduct unavailable',{exact:true})).toHaveCount(0)
+  await expect(page.getByRole('alert')).toHaveCount(7)
+  await expect(page.getByRole('region',{name:'Collections, in view.',exact:true}).locator('.overview-maintenance-amounts strong')).toHaveText(['—','—','—'])
+  await capture(page, 'partial-outage-recovery', true); await page.getByRole('button', { name: 'Refresh overview' }).click(); await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
 test('an interrupted original appears as uploader work and clears after a real resumed upload', async ({ page }) => {

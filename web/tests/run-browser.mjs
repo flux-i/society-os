@@ -1,8 +1,8 @@
 // A fresh fictional database keeps browser mutations out of the user's preview.
 import { spawn, execFileSync } from 'node:child_process'
-import { mkdtempSync, openSync, closeSync, rmSync, readdirSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, openSync, closeSync, rmSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { resolve, join } from 'node:path'
+import { resolve, join, basename } from 'node:path'
 import { createServer } from 'node:net'
 
 // Each suite gets its own database, server and real login limiter. The complete
@@ -20,6 +20,10 @@ if (process.argv.length === 2) {
 }
 
 const root = mkdtempSync(join(tmpdir(), 'society-browser-'))
+// Independent browser runs must not delete each other's traces/screenshots.
+// Retain synthetic failure evidence privately after the disposable DB is removed.
+const artifacts = resolve('../reports/local/browser-runs', basename(root))
+mkdirSync(artifacts, { recursive: true, mode: 0o700 })
 const db = join(root, 'society.db')
 const binary = resolve('../build/society-server')
 const reservation = createServer()
@@ -45,7 +49,7 @@ try {
     !argument.startsWith('-') && argument.endsWith('.spec.ts')
       ? '(?:^|[\\\\/])' + argument.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'
       : argument)
-  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: base, SOCIETY_BROWSER_DB: db } })
+  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_ARTIFACTS: artifacts } })
   process.exitCode = await new Promise(resolve => runner.on('exit', code => resolve(code ?? 1)))
 } finally {
   if (server && server.exitCode === null) {

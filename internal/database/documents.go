@@ -318,8 +318,7 @@ func (s *Store) ReserveDocument(ctx context.Context, token string, in DocumentIn
 		}
 	}
 	// Original bytes remain retained; only expired/withdrawn reservations without bytes release quota.
-	var own, total int64
-	err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN uploaded_by=? THEN expected_size_bytes ELSE 0 END),0),COALESCE(SUM(expected_size_bytes),0) FROM library_documents WHERE uploaded_at IS NOT NULL OR (review_state='PENDING' AND validation_status='PENDING' AND expires_at>?)`, p.ID, time.Now().Unix()).Scan(&own, &total)
+	own, total, err := documentStorageUsage(ctx, tx, p.ID)
 	if err != nil {
 		return "", err
 	}

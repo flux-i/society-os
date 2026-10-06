@@ -4,6 +4,7 @@ import type { Account, AccountPage, User } from './api'
 import type { AccountDetails } from './components/AccountAdministration'
 import type { HomeStatement, MaintenanceCycle, MaintenanceDetail, MaintenancePage } from './maintenance'
 import type { RegisterDetail, RegisterPage, Work, WorkDetail, WorkPage } from './upkeep'
+import type { Incident, IncidentDetail, IncidentNotice, IncidentPage, NoticePage, Rule, RulePage } from './incidents'
 import type { ContributionPage, Fund, FundDetail, FundPage, FundWaiver, PaymentReport, ReportPage, WaiverPage } from './collections'
 
 type Tool = {
@@ -79,7 +80,7 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
       if (!views.includes(screen) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
@@ -87,7 +88,7 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       window.location.hash = screen
       return { screen }
     }, false)
-    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
+    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
     add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
       const section = String(input.section)
       if (!sections.includes(section) || (['finance','maintenance','collections'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
@@ -206,6 +207,26 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
     }
     add('society_find_requests', 'Read the current account’s private submissions or the authorised reviewer queue. Review decisions require the visible form and separate reviewer; this tool never approves an item.', { query: search, page }, [], async (input, signal) => request('/api/reviews?' + new URLSearchParams({ q: queryText(input.query), page: String(pageNumber(input.page)) }), signal))
     add('society_find_notices', 'Read approved notices matching current audience and memberships. Unapproved proposals and private reviewer notes are excluded.', { query: search, page }, [], async (input, signal) => request('/api/notices?' + new URLSearchParams({ q: queryText(input.query), page: String(pageNumber(input.page)) }), signal))
+    const ruleMetadata = (rule:Rule) => ({id:rule.id,title:rule.title,state:rule.state,effective_from:rule.effective_from,effective_until:rule.effective_until,fine_permitted:rule.fine_permitted,version:rule.version})
+    const incidentMetadata = (item:Incident) => ({id:item.id,rule_id:item.rule_id,rule_title:item.rule_title,home:item.home,incident_date:item.incident_date,state:item.state,version:item.version})
+    const responseNoticeMetadata = (item:IncidentNotice) => ({id:item.id,title:item.title,home:item.home,incident_date:item.incident_date,response_by:item.response_by,active:item.active,version:item.version})
+    add('society_find_rules','Read one bounded page of permitted rule metadata. Residents see published or retired rules; operators may inspect pending policy. Text, authority references, author identities and review events are excluded. This cannot publish, retire, propose or issue a fine.',{query:search,state:{type:'string',enum:['','PENDING','PUBLISHED','RETIRED','DECLINED','WITHDRAWN']},page},[],async(input,signal)=>{
+      const state=String(input.state??'');if(!['','PENDING','PUBLISHED','RETIRED','DECLINED','WITHDRAWN'].includes(state))throw new Error('Choose a supported rule state.')
+      const data=await request<RulePage>('/api/rules?'+new URLSearchParams({q:queryText(input.query),state,page:String(pageNumber(input.page))}),signal)
+      return {items:data.items.map(ruleMetadata),total:data.total,page:data.page,page_size:data.page_size}
+    })
+    add('society_read_rule','Read permitted immutable rule metadata. Text, authority reference, authors and private review events are excluded. Ordinary reviewed forms are required for every policy change.',{rule_id:{type:'string',minLength:1,maxLength:100}},['rule_id'],async(input,signal)=>ruleMetadata(await request<Rule>('/api/rules/'+encodeURIComponent(careIdentity(input.rule_id)),signal)))
+    const incidentState = (value:unknown) => {const state=String(value??'');if(!['','REPORTED','NEEDS_INFO','UNDER_REVIEW','DISMISSED','SUBSTANTIATED','WITHDRAWN'].includes(state))throw new Error('Choose a supported incident state.');return state}
+    add('society_find_incidents','Read one page of the current person’s own reports or a currently authorised operational queue. A tagged home alone grants no private case access. Search uses rule title, home, date or case identity; comments are not searched. Reporter identities, comments, evidence, notices and private activity are excluded.',{query:search,state:{type:'string',enum:['','REPORTED','NEEDS_INFO','UNDER_REVIEW','DISMISSED','SUBSTANTIATED','WITHDRAWN']},page},[],async(input,signal)=>{
+      const data=await request<IncidentPage>('/api/incidents?'+new URLSearchParams({q:queryText(input.query),state:incidentState(input.state),page:String(pageNumber(input.page))}),signal)
+      return {items:data.items.map(incidentMetadata),total:data.total,page:data.page,page_size:data.page_size}
+    })
+    add('society_read_incident','Read own or currently authorised private incident metadata. It excludes report text, reporter identity, picture identities/bytes, response notices and all activity. This cannot report, decide, publish, respond or charge.',{case_id:{type:'string',minLength:1,maxLength:100}},['case_id'],async(input,signal)=>incidentMetadata(await request<IncidentDetail>('/api/incidents/'+encodeURIComponent(careIdentity(input.case_id)),signal)))
+    add('society_find_incident_notices','Read one page of deliberately issued notices for the current person’s active home relationships. Removed notices are absent. Wording, rule text, reporter/handler identity, pictures and responses are excluded. This never shares or sends anything.',{query:search,page},[],async(input,signal)=>{
+      const data=await request<NoticePage>('/api/incident-notices?'+new URLSearchParams({q:queryText(input.query),page:String(pageNumber(input.page))}),signal)
+      return {items:data.items.map(responseNoticeMetadata),total:data.total,page:data.page,page_size:data.page_size}
+    })
+    add('society_read_incident_notice','Read a current-home response notice’s frozen metadata, or an authorised handler’s retained metadata. Wording, original report, evidence, identities, private case versions and responses are excluded. Responses require the ordinary human form.',{notice_id:{type:'string',minLength:1,maxLength:100}},['notice_id'],async(input,signal)=>responseNoticeMetadata(await request<IncidentNotice>('/api/incident-notices/'+encodeURIComponent(careIdentity(input.notice_id)),signal)))
     add('society_find_complaints', 'Read the current account’s own service requests or the authorised handling queue. Case ownership is personal; sharing a home does not share another person’s case. Conversation text is not searched.', { query: search, page, status: { type: 'string', enum: ['', 'OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'CLOSED'] } }, [], async (input, signal) => {
       const status = input.status ?? ''
       if (!['', 'OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'CLOSED'].includes(String(status))) throw new Error('Choose a supported service status.')

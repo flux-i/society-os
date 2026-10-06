@@ -14,13 +14,14 @@ import { Records } from './components/Records'
 import { useSocietyTools } from './webmcp'
 import { Reviews } from './components/Reviews'
 import { Complaints } from './components/Complaints'
+import { Incidents } from './components/Incidents'
 import { Documents } from './components/Documents'
 import { Maintenance } from './components/Maintenance'
 import { Upkeep } from './components/Upkeep'
 import { Collections } from './components/Collections'
 
-type View = 'overview' | 'homes' | 'access' | 'security' | 'entries' | 'receipts' | 'reviews' | 'community' | 'help' | 'documents' | 'maintenance' | 'upkeep' | 'collections'
-const currentView = (): View => { const hash = window.location.hash.slice(1).split('?')[0]; return ['homes', 'access', 'security', 'entries', 'receipts', 'reviews', 'community', 'help', 'documents', 'maintenance', 'upkeep', 'collections'].includes(hash) ? hash as View : 'overview' }
+type View = 'overview' | 'homes' | 'access' | 'security' | 'entries' | 'receipts' | 'reviews' | 'community' | 'help' | 'documents' | 'maintenance' | 'upkeep' | 'collections' | 'conduct'
+const currentView = (): View => { const hash = window.location.hash.slice(1).split('?')[0]; return ['homes', 'access', 'security', 'entries', 'receipts', 'reviews', 'community', 'help', 'documents', 'maintenance', 'upkeep', 'collections', 'conduct'].includes(hash) ? hash as View : 'overview' }
 const takeLink = () => {
   const match = window.location.hash.match(/^#(?:activate|reset)=([A-Za-z0-9_-]{43})$/)
   if (!match) return ''
@@ -52,6 +53,7 @@ function Sidebar({ view, user, onAbout }: { view: View; user: User; onAbout: () 
         <a href="#community" className={`nav-item ${view === 'community' ? 'active' : ''}`} aria-current={view === 'community' ? 'page' : undefined}><Icon name="community" /><span>Community</span></a>
         <a href="#help" className={`nav-item ${view === 'help' ? 'active' : ''}`} aria-current={view === 'help' ? 'page' : undefined}><Icon name="leaf" /><span>Help & repairs</span></a>
         <a href="#upkeep" className={`nav-item ${view === 'upkeep' ? 'active' : ''}`} aria-current={view === 'upkeep' ? 'page' : undefined}><Icon name="leaf" /><span>Upkeep</span></a>
+        <a href="#conduct" className={`nav-item ${view === 'conduct' ? 'active' : ''}`} aria-current={view === 'conduct' ? 'page' : undefined}><Icon name="shield" /><span>Rules & conduct</span></a>
         <a href="#security" className={`nav-item ${view === 'security' ? 'active' : ''}`} aria-current={view === 'security' ? 'page' : undefined}><Icon name="shield" /><span>Account security</span></a>
         <a href="#documents" className={`nav-item ${view === 'documents' ? 'active' : ''}`} aria-current={view === 'documents' ? 'page' : undefined}><Icon name="document" /><span>Documents</span></a>
       </nav>
@@ -197,11 +199,11 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Skip to content</a>
     <Sidebar view={view} user={user} onAbout={() => setAbout(true)} />
     <div className="main-shell">
-      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'collections' ? 'Collections' : view === 'upkeep' ? 'Upkeep' : view === 'maintenance' ? 'Maintenance' : view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_accounts ? 'Access & invitations' : view === 'overview' ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
+      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'conduct' ? 'Rules & conduct' : view === 'collections' ? 'Collections' : view === 'upkeep' ? 'Upkeep' : view === 'maintenance' ? 'Maintenance' : view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_accounts ? 'Access & invitations' : view === 'overview' ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />Local preview</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
       <div className="preview-banner"><span><Icon name="spark" />A first look at your community workspace.</span><span>Fictional data <i /> Live local registry</span></div>
       <main id="main-content" tabIndex={-1} className="main-content">
         {view === 'homes' && error && <div className="connection-error" role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Reconnect<Icon name="refresh" /></button></div>}
-        {view === 'collections' ? <Collections user={user} /> : view === 'upkeep' ? <Upkeep user={user} /> : view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
+        {view === 'conduct' ? <Incidents user={user} /> : view === 'collections' ? <Collections user={user} /> : view === 'upkeep' ? <Upkeep user={user} /> : view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
         <footer className="page-footer"><span><span className="footer-wordmark">society.</span> Made for everyday life.</span><button onClick={() => setAbout(true)}>About this preview<Icon name="arrow" /></button></footer>
       </main>
     </div>

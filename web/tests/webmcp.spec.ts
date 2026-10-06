@@ -7,6 +7,7 @@ import { apiMaintenance, apiReceived, ensureMaintenanceReviewer } from './mainte
 import { apiCareRecord, apiWork, apiWorkAction, careDate } from './upkeep-fixtures'
 import { apiFund, apiFundAction, apiFundReport, apiFundVerify } from './collections-fixtures'
 import { financialHeaders } from './maintenance-fixtures'
+import { apiRule,apiRuleAction,apiIncident,apiIncidentAction,apiPicture } from './incidents-fixtures'
 
 type ContextDocument = Document & { modelContext: {
   getTools: () => Promise<{ name: string }[]>
@@ -92,7 +93,7 @@ test('native tools rediscover current personal scope after an appointment expire
   }).toEqual(['demo-flat-A-101', 'demo-flat-A-102'])
   const current = await (await resident.request.get('/api/auth/me')).json(); expect(current.id).toBe(before.id); expect(current.roles).toEqual([]); expect(current.can_read_all_records).toBe(false); expect(current.can_read_records).toBe(true)
   await expect(resident.locator('.overview-finance-balance strong')).toHaveText('₹0.00')
-  await expect.poll(() => names(resident)).toHaveLength(21)
+  await expect.poll(() => names(resident)).toHaveLength(27)
   const hidden = JSON.parse(await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-103' })); expect(hidden.items).toEqual([]); expect(hidden.total).toBe(0); expect(hidden.debit_paise).toBe(0); expect(hidden.homes.map((home: { id: string }) => home.id).sort()).toEqual(['demo-flat-A-101', 'demo-flat-A-102']); expect((await resident.request.get('/api/entries/' + entryId)).status()).toBe(404)
   await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-101' }); await expect(resident.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible(); await context.close()
 })
@@ -135,7 +136,7 @@ test('native WebMCP discovers permitted tools after MFA and executes bounded sea
   expect(await page.evaluate(() => !!(document as ContextDocument).modelContext)).toBe(true)
   expect(await names(page)).toEqual([])
   await login(page)
-  await expect.poll(() => names(page)).toEqual(['society_find_accounts', 'society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_maintenance', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_find_upkeep', 'society_find_upkeep_register', 'society_open_home', 'society_open_workspace', 'society_read_account', 'society_read_complaint', 'society_read_document', 'society_read_home_statement', 'society_read_maintenance', 'society_read_overview', 'society_read_upkeep', 'society_read_upkeep_register', 'society_find_collections', 'society_read_collection', 'society_find_payment_reports', 'society_read_payment_report', 'society_find_fund_contributions', 'society_find_fund_exemptions', 'society_read_fund_exemption'].sort())
+  await expect.poll(() => names(page)).toEqual(['society_find_accounts', 'society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_maintenance', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_find_upkeep', 'society_find_upkeep_register', 'society_open_home', 'society_open_workspace', 'society_read_account', 'society_read_complaint', 'society_read_document', 'society_read_home_statement', 'society_read_maintenance', 'society_read_overview', 'society_read_upkeep', 'society_read_upkeep_register', 'society_find_collections', 'society_read_collection', 'society_find_payment_reports', 'society_read_payment_report', 'society_find_fund_contributions', 'society_find_fund_exemptions', 'society_read_fund_exemption', 'society_find_rules', 'society_read_rule', 'society_find_incidents', 'society_read_incident', 'society_find_incident_notices', 'society_read_incident_notice'].sort())
   const mutations: string[] = []
   page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) })
   const homes = JSON.parse(await execute(page, 'society_find_homes', { wing: 'B', occupancy: 'RENTED' }))
@@ -175,7 +176,7 @@ test('native WebMCP follows resident scope and omits financial tools for an unen
   expect(await page.getByRole('dialog').count()).toBe(0)
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await login(page, 'Tenant')
-  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_find_upkeep', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document', 'society_read_overview', 'society_read_upkeep'])
+  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_find_upkeep', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document', 'society_read_overview', 'society_read_upkeep', 'society_find_rules', 'society_read_rule', 'society_find_incidents', 'society_read_incident', 'society_find_incident_notices', 'society_read_incident_notice'].sort())
   await expect(execute(page, 'society_open_workspace', { screen: 'entries' })).rejects.toThrow()
   const tenantHomes = JSON.parse(await execute(page, 'society_find_homes', {}))
   expect(tenantHomes.items.map((home: { id: string }) => home.id)).toEqual(['demo-flat-A-103'])
@@ -415,4 +416,81 @@ test('native collections reject unsupported writes cancellation and stale captur
  const context=await browser.newContext({baseURL:new URL(page.url()).origin}),owner=await context.newPage();await login(owner,'Owner');const report=await apiFundReport(owner,id,'20.00','NATIVE-SCOPE-'+id);await owner.goto('/#collections?report='+report);await expect(owner.getByRole('dialog').getByText('Awaiting verification',{exact:true})).toBeVisible();const path=process.env.SOCIETY_BROWSER_DB;if(!path||!path.includes('society-browser-'))throw new Error('Isolated collection scope fixture required');const scope=(allowed:boolean)=>execFileSync('python3',['-c',"import sqlite3,sys;db=sqlite3.connect(sys.argv[1]);db.execute(\"UPDATE flat_memberships SET can_view_finances=? WHERE resident_id='demo-owner-A-101' AND flat_id='demo-flat-A-101'\",(int(sys.argv[2]),));db.commit()",path,allowed?'1':'0']);let release!:()=>void,captured!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve}),ready=new Promise<void>(resolve=>{captured=resolve});await owner.route('**/api/payment-reports/'+report,async route=>{const response=await route.fetch();captured();await pending;await route.fulfill({response}).catch(()=>{})});const reading=execute(owner,'society_read_payment_report',{report_id:report});await ready
  try{scope(false);release();await expect(reading).rejects.toThrow();await owner.unroute('**/api/payment-reports/'+report);await expect(owner.getByRole('dialog')).toHaveCount(0);await expect(execute(owner,'society_read_payment_report',{report_id:report})).rejects.toThrow();const current=JSON.parse(await execute(owner,'society_read_collection',{campaign_id:id}));expect(current.participants).toBe(1);expect(current.outstanding_paise).toBe(50025)}finally{release();scope(true);await owner.unroute('**/api/payment-reports/'+report);await context.close()}
  const tenantContext=await browser.newContext({baseURL:new URL(page.url()).origin}),tenant=await tenantContext.newPage();await login(tenant,'Tenant');for(const tool of ['society_find_collections','society_read_collection','society_find_payment_reports','society_read_payment_report','society_find_fund_contributions','society_find_fund_exemptions','society_read_fund_exemption'])await expect.poll(()=>names(tenant)).not.toContain(tool);await expect(execute(tenant,'society_open_workspace',{screen:'collections'})).rejects.toThrow();await expect(execute(tenant,'society_read_overview',{section:'collections'})).rejects.toThrow();await tenantContext.close();await reviewContext.close()
+})
+
+
+
+test('native rule and incident metadata remain bounded private and read only while a human report is prepared',async({page,browser})=>{
+  test.setTimeout(60000);await login(page);await expect.poll(()=>names(page)).toContain('society_read_incident')
+  const reviewContext=await browser.newContext({baseURL:new URL(page.url()).origin}),reviewer=await reviewContext.newPage();await login(reviewer,'Committee')
+  const title='Native private rule '+Date.now(),rule=await apiRule(page,title);await apiRuleAction(reviewer,rule,'PUBLISHED')
+  const pending=await apiRule(page,'Native unpublished policy '+Date.now())
+  const residentContext=await browser.newContext({baseURL:new URL(page.url()).origin}),tenant=await residentContext.newPage();await login(tenant,'Tenant');const own=await apiIncident(tenant,rule)
+  const other=await apiIncident(page,rule)
+  for(let i=0;i<11;i++)await apiIncident(page,rule)
+  await navigate(page,'Rules & conduct');await page.getByRole('button',{name:'Report an observation',exact:true}).click()
+  const prepared='PRIVATE human observation retained while a native reader checks metadata.';await page.getByRole('textbox',{name:'Your observation',exact:true}).fill(prepared)
+  const mutations:string[]=[],listener=(request:import('@playwright/test').Request)=>{if(!['GET','HEAD'].includes(request.method()))mutations.push(request.url())};page.on('request',listener)
+  const metadata=JSON.parse(await execute(page,'society_read_rule',{rule_id:rule}));expect(Object.keys(metadata).sort()).toEqual(['effective_from','effective_until','fine_permitted','id','state','title','version']);expect(metadata.state).toBe('PUBLISHED')
+  const found=JSON.parse(await execute(page,'society_find_incidents',{query:title}));expect(found.total).toBe(13);expect(found.items).toHaveLength(12)
+  expect(JSON.parse(await execute(page,'society_find_incidents',{query:title,page:2})).items).toHaveLength(1)
+  const report=JSON.parse(await execute(page,'society_read_incident',{case_id:own}));expect(Object.keys(report).sort()).toEqual(['home','id','incident_date','rule_id','rule_title','state','version'])
+  for(const forbidden of ['comment','reporter_id','picture_id','notice_id','events','policy_reference','PRIVATE fictional observation'])expect(JSON.stringify({metadata,found,report})).not.toContain(forbidden)
+  await expect(page.getByRole('textbox',{name:'Your observation',exact:true})).toHaveValue(prepared);await expect(page.getByRole('dialog')).toBeVisible();expect(mutations).toEqual([]);page.off('request',listener)
+  for(const [tool,args] of [['society_find_rules',{page:10001}],['society_find_incidents',{query:'x'.repeat(101)}],['society_find_incidents',{state:'ISSUED'}],['society_read_rule',{rule_id:rule,action:'PUBLISHED'}],['society_read_incident',{case_id:own,picture:true}],['society_read_incident_notice',{notice_id:'../private'}]] as const)await expect(execute(page,tool,args)).rejects.toThrow()
+  await expect.poll(()=>names(tenant)).toContain('society_find_incidents');expect(JSON.parse(await execute(tenant,'society_find_incidents',{query:title})).total).toBe(1)
+  expect(JSON.parse(await execute(tenant,'society_read_incident',{case_id:own})).id).toBe(own);await expect(execute(tenant,'society_read_incident',{case_id:other})).rejects.toThrow();await expect(execute(tenant,'society_read_rule',{rule_id:pending})).rejects.toThrow()
+  expect(JSON.parse(await execute(tenant,'society_find_rules',{query:title})).items[0].id).toBe(rule)
+  await apiIncidentAction(page,own,'NEEDS_INFO')
+  const staffAttention=JSON.parse(await execute(page,'society_read_overview',{section:'incidents'})),ownAttention=JSON.parse(await execute(tenant,'society_read_overview',{section:'incidents'}))
+  expect(staffAttention.items.find((item:{id:string})=>item.id===own).kind).toBe('INCIDENT')
+  expect(ownAttention.items.find((item:{id:string})=>item.id===own).kind).toBe('INCIDENT_CLARIFICATION')
+  expect(ownAttention.counts.information_needed).toBe(1)
+  expect(JSON.stringify({staffAttention,ownAttention})).not.toContain('PRIVATE')
+  await expect(page.getByRole('textbox',{name:'Your observation',exact:true})).toHaveValue(prepared)
+  await residentContext.close();await reviewContext.close()
+})
+
+
+test('native current-home notices expose frozen metadata and personal response attention without private case activity',async({page,browser})=>{
+  test.setTimeout(60000);await login(page);const reviewContext=await browser.newContext({baseURL:new URL(page.url()).origin}),reviewer=await reviewContext.newPage();await login(reviewer,'Committee')
+  const title='Native frozen notice rule '+Date.now(),rule=await apiRule(page,title);await apiRuleAction(reviewer,rule,'PUBLISHED')
+  const residentContext=await browser.newContext({baseURL:new URL(page.url()).origin}),tenant=await residentContext.newPage();await login(tenant,'Tenant');const picture=await apiPicture(tenant),id=await apiIncident(tenant,rule,{picture_id:picture})
+  const notice=await apiIncidentAction(page,id,'ISSUE_NOTICE',{title:'Native deliberate response notice',body:'PRIVATE wording deliberately issued only for this fictional household.',response_by:careDate(4)})
+  const context=await browser.newContext({baseURL:new URL(page.url()).origin}),owner=await context.newPage();await login(owner,'Owner');await expect.poll(()=>names(owner)).toContain('society_read_incident_notice')
+  const before=JSON.parse(await execute(owner,'society_read_incident_notice',{notice_id:notice.notice_id}));expect(Object.keys(before).sort()).toEqual(['active','home','id','incident_date','response_by','title','version']);expect(before.home).toBe('A-101')
+  await apiIncidentAction(page,id,'NOTE');expect(JSON.parse(await execute(owner,'society_read_incident_notice',{notice_id:notice.notice_id}))).toEqual(before)
+  expect(JSON.parse(await execute(owner,'society_find_incident_notices',{query:'Native deliberate response notice'})).total).toBe(1)
+  await expect(execute(owner,'society_read_incident',{case_id:id})).rejects.toThrow();await expect(execute(tenant,'society_read_incident_notice',{notice_id:notice.notice_id})).rejects.toThrow();expect((await owner.request.get('/api/incident-pictures/'+picture+'/original')).status()).toBe(404)
+  const attention=JSON.parse(await execute(owner,'society_read_overview',{section:'incidents'}));expect(attention.counts.responses_needed).toBe(1);expect(attention.counts.needs_review).toBe(0)
+  await owner.goto('/#conduct?notice='+notice.notice_id);await owner.getByRole('textbox',{name:'Your household response',exact:true}).fill('PRIVATE prepared household response should stay outside metadata.');await expect(execute(owner,'society_open_workspace',{screen:'conduct'})).rejects.toThrow()
+  const text=await execute(owner,'society_read_incident_notice',{notice_id:notice.notice_id});for(const forbidden of ['PRIVATE','body','reporter','picture','responses','updated_at','incident_id'])expect(text).not.toContain(forbidden)
+  await expect(owner.getByRole('textbox',{name:'Your household response',exact:true})).toHaveValue('PRIVATE prepared household response should stay outside metadata.')
+  await owner.getByRole('checkbox',{name:'I reviewed my response to this notice.',exact:true}).check();await owner.getByRole('button',{name:'Submit household response',exact:true}).click();await expect(owner.getByRole('region',{name:'Household responses',exact:true})).toContainText('PRIVATE prepared household response')
+  expect(JSON.parse(await execute(owner,'society_read_overview',{section:'incidents'})).counts.responses_needed).toBe(0);expect(JSON.parse(await execute(owner,'society_read_incident_notice',{notice_id:notice.notice_id}))).toEqual(before)
+  await apiIncidentAction(page,id,'REMOVE_NOTICE');await expect(execute(owner,'society_read_incident_notice',{notice_id:notice.notice_id})).rejects.toThrow();expect(JSON.parse(await execute(owner,'society_find_incident_notices',{query:'Native deliberate response notice'})).total).toBe(0)
+  expect(JSON.parse(await execute(page,'society_read_incident_notice',{notice_id:notice.notice_id})).active).toBe(false)
+  await context.close();await residentContext.close();await reviewContext.close()
+})
+
+
+test('native incident reads discard a held notice after only that home ends and honour cancellation with current rediscovery',async({page,browser})=>{
+  test.setTimeout(60000);await login(page);const reviewContext=await browser.newContext({baseURL:new URL(page.url()).origin}),reviewer=await reviewContext.newPage();await login(reviewer,'Committee')
+  const title='Native notice scope rule '+Date.now(),rule=await apiRule(page,title);await apiRuleAction(reviewer,rule,'PUBLISHED');const id=await apiIncident(reviewer,rule)
+  const notice=await apiIncidentAction(page,id,'ISSUE_NOTICE',{title:'A current-home native scope fixture',body:'PRIVATE deliberate wording must not survive the current-home scope boundary.',response_by:careDate(4)})
+  const context=await browser.newContext({baseURL:new URL(page.url()).origin}),owner=await context.newPage();await login(owner,'Owner');await owner.goto('/#conduct?notice='+notice.notice_id);await expect(owner.getByRole('textbox',{name:'Your household response',exact:true})).toBeVisible()
+  const path=process.env.SOCIETY_BROWSER_DB;if(!path||!path.includes('society-browser-'))throw new Error('Disposable native incident scope fixture required')
+  const scope=(ended:boolean)=>execFileSync('python3',['-c',"import sqlite3,sys;db=sqlite3.connect(sys.argv[1]);r=db.execute(\"UPDATE flat_memberships SET end_date=? WHERE resident_id='demo-owner-A-101' AND flat_id='demo-flat-A-101'\",(sys.argv[2] if sys.argv[3]=='end' else None,));assert r.rowcount==1;db.commit()",path,careDate(),ended?'end':'restore'])
+  let release!:()=>void,captured!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve}),ready=new Promise<void>(resolve=>{captured=resolve})
+  await owner.route('**/api/incident-notices/'+notice.notice_id,async route=>{const response=await route.fetch();captured();await pending;await route.fulfill({response}).catch(()=>{})})
+  const reading=execute(owner,'society_read_incident_notice',{notice_id:notice.notice_id});await ready
+  try{
+    scope(true);release();await expect(reading).rejects.toThrow();await owner.unroute('**/api/incident-notices/'+notice.notice_id);await expect(owner.getByRole('dialog')).toHaveCount(0)
+    expect((await(await owner.request.get('/api/auth/me')).json()).can_read_records).toBe(true);await expect.poll(()=>names(owner)).toContain('society_read_incident_notice');await expect(execute(owner,'society_read_incident_notice',{notice_id:notice.notice_id})).rejects.toThrow()
+    expect(JSON.parse(await execute(owner,'society_read_overview',{section:'incidents'})).counts.responses_needed).toBe(0)
+  }finally{release();scope(false);await owner.unroute('**/api/incident-notices/'+notice.notice_id);await context.close()}
+  const cancelled=await page.evaluate(async(rule)=>{
+    const context=(document as ContextDocument).modelContext,tool=(await context.getTools()).find(x=>x.name==='society_read_rule')!,controller=new AbortController();controller.abort();const args={rule_id:rule},major=Number(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1])
+    try{await context.executeTool(tool,major<155?JSON.stringify(args):args,{signal:controller.signal});return false}catch{return true}
+  },rule);expect(cancelled).toBe(true);await reviewContext.close()
 })

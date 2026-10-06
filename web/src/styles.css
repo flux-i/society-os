@@ -1401,3 +1401,88 @@
 .collections-page .fund-filters .filter-select { width: 100%; }
 @media(max-width:900px) { .collections-page .fund-filters { grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; } .collections-page .fund-filters .search-control { grid-column: 1/-1; } }
 @media(max-width:540px) { .collections-page .fund-filters { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; } .collections-page .fund-filters .clear-button { grid-column: 1/-1; justify-self: end; } .collections-page .fund-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; } }
+
+/* Private conduct shares the community's calm, editorial surface. */
+.conduct-art { width: 245px; flex: 0 0 245px; }
+.conduct-hero .incident-action-tools { margin-top: 25px; }
+.incident-action-tools { display:flex; flex-wrap:wrap; align-items:center; gap:12px 18px; }
+.conduct-tabs { margin:30px 0 27px; border-bottom:1px solid var(--color-line); }
+.conduct-page .conduct-filters { display:grid; grid-template-columns:minmax(0,1fr) 220px auto; align-items:center; gap:12px; }
+.conduct-page .conduct-notice-filters { grid-template-columns:minmax(0,1fr) auto; }
+.rule-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+.rule-card { text-align:left; border:1px solid var(--color-line); border-radius:18px; padding:25px; background:var(--color-surface); color:var(--color-ink); display:flex; flex-direction:column; min-width:0; transition:transform .18s, border-color .18s; }
+.rule-card:hover { transform:translateY(-3px); border-color:var(--color-forest); }
+.rule-card h3 { font-family:var(--font-display); font-size:31px; line-height:1.1; margin:18px 0 12px; }
+.rule-card p { color:var(--color-muted); line-height:1.6; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; margin:0 0 23px; }
+.rule-book-mark { width:42px; height:46px; border-radius:8px; background:#e6eadb; display:grid; place-items:center; margin-top:22px; }
+.rule-book-mark svg { width:23px; height:23px; }
+.rule-card-foot { margin-top:auto; font-size:12px; color:var(--color-muted); padding-top:15px; border-top:1px solid var(--color-line); }
+.rule-card-foot small { display:block; margin-top:8px; font-size:11px; }
+.incident-list { display:grid; gap:12px; }
+.incident-list-card { display:flex; gap:20px; align-items:center; padding:24px; min-width:0; border:1px solid var(--color-line); border-radius:15px; background:var(--color-surface); text-align:left; color:var(--color-ink); }
+.incident-list-card:hover { border-color:var(--color-forest); background:#fbfbf3; }
+.incident-card-mark { flex:0 0 45px; width:45px; height:49px; background:#e6ebdc; border-radius:11px; display:grid; place-items:center; }
+.incident-card-story { min-width:0; flex:1; }
+.incident-card-story strong { display:block; font-family:var(--font-display); font-size:29px; font-weight:400; line-height:1.2; margin:8px 0; }
+.incident-card-story small { color:var(--color-muted); font-size:12px; }
+.incident-list-card > svg { flex:0 0 20px; }
+.incident-list-card > .fund-state { max-width:175px; white-space:normal; line-height:1.5; }
+.incident-dialog h2 { overflow-wrap:anywhere; }
+.incident-dialog .preserve-lines { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.7; }
+.incident-detail-tools { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 22px; margin:20px 0 25px; }
+.incident-detail-tools .text-link, .incident-action-tools .text-link { min-height:40px; }
+.incident-review-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; background:#edf0e3; border-radius:13px; padding:21px; margin:22px 0; }
+.incident-review-facts span { color:var(--color-muted); font-size:12px; min-width:0; }
+.incident-review-facts strong { display:block; color:var(--color-ink); font-size:17px; font-weight:500; margin-top:7px; overflow-wrap:anywhere; }
+.rule-paper { background:#fbfaf3; border:1px solid var(--color-line); border-left:3px solid #a9b591; border-radius:12px; padding:23px; margin:23px 0; min-width:0; }
+.rule-paper h3 { font-family:var(--font-display); font-weight:400; font-size:29px; line-height:1.2; margin:13px 0 16px; }
+.rule-paper .rule-dates { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; margin-top:23px; padding-top:17px; border-top:1px solid var(--color-line); }
+.rule-dates span { font-size:12px; color:var(--color-muted); }
+.rule-dates strong { display:block; margin-top:7px; color:var(--color-ink); font-weight:500; font-size:14px; }
+.rule-reference { font-size:12px; color:var(--color-muted); overflow-wrap:anywhere; margin:18px 0 0; }
+.rule-dates-input { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.incident-picture { margin:22px 0; border:1px solid var(--color-line); border-radius:13px; overflow:hidden; background:#eeeee3; }
+.incident-picture img { display:block; max-width:100%; width:100%; max-height:350px; object-fit:contain; }
+.incident-picture-footer { background:var(--color-surface); padding:14px 18px; display:flex; flex-wrap:wrap; align-items:center; gap:12px 22px; }
+.incident-picture-footer p { flex:1 1 180px; font-size:12px; color:var(--color-muted); margin:0; line-height:1.6; }
+.incident-picture-footer a { flex:0 1 auto; min-height:40px; }
+.picture-upload { padding:21px; border:1px dashed #bfc8ad; background:#fbfcf5; border-radius:13px; margin:22px 0; }
+.picture-upload input { max-width:100%; font-size:12px; }
+.incident-no-charge { padding:16px 18px; border-radius:12px; background:#eaf0e0; font-size:13px; display:flex; gap:12px; line-height:1.6; margin:25px 0; }
+.incident-no-charge svg { flex:0 0 20px; }
+.incident-decision { border-top:1px solid var(--color-line); padding-top:24px; margin-top:28px; }
+.incident-notice-history { margin:28px 0; }
+.incident-notice-history > div { display:grid; gap:9px; }
+.incident-notice-link { display:flex; align-items:center; gap:15px; border:1px solid var(--color-line); border-radius:10px; padding:15px; width:100%; color:var(--color-ink); background:var(--color-surface); text-align:left; }
+.incident-notice-link span { min-width:0; flex:1; }
+.incident-notice-link strong { display:block; overflow-wrap:anywhere; }
+.incident-notice-link small { display:block; color:var(--color-muted); margin-top:7px; }
+@media(max-width:1100px) { .rule-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .conduct-art { width:185px; flex-basis:185px; } }
+@media(max-width:600px) {
+ .conduct-art { display:none; } .rule-grid { grid-template-columns:minmax(0,1fr); gap:14px; }
+ .conduct-tabs { flex-wrap:wrap; gap:4px; } .conduct-tabs button { flex:1 1 auto; }
+ .conduct-page .conduct-filters { grid-template-columns:minmax(0,1fr) auto; } .conduct-filters .search-control { grid-column:1 / -1; }
+ .conduct-page .conduct-notice-filters .search-control { grid-column:auto; }
+ .incident-list-card { display:grid; grid-template-columns:34px minmax(0,1fr) 20px; padding:18px; gap:13px; }
+ .incident-card-mark { width:34px; height:39px; } .incident-card-story strong { font-size:26px; }
+ .incident-list-card > .fund-state { grid-column:2; grid-row:2; justify-self:start; max-width:100%; }
+ .incident-list-card > svg { grid-column:3; grid-row:1; } .incident-card-story .eyebrow { font-size:10px; line-height:1.6; }
+ .incident-review-facts { padding:17px; gap:15px; } .incident-review-facts strong { font-size:15px; }
+ .rule-paper { padding:18px; } .rule-paper h3 { font-size:26px; } .picture-upload { padding:16px; }
+ .rule-dates-input { grid-template-columns:minmax(0,1fr); } .incident-action-tools .button { flex:1 1 160px; justify-content:center; }
+ .incident-picture-footer { padding:13px; }
+}
+
+.incident-dialog h2 { font:400 43px/1.1 var(--font-display); margin:14px 35px 14px 0; letter-spacing:-.5px; }
+.incident-dialog h2 em { color:#7b8954; }
+.incident-dialog > section > h3, .incident-decision > h3 { font:400 28px/1.15 var(--font-display); margin:18px 0 12px; }
+.overview-conduct { margin:25px 0; }
+@media(max-width:600px) { .incident-dialog h2 { font-size:36px; } .overview-conduct .overview-panel-heading { flex-wrap:wrap; gap:15px; } }
+
+/* Keep the full recovery action clear of the dialog scroll edge. */
+.incident-dialog .button-dark { scroll-margin-block: 16px; }
+
+/* Reserve a non-scrolling row so dismissal never covers report content. */
+.conduct-dialog > .dialog-close { position:static; flex-shrink:0; align-self:flex-end; margin:12px 18px 8px 0; }
+.conduct-dialog > .dialog-scroll { padding-top:16px; }
+.conduct-dialog .incident-dialog > h2 { margin-right:0; }

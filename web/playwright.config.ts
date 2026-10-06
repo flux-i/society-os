@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
+  outputDir: process.env.SOCIETY_BROWSER_ARTIFACTS ?? 'test-results',
   testIgnore: 'webmcp.spec.ts',
   fullyParallel: false,
   workers: 1,
