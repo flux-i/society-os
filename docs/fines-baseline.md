@@ -70,6 +70,8 @@ The newer snapshot command correctly rejected the unmigrated schema-12 source wi
 
 Windows amd64 cross-compilation passes: **20,914,176 bytes**, SHA-256 `548f573e87a68798a26362214143c5ba90cf2d98f32ab8579eee8040c64d2d02`. The executable has not run on the supplied Windows computer. Real finance/rule approval, identities/data, hosting/origin, custody/off-site protection, provider onboarding and representative Windows pilot acceptance remain separate.
 
+Public personal publication is verified as [commit 3a88f2f](https://github.com/flux-i/society-os/commit/3a88f2fa1d1413cda2e303907ca5e057b314307d). GitHub API main matched the exact local application commit and the tree was clean at publication. Only redundant EOF blank lines in two native test files were normalised after verification; executable contents are unchanged and the frozen source/evidence archive remains untouched.
+
 ## Continue the active plan
 
 Next: registered contacts/consent, exact recipient targeting and synthetic WhatsApp/email delivery, followed by prepared financial statements/spreadsheet publication, scoped exports, prioritised community additions and measured performance/PWA/deployment/pilot preparation. The [roadmap](society-operations-roadmap.md) preserves those requirements. Missing real inputs block dependent activation only. The portal continues to record manually supplied charges and money already received; no payment initiation, bank automation, runtime model or Tally integration is introduced.
