@@ -9,23 +9,8 @@ import { apiFund, apiFundAction, apiFundReport, apiFundVerify } from './collecti
 import { financialHeaders } from './maintenance-fixtures'
 import { apiRule,apiRuleAction,apiIncident,apiIncidentAction,apiPicture } from './incidents-fixtures'
 
-type ContextDocument = Document & { modelContext: {
-  getTools: () => Promise<{ name: string }[]>
-  executeTool: (tool: { name: string }, args: unknown, options?: { signal: AbortSignal }) => Promise<string>
-} }
-async function names(page: Page) {
-  return page.evaluate(async () => (await (document as ContextDocument).modelContext.getTools()).map(tool => tool.name))
-}
-async function execute(page: Page, name: string, args: unknown) {
-  return page.evaluate(async ({ name, args }) => {
-    const context = (document as ContextDocument).modelContext
-    const tool = (await context.getTools()).find(item => item.name === name)
-    if (!tool) throw new Error('Expected registered native tool: ' + name)
-    // Chrome 154 accepts JSON strings; Chrome 155 changed this to objects.
-    const major = Number(navigator.userAgent.match(/Chrome\/(\d+)/)?.[1])
-    return context.executeTool(tool, major < 155 ? JSON.stringify(args) : args)
-  }, { name, args })
-}
+import { names, execute } from './native-webmcp-helpers'
+import type { ContextDocument } from './native-webmcp-helpers'
 
 async function nativeManageAccount(page: Page, name: string) {
   await navigate(page, 'Access & invitations')
@@ -93,7 +78,7 @@ test('native tools rediscover current personal scope after an appointment expire
   }).toEqual(['demo-flat-A-101', 'demo-flat-A-102'])
   const current = await (await resident.request.get('/api/auth/me')).json(); expect(current.id).toBe(before.id); expect(current.roles).toEqual([]); expect(current.can_read_all_records).toBe(false); expect(current.can_read_records).toBe(true)
   await expect(resident.locator('.overview-finance-balance strong')).toHaveText('₹0.00')
-  await expect.poll(() => names(resident)).toHaveLength(27)
+  await expect.poll(() => names(resident)).toHaveLength(35)
   const hidden = JSON.parse(await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-103' })); expect(hidden.items).toEqual([]); expect(hidden.total).toBe(0); expect(hidden.debit_paise).toBe(0); expect(hidden.homes.map((home: { id: string }) => home.id).sort()).toEqual(['demo-flat-A-101', 'demo-flat-A-102']); expect((await resident.request.get('/api/entries/' + entryId)).status()).toBe(404)
   await execute(resident, 'society_find_records', { home_id: 'demo-flat-A-101' }); await expect(resident.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible(); await context.close()
 })
@@ -136,7 +121,7 @@ test('native WebMCP discovers permitted tools after MFA and executes bounded sea
   expect(await page.evaluate(() => !!(document as ContextDocument).modelContext)).toBe(true)
   expect(await names(page)).toEqual([])
   await login(page)
-  await expect.poll(() => names(page)).toEqual(['society_find_accounts', 'society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_maintenance', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_find_upkeep', 'society_find_upkeep_register', 'society_open_home', 'society_open_workspace', 'society_read_account', 'society_read_complaint', 'society_read_document', 'society_read_home_statement', 'society_read_maintenance', 'society_read_overview', 'society_read_upkeep', 'society_read_upkeep_register', 'society_find_collections', 'society_read_collection', 'society_find_payment_reports', 'society_read_payment_report', 'society_find_fund_contributions', 'society_find_fund_exemptions', 'society_read_fund_exemption', 'society_find_rules', 'society_read_rule', 'society_find_incidents', 'society_read_incident', 'society_find_incident_notices', 'society_read_incident_notice'].sort())
+  await expect.poll(() => names(page)).toEqual(['society_find_accounts', 'society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_maintenance', 'society_find_notices', 'society_find_records', 'society_find_requests', 'society_find_upkeep', 'society_find_upkeep_register', 'society_open_home', 'society_open_workspace', 'society_read_account', 'society_read_complaint', 'society_read_document', 'society_read_home_statement', 'society_read_maintenance', 'society_read_overview', 'society_read_upkeep', 'society_read_upkeep_register', 'society_find_collections', 'society_read_collection', 'society_find_payment_reports', 'society_read_payment_report', 'society_find_fund_contributions', 'society_find_fund_exemptions', 'society_read_fund_exemption', 'society_find_rules', 'society_read_rule', 'society_find_incidents', 'society_read_incident', 'society_find_incident_notices', 'society_read_incident_notice', 'society_find_fine_notices', 'society_read_fine_notice', 'society_find_fine_appeals', 'society_read_fine_appeal', 'society_find_fines', 'society_read_fine', 'society_find_fine_payments', 'society_read_fine_payment', 'society_find_fine_corrections', 'society_read_fine_correction'].sort())
   const mutations: string[] = []
   page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method())) mutations.push(request.url()) })
   const homes = JSON.parse(await execute(page, 'society_find_homes', { wing: 'B', occupancy: 'RENTED' }))
@@ -176,7 +161,7 @@ test('native WebMCP follows resident scope and omits financial tools for an unen
   expect(await page.getByRole('dialog').count()).toBe(0)
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await login(page, 'Tenant')
-  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_find_upkeep', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document', 'society_read_overview', 'society_read_upkeep', 'society_find_rules', 'society_read_rule', 'society_find_incidents', 'society_read_incident', 'society_find_incident_notices', 'society_read_incident_notice'].sort())
+  await expect.poll(() => names(page)).toEqual(['society_find_complaints', 'society_find_documents', 'society_find_homes', 'society_find_notices', 'society_find_requests', 'society_find_upkeep', 'society_open_home', 'society_open_workspace', 'society_read_complaint', 'society_read_document', 'society_read_overview', 'society_read_upkeep', 'society_find_rules', 'society_read_rule', 'society_find_incidents', 'society_read_incident', 'society_find_incident_notices', 'society_read_incident_notice', 'society_find_fine_notices', 'society_read_fine_notice', 'society_find_fine_appeals', 'society_read_fine_appeal'].sort())
   await expect(execute(page, 'society_open_workspace', { screen: 'entries' })).rejects.toThrow()
   const tenantHomes = JSON.parse(await execute(page, 'society_find_homes', {}))
   expect(tenantHomes.items.map((home: { id: string }) => home.id)).toEqual(['demo-flat-A-103'])

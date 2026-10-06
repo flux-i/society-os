@@ -6,6 +6,7 @@ import type { HomeStatement, MaintenanceCycle, MaintenanceDetail, MaintenancePag
 import type { RegisterDetail, RegisterPage, Work, WorkDetail, WorkPage } from './upkeep'
 import type { Incident, IncidentDetail, IncidentNotice, IncidentPage, NoticePage, Rule, RulePage } from './incidents'
 import type { ContributionPage, Fund, FundDetail, FundPage, FundWaiver, PaymentReport, ReportPage, WaiverPage } from './collections'
+import type { Fine, FineDetail, FinePage, FineNotice, FineNoticePage, FineReport, FineReportPage, FineAppeal, FineAppealPage, FineWaiver, FineWaiverPage } from './fines'
 
 type Tool = {
   name: string
@@ -80,7 +81,7 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', 'fines', ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
       if (!views.includes(screen) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
@@ -88,13 +89,54 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       window.location.hash = screen
       return { screen }
     }, false)
-    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
+    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
     add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
       const section = String(input.section)
       if (!sections.includes(section) || (['finance','maintenance','collections'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
       return request('/api/overview/' + section, signal)
     })
     const accountMetadata = (account: Account) => ({ id: account.id, name: account.name, state: account.state, roles: account.roles, mfa_enrolled: account.mfa_enrolled, active_homes: account.active_homes })
+    const fineIdentity = (value: unknown) => { if (typeof value !== 'string' || !value || value.length > 100) throw new Error('A permitted fine record identity is required.'); return value }
+    const optionalFine = (value: unknown) => value === undefined || value === '' ? '' : fineIdentity(value)
+    const fineMetadata = (x: Fine) => ({ id: x.id, title: x.title, home: x.home, state: x.state, version: x.version, due_date: x.due_date, response_by: x.response_by, active_paise: x.active_paise, allocated_paise: x.allocated_paise, outstanding_paise: x.outstanding_paise, waived_paise: x.waived_paise, pause_until: x.pause_until ?? '' })
+    const fineNoticeMetadata = (x: FineNotice) => ({ id: x.id, title: x.title, home: x.home, state: x.state, version: x.version, due_date: x.due_date, response_by: x.response_by })
+    const fineAppealMetadata = (x: FineAppeal) => ({ id: x.id, fine: x.fine, home: x.home, state: x.state, version: x.version, pause_until: x.pause_until })
+    add('society_find_fine_notices', 'Read at most twelve approved fine-notice metadata rows for current households or permitted financial review. Wording, response text/counts, proposed amounts, case identities, policies and private notes are excluded. A notice creates no charge; this tool cannot respond, issue, appeal or send anything.', { query: search, page }, [], async (input, signal) => {
+      const data = await request<FineNoticePage>('/api/fine-notices?' + new URLSearchParams({ q: queryText(input.query), page: String(pageNumber(input.page)) }), signal)
+      return { items: data.items.map(fineNoticeMetadata), total: data.total, page: data.page, page_size: data.page_size }
+    })
+    add('society_read_fine_notice', 'Read one currently permitted household notice’s frozen metadata. Wording, policy, responses, original incident, private identities and review versions are excluded. This never posts a household response or appeal.', { notice_id: { type: 'string', minLength: 1, maxLength: 100 } }, ['notice_id'], async (input, signal) => fineNoticeMetadata(await request<FineNotice>('/api/fine-notices/' + encodeURIComponent(fineIdentity(input.notice_id)), signal)))
+    add('society_find_fine_appeals', 'Read one bounded page of own current-home appeal metadata, or permitted financial review metadata. Financial ledger access is not needed to read one’s own appeal. Accounts, policies, reasons, actors and private parent versions are excluded. This cannot pause collection or decide an appeal.', { fine_id: { type: 'string', maxLength: 100 }, page }, [], async (input, signal) => {
+      const data = await request<FineAppealPage>('/api/fine-appeals?' + new URLSearchParams({ fine: optionalFine(input.fine_id), page: String(pageNumber(input.page)) }), signal)
+      return { items: data.items.map(fineAppealMetadata), total: data.total, page: data.page, page_size: data.page_size }
+    })
+    add('society_read_fine_appeal', 'Read a currently permitted appeal’s status and supplied pause date. Appeal text, decision/policy notes, actors, events and private fine versions are excluded. Expired pauses need explicit human review; this tool makes no decision.', { appeal_id: { type: 'string', minLength: 1, maxLength: 100 } }, ['appeal_id'], async (input, signal) => fineAppealMetadata(await request<FineAppeal>('/api/fine-appeals/' + encodeURIComponent(fineIdentity(input.appeal_id)), signal)))
+    if (user.can_read_records) {
+      add('society_find_fines', 'Read twelve permitted fine metadata rows and exact scoped totals. Residents see only issued or corrected fines for financially entitled current homes. Source decisions, notice wording, responses, policy, actors and private review history are excluded. This cannot approve, issue, waive, allocate or initiate payments.', { query: search, state: { type: 'string', enum: ['', 'PENDING', 'NOTIFIED', 'ISSUED', 'WAIVED', 'DECLINED', 'WITHDRAWN'] }, page }, [], async (input, signal, me) => {
+        if (!me.can_read_records) throw new Error('Current financial permission is required.')
+        const state = String(input.state ?? ''); if (!['', 'PENDING', 'NOTIFIED', 'ISSUED', 'WAIVED', 'DECLINED', 'WITHDRAWN'].includes(state)) throw new Error('Choose a supported fine state.')
+        const data = await request<FinePage>('/api/fines?' + new URLSearchParams({ q: queryText(input.query), state, page: String(pageNumber(input.page)) }), signal)
+        return { items: data.items.map(fineMetadata), total: data.total, page: data.page, page_size: data.page_size, totals: data.totals }
+      })
+      add('society_read_fine', 'Read a currently permitted fine’s exact live charge, confirmed allocations, outstanding and explicit collection pause metadata. Private source, household text, responders, policies, actors, original case and review history are excluded. Every financial decision requires the ordinary reviewed form.', { fine_id: { type: 'string', minLength: 1, maxLength: 100 } }, ['fine_id'], async (input, signal, me) => { if (!me.can_read_records) throw new Error('Current financial permission is required.'); return fineMetadata(await request<FineDetail>('/api/fines/' + encodeURIComponent(fineIdentity(input.fine_id)), signal)) })
+      const fineReportMetadata = (x: FineReport) => ({ id: x.id, fine_id: x.fine_id, fine: x.fine, home: x.home, amount_paise: x.amount_paise, payment_date: x.payment_date, state: x.state, current_state: x.current_state, version: x.version, receipt: x.receipt, entry_id: x.entry_id })
+      add('society_find_fine_payments', 'Read one bounded page of fine-payment claim metadata. Own reports require current home and financial access. Payer, references, comments, evidence identifiers, verification identities, actors and decisions are excluded. Claims create no receipt; this cannot verify or record money.', { fine_id: { type: 'string', maxLength: 100 }, state: { type: 'string', enum: ['', 'PENDING', 'NEEDS_INFO', 'REJECTED', 'WITHDRAWN', 'CONFIRMED', 'DUPLICATE'] }, page }, [], async (input, signal, me) => {
+        if (!me.can_read_records) throw new Error('Current financial permission is required.')
+        const state = String(input.state ?? ''); if (!['', 'PENDING', 'NEEDS_INFO', 'REJECTED', 'WITHDRAWN', 'CONFIRMED', 'DUPLICATE'].includes(state)) throw new Error('Choose a supported report state.')
+        const data = await request<FineReportPage>('/api/fine-reports?' + new URLSearchParams({ fine: optionalFine(input.fine_id), state, page: String(pageNumber(input.page)) }), signal)
+        return { items: data.items.map(fineReportMetadata), total: data.total, page: data.page, page_size: data.page_size, counts: data.counts }
+      })
+      add('society_read_fine_payment', 'Read a currently permitted fine-payment claim’s amount, status and original receipt metadata. Private payer, payment identity, external source, evidence, comments, actors and decisions are excluded. Nothing is verified, allocated or received by this tool.', { report_id: { type: 'string', minLength: 1, maxLength: 100 } }, ['report_id'], async (input, signal, me) => { if (!me.can_read_records) throw new Error('Current financial permission is required.'); return fineReportMetadata(await request<FineReport>('/api/fine-reports/' + encodeURIComponent(fineIdentity(input.report_id)), signal)) })
+      if (user.can_read_all_records) {
+        const fineCorrectionMetadata = (x: FineWaiver) => ({ id: x.id, fine_id: x.fine_id, fine: x.fine, home: x.home, kind: x.kind, amount_paise: x.amount_paise, state: x.state, version: x.version })
+        add('society_find_fine_corrections', 'Read twelve permitted financial-reviewer correction metadata rows. Ordinary resident finance does not grant private correction proposals. Policies, source versions, reasons, actors, events and replacement selectors are excluded. This cannot propose or approve corrections.', { fine_id: { type: 'string', maxLength: 100 }, page }, [], async (input, signal, me) => {
+          if (!me.can_read_all_records) throw new Error('Current financial reviewer permission is required.')
+          const data = await request<FineWaiverPage>('/api/fine-waivers?' + new URLSearchParams({ fine: optionalFine(input.fine_id), page: String(pageNumber(input.page)) }), signal)
+          return { items: data.items.map(fineCorrectionMetadata), total: data.total, page: data.page, page_size: data.page_size }
+        })
+        add('society_read_fine_correction', 'Read one permitted financial-reviewer correction’s kind, amount and status. Sources, policy, reasons, actor identities, private parent versions and effects/history selectors are excluded. Original charges and receipts can change only through a separately reviewed human form.', { correction_id: { type: 'string', minLength: 1, maxLength: 100 } }, ['correction_id'], async (input, signal, me) => { if (!me.can_read_all_records) throw new Error('Current financial reviewer permission is required.'); return fineCorrectionMetadata(await request<FineWaiver>('/api/fine-waivers/' + encodeURIComponent(fineIdentity(input.correction_id)), signal)) })
+      }
+    }
     if (user.can_manage_accounts) {
       add('society_find_accounts', 'Read one page of account names, states and current appointments as an authorised administrator. Email addresses, security material and verification notes are excluded. This cannot invite, change roles, suspend or resume an account.', { query: { ...search, description: 'At most 100 characters from an account name or verified login.' }, page }, [], async (input, signal, me) => {
         if (!me.can_manage_accounts) throw new Error('Current account administration permission is required.')

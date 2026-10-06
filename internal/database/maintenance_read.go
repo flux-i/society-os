@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"strings"
 )
 
@@ -177,11 +178,12 @@ const statementQuery = `WITH used_source AS (SELECT source_id,SUM(amount_paise) 
     used_charge AS (SELECT charge_id,SUM(amount_paise) allocated FROM live_entry_allocations GROUP BY charge_id),
     active_statement AS (SELECT e.id,e.kind,e.description,e.entry_date,e.amount_paise,
         CASE WHEN e.kind IN ('CHARGE','OPENING_DEBIT') THEN COALESCE(c.allocated,0) ELSE COALESCE(s.allocated,0) END allocated,
-        COALESCE(r.number,'') receipt,COALESCE(l.cycle_id,'') cycle_id,COALESCE(m.due_date,cf.due_date,'') due_date
+        COALESCE(r.number,'') receipt,COALESCE(l.cycle_id,'') cycle_id,%s due_date,%s pause_until
         FROM entries e LEFT JOIN used_source s ON s.source_id=e.id LEFT JOIN used_charge c ON c.charge_id=e.id
         LEFT JOIN receipts r ON r.entry_id=e.id LEFT JOIN maintenance_lines l ON l.entry_id=e.id
         LEFT JOIN maintenance_cycles m ON m.id=l.cycle_id AND m.state='PUBLISHED'
  LEFT JOIN fund_participants fp ON fp.current_entry_id=e.id LEFT JOIN fund_campaigns cf ON cf.id=fp.campaign_id AND cf.state IN ('PUBLISHED','CLOSED')
+ %s
         WHERE e.flat_id=? AND e.state='POSTED' AND NOT EXISTS(SELECT 1 FROM entry_reversals v WHERE v.entry_id=e.id)) `
 
 func (s *Store) HomeStatementFor(ctx context.Context, token, home string, chargePage, creditPage, allocationPage int) (HomeStatement, error) {
@@ -198,13 +200,21 @@ func (s *Store) HomeStatementFor(ctx context.Context, token, home string, charge
 	if err != nil {
 		return result, err
 	}
-	err = tx.QueryRowContext(ctx, statementQuery+`SELECT
+	withFines, err := fineSchemaAvailable(ctx, tx)
+	if err != nil {
+		return result, err
+	}
+	query := fmt.Sprintf(statementQuery, "COALESCE(m.due_date,cf.due_date,'')", "''", "")
+	if withFines {
+		query = fmt.Sprintf(statementQuery, "COALESCE(m.due_date,cf.due_date,ff.due_date,'')", "COALESCE(ff.pause_until,'')", "LEFT JOIN fines ff ON ff.current_entry_id=e.id AND ff.state='ISSUED'")
+	}
+	err = tx.QueryRowContext(ctx, query+`SELECT
         COALESCE(SUM(CASE WHEN kind IN ('CHARGE','OPENING_DEBIT') THEN amount_paise ELSE 0 END),0),
         COALESCE(SUM(CASE WHEN kind IN ('RECEIVED','OPENING_CREDIT') THEN amount_paise ELSE 0 END),0),
         COALESCE(SUM(CASE WHEN kind IN ('CHARGE','OPENING_DEBIT') THEN allocated ELSE 0 END),0),
         COALESCE(SUM(CASE WHEN kind IN ('CHARGE','OPENING_DEBIT') THEN amount_paise-allocated ELSE 0 END),0),
         COALESCE(SUM(CASE WHEN kind IN ('RECEIVED','OPENING_CREDIT') THEN amount_paise-allocated ELSE 0 END),0),
-        COALESCE(SUM(CASE WHEN kind IN ('CHARGE','OPENING_DEBIT') AND due_date!='' AND due_date<? THEN amount_paise-allocated ELSE 0 END),0),
+        COALESCE(SUM(CASE WHEN kind IN ('CHARGE','OPENING_DEBIT') AND due_date!='' AND due_date<? AND pause_until='' THEN amount_paise-allocated ELSE 0 END),0),
         COALESCE(SUM(kind IN ('CHARGE','OPENING_DEBIT')),0),COALESCE(SUM(kind IN ('RECEIVED','OPENING_CREDIT')),0)
         FROM active_statement`, home, today()).Scan(&result.DebitPaise, &result.CreditPaise, &result.AllocatedPaise, &result.OutstandingPaise, &result.UnallocatedPaise, &result.OverduePaise, &result.ChargeTotal, &result.CreditTotal)
 	if err != nil {
@@ -221,13 +231,13 @@ func (s *Store) HomeStatementFor(ctx context.Context, token, home string, charge
 		target *[]StatementEntry
 	}{
 		{"'CHARGE','OPENING_DEBIT'", result.ChargePage, &result.Charges}, {"'RECEIVED','OPENING_CREDIT'", result.CreditPage, &result.Credits}} {
-		rows, e := tx.QueryContext(ctx, statementQuery+"SELECT id,kind,description,entry_date,amount_paise,allocated,amount_paise-allocated,receipt,cycle_id,due_date FROM active_statement WHERE kind IN ("+list.kind+") ORDER BY entry_date DESC,id LIMIT ? OFFSET ?", home, result.PageSize, (list.page-1)*result.PageSize)
+		rows, e := tx.QueryContext(ctx, query+"SELECT id,kind,description,entry_date,amount_paise,allocated,amount_paise-allocated,receipt,cycle_id,due_date,pause_until FROM active_statement WHERE kind IN ("+list.kind+") ORDER BY entry_date DESC,id LIMIT ? OFFSET ?", home, result.PageSize, (list.page-1)*result.PageSize)
 		if e != nil {
 			return result, e
 		}
 		for rows.Next() {
 			var entry StatementEntry
-			if e = rows.Scan(&entry.ID, &entry.Kind, &entry.Description, &entry.Date, &entry.AmountPaise, &entry.AllocatedPaise, &entry.RemainingPaise, &entry.Receipt, &entry.CycleID, &entry.DueDate); e != nil {
+			if e = rows.Scan(&entry.ID, &entry.Kind, &entry.Description, &entry.Date, &entry.AmountPaise, &entry.AllocatedPaise, &entry.RemainingPaise, &entry.Receipt, &entry.CycleID, &entry.DueDate, &entry.PauseUntil); e != nil {
 				rows.Close()
 				return result, e
 			}

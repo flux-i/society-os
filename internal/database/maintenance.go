@@ -129,6 +129,7 @@ type StatementEntry struct {
 	Receipt        string `json:"receipt"`
 	CycleID        string `json:"cycle_id"`
 	DueDate        string `json:"due_date"`
+	PauseUntil     string `json:"pause_until,omitempty"`
 }
 type HomeStatement struct {
 	FlatID           string             `json:"flat_id"`

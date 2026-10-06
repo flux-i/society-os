@@ -91,6 +91,7 @@ type Entry struct {
 	ReceiptNumber  string `json:"receipt_number"`
 	PDFState       string `json:"pdf_state"`
 	FileHash       string `json:"-"`
+	FineID         string `json:"fine_id,omitempty"`
 }
 type EntryPage struct {
 	Items          []Entry      `json:"items"`
@@ -255,7 +256,11 @@ func (s *Store) EntryFor(ctx context.Context, token, id string) (Entry, error) {
 	if err != nil {
 		return e, err
 	}
-	return e, tx.Commit()
+	entries := []Entry{e}
+	if err = enrichFineEntries(ctx, tx, entries); err != nil {
+		return Entry{}, err
+	}
+	return entries[0], tx.Commit()
 }
 func (s *Store) EntriesFor(ctx context.Context, token, home, query, state string, receipts bool, page int) (EntryPage, error) {
 	out := EntryPage{Items: []Entry{}, Homes: []RecordHome{}, Page: page, PageSize: 12}
@@ -363,6 +368,9 @@ func (s *Store) EntriesFor(ctx context.Context, token, home, query, state string
 	if err != nil {
 		return out, err
 	}
+	if err = enrichFineEntries(ctx, tx, out.Items); err != nil {
+		return out, err
+	}
 	return out, tx.Commit()
 }
 func (s *Store) PostEntry(ctx context.Context, token, id string, in EntryAction) (string, error) {
@@ -413,6 +421,13 @@ func (s *Store) ReverseEntry(ctx context.Context, token, id string, in EntryActi
 		return "", err
 	}
 	defer tx.Rollback()
+	var fineCharge bool
+	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM fines WHERE ? IN(original_entry_id,current_entry_id))", id).Scan(&fineCharge); err != nil {
+		return "", err
+	}
+	if fineCharge {
+		return "", invalid("Use the separately reviewed fine correction; its charge and original receipt history are preserved.")
+	}
 	result, hash, err := replayOperation(ctx, tx, p, in.OperationKey, "REVERSE:"+id, in)
 	if err != nil {
 		return "", err

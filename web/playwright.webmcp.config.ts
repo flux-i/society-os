@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
-  testDir: './tests', testMatch: 'webmcp.spec.ts', workers: 1,
+  testDir: './tests', testMatch: 'webmcp*.spec.ts', workers: 1,
   outputDir: process.env.SOCIETY_BROWSER_ARTIFACTS ?? '../reports/local/webmcp-test-results',
   reporter: 'list',
   use: {

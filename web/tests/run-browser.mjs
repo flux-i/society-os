@@ -7,15 +7,17 @@ import { createServer } from 'node:net'
 
 // Each suite gets its own database, server and real login limiter. The complete
 // gate must not weaken production throttling to accommodate repeated QA logins.
-if (process.argv.length === 2) {
-  const suites = readdirSync(resolve('tests')).filter(file => file.endsWith('.spec.ts') && file !== 'webmcp.spec.ts').sort()
+const allNative = process.argv.length === 3 && process.argv[2] === '--config=playwright.webmcp.config.ts'
+if (process.argv.length === 2 || allNative) {
+  const nativeSuite = file => file === 'webmcp.spec.ts' || file.startsWith('webmcp-')
+  const suites = readdirSync(resolve('tests')).filter(file => file.endsWith('.spec.ts') && nativeSuite(file) === allNative).sort()
   for (const suite of suites) {
-    process.stdout.write(`\nIsolated browser suite: ${suite}\n`)
-    const child = spawn(process.execPath, [resolve('tests/run-browser.mjs'), suite], { stdio: 'inherit', env: process.env })
+    process.stdout.write(`\nIsolated ${allNative ? 'native WebMCP' : 'browser'} suite: ${suite}\n`)
+    const child = spawn(process.execPath, [resolve('tests/run-browser.mjs'), suite, ...(allNative ? [process.argv[2]] : [])], { stdio: 'inherit', env: process.env })
     const code = await new Promise(resolve => child.on('exit', code => resolve(code ?? 1)))
     if (code !== 0) process.exit(code)
   }
-  process.stdout.write(`\nAll ${suites.length} isolated browser suites passed.\n`)
+  process.stdout.write(`\nAll ${suites.length} isolated ${allNative ? 'native WebMCP' : 'browser'} suites passed.\n`)
   process.exit(0)
 }
 
