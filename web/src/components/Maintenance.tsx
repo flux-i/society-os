@@ -7,6 +7,7 @@ import type { FinancialHome, MaintenanceDetail, MaintenancePage, MaintenanceTota
 import { Icon } from './Icon'
 import { FilterSelect, FormSelect } from './FilterSelect'
 import { PortalDialog } from './PortalDialog'
+import { FinanceExportAction } from './FinanceExports'
 import { HomeStatementDialog } from './MaintenanceStatement'
 
 const linkedCycle = () => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('period') ?? ''
@@ -38,7 +39,7 @@ export function Maintenance({ user }: { user: User }) {
   const closeStatement=()=>{setStatementHome('');if(linkedHome())window.history.replaceState(null,'','#maintenance')}
   if(!user.can_read_records)return <section className="empty-state"><Icon name="shield" /><h1>Maintenance needs financial access.</h1><p>The officer can review your financial access for each home.</p><a className="button button-dark" href="#homes">Return to your homes<Icon name="arrow" /></a></section>
   return <div className="page-enter maintenance-page">
-    <section className="maintenance-hero"><div><span className="eyebrow">KEEPING EVERYDAY LIFE RUNNING</span><h1>A little care.<br /><em>A clearer picture.</em></h1><p>Reviewed maintenance periods. Every home’s dues and the receipts that settle them, together.</p>{user.can_manage_records&&<button className="button button-dark" disabled={!data||loading||!!error} onClick={()=>setCreating(true)}>Prepare a period<Icon name="plus" /></button>}</div><MaintenanceArt /></section>
+    <section className="maintenance-hero"><div><span className="eyebrow">KEEPING EVERYDAY LIFE RUNNING</span><h1>A little care.<br /><em>A clearer picture.</em></h1><p>Reviewed maintenance periods. Every home’s dues and the receipts that settle them, together.</p><div className="finance-workspace-actions">{user.can_manage_records&&<button className="button button-dark" disabled={!data||loading||!!error} onClick={()=>setCreating(true)}>Prepare a period<Icon name="plus" /></button>}<FinanceExportAction user={user} report="MAINTENANCE" home={home} /></div></div><MaintenanceArt /></section>
     <CycleMetrics totals={data?.totals} ready={!!data&&!loading&&!error} />
     <p className="maintenance-scope">{home?'For the selected home':user.can_read_all_records?'Across permitted community periods':'For your financially entitled homes'}{query||state?' · matching these filters':''}. Unallocated credits remain available until explicitly linked.</p>
     <section className="registry-panel" aria-labelledby="maintenance-title">

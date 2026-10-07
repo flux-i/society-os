@@ -10,6 +10,7 @@ import type { Fine, FineDetail, FinePage, FineNotice, FineNoticePage, FineReport
 import type { Contact, ContactDetail, ContactPage } from './contacts'
 import type { MessageBatch, MessageDetail, MessagePage } from './messages'
 import type { StatementFile, StatementDetail, StatementPage } from './statements'
+import type { FinanceExport, ExportPage } from './finance-exports'
 
 type Tool = {
   name: string
@@ -67,6 +68,18 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
     }
     const search = { type: 'string', maxLength: 100, description: 'A home number or name from the signed-in account’s permitted results.' }
     const page = { type: 'integer', minimum: 1, maximum: 10000 }
+    if (user.can_export_finance) {
+      const exportMetadata = (item: FinanceExport) => ({ id: item.id, report: item.report, scope: item.scope, date_basis: item.date_basis, from: item.from, to: item.to, generated_at: item.generated_at, rows: item.rows, bytes: item.bytes, homes_count: item.homes.length })
+      add('society_find_finance_exports', 'Read one page of this actor’s currently permitted immutable export status metadata. CSV bytes, financial amounts, descriptions, references and individual homes are excluded. This cannot preview, create or download an export or alter an open human form.', { page }, [], async (input, signal, me) => {
+        if (!me.can_export_finance) throw new Error('Current export permission is required.')
+        const data = await request<ExportPage>('/api/finance-exports?page=' + pageNumber(input.page), signal)
+        return { items: data.items.map(exportMetadata), total: data.total, page: data.page, page_size: data.page_size }
+      })
+      add('society_read_finance_export', 'Read one actor-bound snapshot’s currently permitted status and counts. It excludes private figures, home identities, file bytes and links; it never creates or downloads a file. Every accepted replay and download still needs the ordinary human workflow and current authority.', { export_id: { type: 'string', minLength: 1, maxLength: 100 } }, ['export_id'], async (input, signal, me) => {
+        if (!me.can_export_finance || typeof input.export_id !== 'string' || !input.export_id || input.export_id.length > 100) throw new Error('A permitted export identity is required.')
+        return exportMetadata(await request<FinanceExport>('/api/finance-exports/' + encodeURIComponent(input.export_id), signal))
+      })
+    }
     add('society_find_homes', 'Search the current account’s permitted homes. Returns one page; resident access follows current memberships.', {
       query: search, wing: { type: 'string', enum: ['', 'A', 'B', 'C'] }, occupancy: { type: 'string', enum: ['', 'OWNER_OCCUPIED', 'RENTED', 'VACANT'] }, page,
     }, [], async (input, signal) => {

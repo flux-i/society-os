@@ -2,7 +2,7 @@
 
 Recorded before implementation, 7 October 2026. This is the checkpoint after [statement messaging](statement-messaging-workflow.md), whose acceptance remains pending when this contract is saved. It implements the export portion of the [original statement contract](statements-workflow.md). A written plan is not passing implementation evidence.
 
-Statement messaging subsequently passes its [0.18 local acceptance](statement-messaging-baseline.md). This export contract is the next independent implementation checkpoint; it is not implemented or accepted yet.
+Statement messaging subsequently passes its [0.18 local acceptance](statement-messaging-baseline.md). Scoped exports subsequently pass [0.19/schema-18 local acceptance](finance-exports-baseline.md): 190 Go declarations, 176 ordinary cases/26 isolated suites, 46 actual native WebMCP cases/six suites, 37 inspected final screenshots and matching recovery/preserved keys. Required stages pass separately; production acceptance and the whole plan remain unfinished.
 
 ## User outcome and authority
 

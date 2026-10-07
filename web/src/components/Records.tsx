@@ -5,6 +5,7 @@ import type { User } from '../api'
 import { Icon } from './Icon'
 import { FilterSelect, FormSelect } from './FilterSelect'
 import { PortalDialog } from './PortalDialog'
+import { FinanceExportAction } from './FinanceExports'
 
 type Entry = { id: string; flat_id: string; home: string; kind: string; amount_paise: number; date: string; description: string; payer: string; method: string; reference: string; source_note: string; state: string; created_by: string; created_at: number; posted_by: string; posted_at: number; reversal_reason: string; reversed_by: string; reversed_at: number; receipt_id: string; receipt_number: string; pdf_state: string; fine_id?: string }
 type Home = { id: string; label: string }
@@ -44,7 +45,7 @@ export function Records({ user, receipts }: { user: User; receipts: boolean }) {
   const clear = () => { setHome(''); setQuery(''); setState(''); setPage(1) }
   if (!user.can_read_records) return <section className="empty-state"><Icon name="shield" /><h1>These records need access.</h1><p>Financial access is granted separately for each home. Ask the society officer to review your access.</p><a className="button button-dark" href="#homes">Return to your homes<Icon name="arrow" /></a></section>
   return <div className="page-enter records-page">
-    <section className="records-hero"><div><span className="eyebrow">{receipts ? 'A CLEAR RECORD, ALWAYS' : 'EVERYDAY RECORDS, BEAUTIFULLY IN ORDER'}</span><h1>{receipts ? <>Good records.<br /><em>Peace of mind.</em></> : <>The little details,<br /><em>all accounted for.</em></>}</h1><p>{receipts ? 'A receipt for every confirmed amount received. Find it here, whenever you need it.' : 'Keep given charges, opening balances and money already received together.'}</p>{!receipts && user.can_manage_records && <button className="button button-dark" onClick={() => setCreating(true)} disabled={!data || loading || !!error}>Add an entry<Icon name="plus" /></button>}</div><ReceiptArt /></section>
+    <section className="records-hero"><div><span className="eyebrow">{receipts ? 'A CLEAR RECORD, ALWAYS' : 'EVERYDAY RECORDS, BEAUTIFULLY IN ORDER'}</span><h1>{receipts ? <>Good records.<br /><em>Peace of mind.</em></> : <>The little details,<br /><em>all accounted for.</em></>}</h1><p>{receipts ? 'A receipt for every confirmed amount received. Find it here, whenever you need it.' : 'Keep given charges, opening balances and money already received together.'}</p><div className="finance-workspace-actions">{!receipts && user.can_manage_records && <button className="button button-dark" onClick={() => setCreating(true)} disabled={!data || loading || !!error}>Add an entry<Icon name="plus" /></button>}<FinanceExportAction user={user} report={receipts ? 'RECEIPTS' : 'LEDGER'} home={home} /></div></div><ReceiptArt /></section>
     <div className="records-metrics" aria-label="Financial summary">
       <div><span>Charges & opening dues</span><strong>{data && !loading && !error ? money(data.debit_paise) : '—'}</strong><small>Confirmed amounts supplied manually</small></div>
       <div><span>Received & opening credits</span><strong>{data && !loading && !error ? money(data.credit_paise) : '—'}</strong><small>Confirmed credits for these homes</small></div>

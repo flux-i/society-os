@@ -25,12 +25,13 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-const SchemaVersion = 17
+const SchemaVersion = 18
 
 type Store struct {
-	DB   *sql.DB
-	Path string
-	MFA  *security.Box
+	DB           *sql.DB
+	Path         string
+	MFA          *security.Box
+	exportLimits *financeExportLimits
 }
 
 type Engine struct {

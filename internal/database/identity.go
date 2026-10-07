@@ -83,6 +83,7 @@ type Principal struct {
 	CanManageRecords    bool     `json:"can_manage_records"`
 	CanReadAllRecords   bool     `json:"can_read_all_records"`
 	CanReadRecords      bool     `json:"can_read_records"`
+	CanExportFinance    bool     `json:"can_export_finance"`
 	CanReviewRequests   bool     `json:"can_review_requests"`
 	CanHandleComplaints bool     `json:"can_handle_complaints"`
 	CanManageDocuments  bool     `json:"can_manage_documents"`
@@ -158,11 +159,15 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 	rows.Close()
 	date := now.In(societyZone).Format("2006-01-02")
 	p.CanReadRecords = p.CanReadAllRecords
-	if !p.CanReadRecords && p.ResidentID != "" {
-		err = q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM flat_memberships WHERE resident_id = ? AND can_view_finances = 1 AND start_date <= ? AND (end_date IS NULL OR end_date > ?))`, p.ResidentID, date, date).Scan(&p.CanReadRecords)
+	p.CanExportFinance = p.CanManageRecords
+	if p.ResidentID != "" {
+		var personalFinance bool
+		err = q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM flat_memberships WHERE resident_id = ? AND can_view_finances = 1 AND start_date <= ? AND (end_date IS NULL OR end_date > ?))`, p.ResidentID, date, date).Scan(&personalFinance)
 		if err != nil {
 			return p, err
 		}
+		p.CanReadRecords = p.CanReadRecords || personalFinance
+		p.CanExportFinance = p.CanExportFinance || personalFinance
 	}
 	p.MFAPending = (p.MFARequired || p.MFAEnrolled || p.factorAt > 0) && (p.factorAt == 0 || !p.MFAEnrolled)
 	p.Fresh = !p.MFAPending && p.passwordAt > now.Add(-5*time.Minute).Unix() && (!(p.MFARequired || p.MFAEnrolled) || p.factorAt > now.Add(-5*time.Minute).Unix())
@@ -173,6 +178,7 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		p.CanManageRecords = false
 		p.CanReadAllRecords = false
 		p.CanReadRecords = false
+		p.CanExportFinance = false
 		p.CanReviewRequests = false
 		p.CanHandleComplaints = false
 		p.CanManageDocuments = false
