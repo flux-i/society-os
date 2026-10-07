@@ -67,7 +67,7 @@ func (s *Store) OverviewFor(ctx context.Context, token, section string) (Overvie
 	now := time.Now()
 	day, start := overviewWindow(now)
 	out := Overview{Section: section, AsOf: now.Unix(), Day: day, PeriodStart: start, Calendar: "Asia/Kolkata", Counts: map[string]int64{}, Items: []OverviewItem{}}
-	if section != "finance" && section != "reviews" && section != "service" && section != "notices" && section != "documents" && section != "maintenance" && section != "upkeep" && section != "collections" && section != "incidents" && section != "fines" && section != "messages" && section != "statements" {
+	if section != "finance" && section != "reviews" && section != "service" && section != "notices" && section != "documents" && section != "maintenance" && section != "upkeep" && section != "collections" && section != "incidents" && section != "fines" && section != "messages" && section != "statements" && section != "community" {
 		return out, ErrInvalid
 	}
 	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -80,6 +80,8 @@ func (s *Store) OverviewFor(ctx context.Context, token, section string) (Overvie
 		return out, err
 	}
 	switch section {
+	case "community":
+		err = overviewCommunity(ctx, tx, p, &out)
 	case "statements":
 		err = overviewStatements(ctx, tx, p, &out)
 	case "messages":

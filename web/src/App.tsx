@@ -13,6 +13,7 @@ import { FilterSelect } from './components/FilterSelect'
 import { Records } from './components/Records'
 import { useSocietyTools } from './webmcp'
 import { Reviews } from './components/Reviews'
+import { Community } from './components/Community'
 import { Complaints } from './components/Complaints'
 import { Incidents } from './components/Incidents'
 import { Documents } from './components/Documents'
@@ -211,7 +212,7 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
       <div className="preview-banner"><span><Icon name="spark" />A first look at your community workspace.</span><span>Fictional data <i /> Live local registry</span></div>
       <main id="main-content" tabIndex={-1} className="main-content">
         {view === 'homes' && error && <div className="connection-error" role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Reconnect<Icon name="refresh" /></button></div>}
-        {view === 'statements' ? <Statements user={user} /> : view === 'messages' ? <Messages user={user} /> : view === 'contacts' ? <Contacts user={user} /> : view === 'fines' ? <Fines user={user} /> : view === 'conduct' ? <Incidents user={user} /> : view === 'collections' ? <Collections user={user} /> : view === 'upkeep' ? <Upkeep user={user} /> : view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'reviews' || view === 'community' ? <Reviews key={view} user={user} notices={view === 'community'} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
+        {view === 'statements' ? <Statements user={user} /> : view === 'messages' ? <Messages user={user} /> : view === 'contacts' ? <Contacts user={user} /> : view === 'fines' ? <Fines user={user} /> : view === 'conduct' ? <Incidents user={user} /> : view === 'collections' ? <Collections user={user} /> : view === 'upkeep' ? <Upkeep user={user} /> : view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'community' ? <Community user={user} /> : view === 'reviews' ? <Reviews user={user} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
         <footer className="page-footer"><span><span className="footer-wordmark">society.</span> Made for everyday life.</span><button onClick={() => setAbout(true)}>About this preview<Icon name="arrow" /></button></footer>
       </main>
     </div>

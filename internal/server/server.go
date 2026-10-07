@@ -40,6 +40,7 @@ func (s *Server) Handler() http.Handler {
 	s.incidentRoutes(mux)
 	s.fineRoutes(mux)
 	s.reviewRoutes(mux)
+	s.communityRoutes(mux)
 	s.complaintRoutes(mux)
 	s.contactRoutes(mux)
 	s.messageRoutes(mux)

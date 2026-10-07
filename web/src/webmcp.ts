@@ -11,6 +11,7 @@ import type { Contact, ContactDetail, ContactPage } from './contacts'
 import type { MessageBatch, MessageDetail, MessagePage } from './messages'
 import type { StatementFile, StatementDetail, StatementPage } from './statements'
 import type { FinanceExport, ExportPage } from './finance-exports'
+import type { CommunityPage, CommunityDetail, CommunityResource } from './community'
 
 type Tool = {
   name: string
@@ -105,11 +106,24 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       window.location.hash = screen
       return { screen }
     }, false)
-    const sections = ['reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', 'statements', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
+    const sections = ['community', 'reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', 'statements', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
     add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
       const section = String(input.section)
       if (!sections.includes(section) || (['finance','maintenance','collections'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
-      return request('/api/overview/' + section, signal)
+      const data = await request<{section:string;as_of:number;day:string;period_start:string;calendar:string;counts:Record<string,number>;items:{id:string;kind:string;state:string;at:number}[]}>('/api/overview/' + section, signal)
+      return section==='community'?{...data,items:data.items.map(x=>({id:x.id,kind:x.kind,state:x.state,at:x.at}))}:data
+    })
+    const communityMetadata=(x:CommunityResource)=>({id:x.id,kind:x.snapshot.kind,service:x.snapshot.service,state:x.state,version:x.version,start_at:x.snapshot.start_at,estimated_end:x.snapshot.estimated_end,resolved_at:x.snapshot.resolved_at,homes_count:x.snapshot.homes.length,published_at:x.published_at})
+    const communityKinds=['','CONTACT','INTERRUPTION'],communityStates=['','AVAILABLE','ACTIVE','UPDATE_NEEDED','PLANNED','RESOLVED']
+    add('society_find_community_updates','Read at most twelve current published service-status snapshots for the permitted homes. Telephone numbers, titles, bodies, exact homes, private proposals, reasons, contacts and actor identities are excluded. This cannot prepare, publish, resolve, send or call.',{kind:{type:'string',enum:communityKinds},state:{type:'string',enum:communityStates},page},[],async(input,signal)=>{
+      const kind=input.kind??'',state=input.state??''
+      if(typeof kind!=='string'||!communityKinds.includes(kind)||typeof state!=='string'||!communityStates.includes(state))throw new Error('Choose a supported published update type and status.')
+      const data=await request<CommunityPage>('/api/community?'+new URLSearchParams({kind,state,page:String(pageNumber(input.page))}),signal)
+      return {items:data.items.map(communityMetadata),total:data.total,page:data.page,page_size:data.page_size,counts:data.counts}
+    })
+    add('society_read_community_update','Read one currently permitted published service-status and timing snapshot. Telephone numbers, wording, exact homes, private originals/proposals/notes and actors are excluded. It cannot place a call, resolve, approve, publish or change a human form.',{update_id:{type:'string',minLength:1,maxLength:100}},['update_id'],async(input,signal)=>{
+      if(typeof input.update_id!=='string'||!input.update_id||input.update_id.length>100)throw new Error('A permitted service update identity is required.')
+      return communityMetadata(await request<CommunityDetail>('/api/community/'+encodeURIComponent(input.update_id),signal))
     })
     const accountMetadata = (account: Account) => ({ id: account.id, name: account.name, state: account.state, roles: account.roles, mfa_enrolled: account.mfa_enrolled, active_homes: account.active_homes })
     const statementMetadata=(x:StatementFile)=>({id:x.id,kind:x.kind,state:x.state,validation:x.validation,revision:x.revision,version:x.version,current:x.current,published:!!x.publication_id,can_download:x.can_download,can_review:x.can_review,can_publish:x.can_publish})
