@@ -1,6 +1,6 @@
 # Portal provider preparation — checkpoint evidence
 
-**Locally accepted: 0.20.0-dev/schema 19, 7 October 2026.** The [before-code contract](portal-whatsapp-workflow.md) defines current authority, frozen template review, durable handoff and authenticated callbacks. Backend/static/build, full ordinary/actual native browser, visual and matching recovery gates pass. The preceding [0.19 accepted export checkpoint](finance-exports-baseline.md) remains independently retained. Personal public publication is still pending at this local acceptance; this checkpoint does not complete the whole plan or establish live/production acceptance.
+**Locally accepted and published: 0.20.0-dev/schema 19, 7 October 2026.** The [before-code contract](portal-whatsapp-workflow.md) defines current authority, frozen template review, durable handoff and authenticated callbacks. Backend/static/build, full ordinary/actual native browser, visual and matching recovery gates pass. The preceding [0.19 accepted export checkpoint](finance-exports-baseline.md) remains independently retained. The [accepted application](https://github.com/flux-i/society-os/commit/b52626e9f0c420cb647cee0a240f12ccb117dd34) is verified on the personal public repository; this checkpoint does not complete the whole plan or establish live/production acceptance.
 
 ## Implemented outcome and boundary
 
@@ -48,4 +48,4 @@ Private proofs are `whatsapp-provider-gates-verification.json`, `whatsapp-provid
 
 ## Publication and next work
 
-Personal public source/documentation publication to `flux-i/society-os` is pending at this local acceptance and is verified separately after commit/push. Freeze the exact tested runtime/source/evidence archive privately before publication, then bind it to the application commit without rewriting the preceding archives. Continue autonomously with [reviewed service contacts and interruptions](community-response-workflow.md), then the remaining roadmap.
+The [application commit](https://github.com/flux-i/society-os/commit/b52626e9f0c420cb647cee0a240f12ccb117dd34) is published to personal public `flux-i/society-os`. Verification at 10:52:30.064543 UTC confirms personal account/author, credential-free public origin, clean tree and exact API main. All **354 archived source files** match that application commit and all **753 file hashes** verify in the immutable private `reports/local/checkpoints/whatsapp-provider-0.20-accepted` archive. Publication metadata follows in a separate documentation-only commit; the accepted application archive and previous archives remain unchanged. Continue autonomously with [reviewed service contacts and interruptions](community-response-workflow.md), then the remaining roadmap.
