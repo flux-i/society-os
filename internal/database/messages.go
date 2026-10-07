@@ -39,15 +39,16 @@ type MessageAction struct {
 	Outcome      string `json:"outcome"`
 }
 type MessageSource struct {
-	Kind     string `json:"kind"`
-	ID       string `json:"id"`
-	Version  string `json:"version"`
-	Title    string `json:"title"`
-	Audience string `json:"audience"`
-	Wing     string `json:"wing"`
-	HomeID   string `json:"home_id"`
-	EntryID  string `json:"entry_id"`
-	Link     string `json:"link"`
+	PublicationTarget *MessageTarget `json:"publication_target,omitempty"`
+	Kind              string         `json:"kind"`
+	ID                string         `json:"id"`
+	Version           string         `json:"version"`
+	Title             string         `json:"title"`
+	Audience          string         `json:"audience"`
+	Wing              string         `json:"wing"`
+	HomeID            string         `json:"home_id"`
+	EntryID           string         `json:"entry_id"`
+	Link              string         `json:"link"`
 }
 type MessageCounts struct {
 	TargetPeople    int            `json:"target_people"`
@@ -170,7 +171,7 @@ type messageResolution struct {
 }
 
 func messageStaff(p Principal, kind string) bool {
-	return !p.MFAPending && ((kind == "NOTICE" && p.CanReviewRequests) || (kind == "RECEIPT" && p.CanManageRecords))
+	return !p.MFAPending && ((kind == "NOTICE" && p.CanReviewRequests) || ((kind == "RECEIPT" || kind == "STATEMENT") && p.CanManageRecords))
 }
 func messageAuthority(p Principal, kind string, fresh bool) error {
 	if !messageStaff(p, kind) {
@@ -182,7 +183,7 @@ func messageAuthority(p Principal, kind string, fresh bool) error {
 	return nil
 }
 func validateMessageInput(in MessageInput) (MessageInput, error) {
-	if (in.SourceKind != "NOTICE" && in.SourceKind != "RECEIPT") || in.SourceID == "" || len(in.SourceID) > 100 || (in.Channel != "WHATSAPP" && in.Channel != "EMAIL") {
+	if (in.SourceKind != "NOTICE" && in.SourceKind != "RECEIPT" && in.SourceKind != "STATEMENT") || in.SourceID == "" || len(in.SourceID) > 100 || (in.Channel != "WHATSAPP" && in.Channel != "EMAIL") {
 		return in, ErrInvalid
 	}
 	u, e := url.Parse(in.PortalOrigin)
@@ -230,6 +231,8 @@ func messageSourceIn(ctx context.Context, q identityReader, kind, id string) (Me
 			return src, e
 		}
 		src.Version, src.Title, src.Audience, src.Wing, src.Link = strconv.Itoa(x.Version), x.Title, x.Audience, x.BuildingCode, "/#community?notice="+x.ID
+	case "STATEMENT":
+		return statementMessageSourceIn(ctx, q, id)
 	case "RECEIPT":
 		var snapshot string
 		e := q.QueryRowContext(ctx, `SELECT r.entry_id,r.number,r.snapshot_json,e.flat_id FROM receipts r JOIN entries e ON e.id=r.entry_id WHERE r.id=? AND e.kind='RECEIVED' AND e.state='POSTED'`, id).Scan(&src.EntryID, &src.Title, &snapshot, &src.HomeID)
@@ -298,6 +301,9 @@ func messageTargetMatches(p messagePerson, t MessageTarget) bool {
 	return false
 }
 func messageSourceMatches(p messagePerson, src MessageSource) bool {
+	if src.Kind == "STATEMENT" {
+		return len(p.Homes) > 0 && src.PublicationTarget != nil && messageTargetMatches(p, *src.PublicationTarget)
+	}
 	for _, h := range p.Homes {
 		if src.Kind == "RECEIPT" {
 			if h.ID == src.HomeID && h.Finance {
@@ -359,9 +365,12 @@ func resolveMessage(ctx context.Context, q identityReader, in MessageInput) (mes
 	}
 	purpose := "COMMUNITY"
 	title := src.Title
-	if src.Kind == "RECEIPT" {
+	if src.Kind == "RECEIPT" || src.Kind == "STATEMENT" {
 		purpose = "FINANCE"
 		title = "A receipt is available in your society portal."
+		if src.Kind == "STATEMENT" {
+			title = "A published financial statement is available in your society portal."
+		}
 	}
 	x := messageResolution{MessagePreview: MessagePreview{Source: src, Channel: in.Channel, Purpose: purpose, Target: in.Target, Envelope: title + "\n" + in.PortalOrigin + src.Link, Simulation: true, Counts: MessageCounts{Reasons: map[string]int{}}}, People: []MessageRecipient{}}
 	destinations := map[string]bool{}
@@ -442,7 +451,7 @@ func maskMessageDestination(dest string) string {
 	return "••••"
 }
 func publicMessageRecipient(r MessageRecipient, p Principal, kind string) MessageRecipient {
-	if kind == "RECEIPT" && !p.CanManageContacts {
+	if (kind == "RECEIPT" || kind == "STATEMENT") && !p.CanManageContacts {
 		if r.Reason == "NO_SOURCE_ACCESS" || r.Reason == "NO_CURRENT_HOME" {
 			r.ID, r.Name = "", ""
 			r.ContactVersion = 0
@@ -507,6 +516,10 @@ func (s *Store) MessageSourcesFor(ctx context.Context, token, kind, query string
 	if kind == "RECEIPT" {
 		from = "receipts x JOIN entries e ON e.id=x.entry_id"
 		condition = "e.kind='RECEIVED' AND e.state='POSTED' AND x.number LIKE ?"
+	}
+	if kind == "STATEMENT" {
+		from = "statement_publications x JOIN statement_groups g ON g.current_publication_id=x.id JOIN statement_files f ON f.id=x.file_id"
+		condition = "x.state='PUBLISHED' AND f.state='APPROVED' AND f.validation='AVAILABLE' AND f.title LIKE ?"
 	}
 	args := []any{"%" + query + "%"}
 	if e = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+from+" WHERE "+condition, args...).Scan(&out.Total); e != nil {

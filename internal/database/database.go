@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"database/sql/driver"
 	"embed"
 	"encoding/hex"
 	"errors"
@@ -24,7 +25,7 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-const SchemaVersion = 16
+const SchemaVersion = 17
 
 type Store struct {
 	DB   *sql.DB
@@ -155,8 +156,47 @@ func validateEngine(engine Engine) error {
 	return nil
 }
 
-func (s *Store) Migrate(ctx context.Context) error {
-	tx, err := s.DB.BeginTx(ctx, nil)
+func (s *Store) Migrate(ctx context.Context) (resultErr error) {
+	conn, err := s.DB.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	var historyExists bool
+	if err = conn.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='schema_migrations')").Scan(&historyExists); err != nil {
+		return err
+	}
+	var prior int
+	if historyExists {
+		if err = conn.QueryRowContext(ctx, "SELECT COALESCE(MAX(version),0) FROM schema_migrations").Scan(&prior); err != nil {
+			return err
+		}
+	}
+	// Parent CHECK changes use SQLite's create/copy/drop/rename procedure.
+	// Foreign-key mode cannot be changed inside a transaction. Never return
+	// an unenforced connection to the pool, including a cancelled migration.
+	if prior < 17 {
+		defer func() {
+			resetCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, resetErr := conn.ExecContext(resetCtx, "PRAGMA foreign_keys=ON")
+			var enabled int
+			if resetErr == nil {
+				resetErr = conn.QueryRowContext(resetCtx, "PRAGMA foreign_keys").Scan(&enabled)
+			}
+			if resetErr == nil && enabled != 1 {
+				resetErr = errors.New("migration connection foreign keys were not restored")
+			}
+			if resetErr != nil {
+				_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+				resultErr = errors.Join(resultErr, resetErr)
+			}
+		}()
+		if _, err = conn.ExecContext(ctx, "PRAGMA foreign_keys=OFF"); err != nil {
+			return err
+		}
+	}
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -196,6 +236,21 @@ func (s *Store) Migrate(ctx context.Context) error {
 		if _, err := tx.ExecContext(ctx, "INSERT INTO schema_migrations VALUES (?, ?, ?)", version, checksum, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 			return err
 		}
+	}
+	rows, err := tx.QueryContext(ctx, "PRAGMA foreign_key_check")
+	if err != nil {
+		return err
+	}
+	if rows.Next() {
+		rows.Close()
+		return errors.New("migration would violate retained foreign keys")
+	}
+	err = rows.Err()
+	if closeErr := rows.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return err
 	}
 	return tx.Commit()
 }

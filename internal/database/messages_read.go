@@ -14,7 +14,7 @@ func messageScope(p Principal) (string, []any) {
 		notice = "source_kind='NOTICE'"
 	}
 	if messageStaff(p, "RECEIPT") {
-		receipt = "source_kind='RECEIPT'"
+		receipt = "source_kind IN('RECEIPT','STATEMENT')"
 	}
 	return "(" + notice + " OR " + receipt + ` OR (message_batches.state IN('APPROVED','CANCELLED') AND EXISTS(SELECT 1 FROM message_recipients mr WHERE mr.batch_id=message_batches.id AND mr.snapshot_version=message_batches.snapshot_version AND mr.resident_id=? AND mr.frozen_reason='')))`, []any{p.ResidentID}
 }
@@ -82,6 +82,10 @@ func decorateMessageBatch(ctx context.Context, q identityReader, p Principal, x 
 		if x.Source.Kind == "RECEIPT" {
 			x.Source.Title = "Private receipt"
 		}
+		if x.Source.Kind == "STATEMENT" {
+			x.Source.Title = "Published financial statement"
+		}
+		x.Source.PublicationTarget = nil
 		x.Source.Version, x.Source.Audience, x.Source.Wing = "", "", ""
 		x.Target = MessageTarget{Kind: "PERSONAL", IDs: []string{}}
 		x.ProposedBy, x.ReviewedBy, x.PortalOrigin, x.PreviewHash = "", "", "", ""
@@ -117,7 +121,7 @@ func decorateMessageBatch(ctx context.Context, q identityReader, p Principal, x 
 }
 func (s *Store) MessagesFor(ctx context.Context, token, query, state, kind string, page int) (MessagePage, error) {
 	out := MessagePage{Items: []MessageBatch{}, Page: page, PageSize: 12}
-	if page < 1 || page > 10000 || len(query) > 100 || (kind != "" && kind != "NOTICE" && kind != "RECEIPT") || (state != "" && state != "PENDING" && state != "APPROVED" && state != "DECLINED" && state != "WITHDRAWN" && state != "CANCELLED") {
+	if page < 1 || page > 10000 || len(query) > 100 || (kind != "" && kind != "NOTICE" && kind != "RECEIPT" && kind != "STATEMENT") || (state != "" && state != "PENDING" && state != "APPROVED" && state != "DECLINED" && state != "WITHDRAWN" && state != "CANCELLED") {
 		return out, ErrInvalid
 	}
 	tx, e := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -140,8 +144,8 @@ func (s *Store) MessagesFor(ctx context.Context, token, query, state, kind strin
 		args = append(args, state)
 	}
 	if query != "" {
-		where += " AND source_kind='NOTICE' AND json_extract(source_json,'$.title') LIKE ?"
-		args = append(args, "%"+query+"%")
+		where += " AND ((source_kind='NOTICE' AND json_extract(source_json,'$.title') LIKE ?) OR (source_kind='STATEMENT' AND CASE WHEN ? THEN json_extract(source_json,'$.title') ELSE 'Published financial statement' END LIKE ?))"
+		args = append(args, "%"+query+"%", messageStaff(p, "STATEMENT"), "%"+query+"%")
 	}
 	if e = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM message_batches"+where, args...).Scan(&out.Total); e != nil {
 		return out, e
@@ -240,7 +244,7 @@ func (s *Store) MessageFor(ctx context.Context, token, id string, recipientPage,
 			rows.Close()
 			return out, e
 		}
-		if x.Source.Kind == "RECEIPT" && !p.CanManageContacts {
+		if (x.Source.Kind == "RECEIPT" || x.Source.Kind == "STATEMENT") && !p.CanManageContacts {
 			d.Destination = maskMessageDestination(d.Destination)
 		}
 		out.Deliveries = append(out.Deliveries, d)
@@ -362,7 +366,7 @@ func (s *Store) MessageTargetsFor(ctx context.Context, token, kind, sourceID, ta
 			}
 		} else {
 			for _, home := range person.Homes {
-				if src.Kind == "RECEIPT" && home.ID != src.HomeID {
+				if (src.Kind == "RECEIPT" && home.ID != src.HomeID) || !statementMessageHomeChoice(person, home, src) {
 					continue
 				}
 				if seen[home.ID] {

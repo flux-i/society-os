@@ -5,12 +5,12 @@
 **Preferred hosting model:** Self-host the application on an owned small computer; use cloud services only where they add clear value
 **Target architecture:** Lightweight custom application instead of ERPNext/Frappe
 **Document date:** 4 October 2026
-**Revision:** Manual tracking plus society operations scope, updated 6 October 2026
+**Revision:** Manual tracking plus society operations scope, updated 7 October 2026
 **Confirmed input:** 118 flats; resident/user count to be established during registry migration
 **Accounting:** Existing very old Tally installation; exact version/import compatibility pending
 **Society state:** Pending for receipt/retention policy; statutory billing rules are future inputs
 
-**Implementation status:** Verified local Go/React release 0.13/schema 12 includes registry/memberships and scoped sessions, invitations/recovery/MFA, manual entries/private receipt PDFs, separate reviews/notices, private service requests, validated documents, changing overview, account appointments/suspension, maintenance/allocations, upkeep/assets/vendor visits and fixed/voluntary funds/external-payment reconciliation. It additionally verifies independently published supplied rules, private picture-based incident review and frozen household responses. The coherent gate passes 123 Go declarations, 128 ordinary browser cases across 19 isolated suites and 29 actual native WebMCP cases; 67 final captures and pre/post recovery are inspected/verified. See [incident acceptance](docs/incidents-baseline.md), [README](README.md) and [backlog](execution-backlog.md). Rule review completes the first part of roadmap step 6; [separate fines](docs/fines-workflow.md) follow. Production identity/custody, policy, infrastructure and real-data acceptance remain separate; their checklists stay open until complete gates pass.
+**Implementation status:** Accepted local Go/React release 0.18/schema 17 includes registry/identity/MFA, manual money/receipts, independent reviews/notices, services/documents, the changing overview, account administration, maintenance/allocations, upkeep, collections/external-payment verification, private incidents/separate fines, registered contacts, targeted synthetic messaging, prepared financial-original publication and exact statement messaging. Its 179 Go declarations, 171 ordinary cases/25 suites, 44 actual native cases/five suites, 41 inspected final captures and matching preview/recovery are recorded in [statement-messaging acceptance](docs/statement-messaging-baseline.md). Personal public application publication is being verified. See [live backlog](execution-backlog.md) and [next-session evidence](docs/next-session.md). Scoped finance exports, free manual sharing, community additions, measured performance/PWA, migration and independent production infrastructure work remain. Identity/custody, policy, infrastructure, providers and real-data acceptance stay separate; their production checklists remain open until measured gates pass.
 
 **Scope addition:** The user's subsequent requests are preserved in the [society operations roadmap](docs/society-operations-roadmap.md): an actionable changing overview, maintenance, fund collection campaigns, resident external-payment reports, targeted WhatsApp/email, evidence-based rule reports and authorised fines, and externally prepared financial statements with intentional publication/sharing. This dated addendum defines the next slices and supersedes earlier deferrals of those specifically requested capabilities. No payment initiation is added; older sections remain conditional references for unrequested billing/bank/Tally automation.
 
@@ -24,7 +24,7 @@ Use Go, SQLite, a React/Vite PWA, private AWS S3 for documents/off-site snapshot
 
 Version 1 covers tracking and monitoring: registry and memberships; invitation/login and scoped roles; manually entered given charges/opening balances and already-paid records; exact amounts and derived flat balances; immutable generated receipts/PDFs and auditable corrections; notices; complaints; permitted documents; authorized reports; and tested recovery. Authorized users supply the entries. The portal does not initiate payment.
 
-**Scope boundary:** No payment gateway, bank transfer initiation, bank API/automated matching, automatic billing/rate/interest calculation or Tally integration is required. Resident reports of externally paid money and treasury verification are now requested next work, governed by the operations roadmap. Sections 12 and 14 and unrequested extended financial designs after Section 13.0 remain conditional future references. Section 13.0 defines the verified manual-entry workflow; new maintenance/fund/fine allocations extend it through separate checkpoints. Do not scaffold unrequested automation as a launch dependency.
+**Scope boundary:** No payment gateway, bank transfer initiation, bank API/automated matching, automatic billing/rate/interest calculation or Tally integration is required. Resident reports of externally paid money and treasury verification are requested and verified locally under the operations roadmap. That later request supersedes older exclusions of resident payment reports in this document. Sections 12 and 14 and unrequested extended financial designs after Section 13.0 remain conditional future references. Section 13.0 defines the verified manual-entry workflow; maintenance/fund/fine allocations extend it through separate checkpoints. Do not scaffold unrequested automation as a launch dependency.
 
 The application remains one modular process and one local SQLite database, with a small database-backed job queue. Separate scheduled backup and ingress services are operational dependencies, not an additional business-service platform. No PostgreSQL, Redis, Kubernetes, full ERP, native apps, payment gateway, vector database, or local mail server is needed initially.
 
@@ -1959,6 +1959,8 @@ Selecting a stable origin includes CORS, cookies, trusted headers, certificates,
 
 # 55. Implementation and Launch Checklist
 
+Checked implementation items below have local synthetic evidence; they do not close the separate production gates in Section 52. The accepted baselines and current candidate are linked in the [execution backlog](execution-backlog.md).
+
 ## Hardware and OS
 
 - [ ] Select reliable owned hardware and verify SSD health, memory, Ethernet, incremental wall power, and storage headroom.
@@ -1972,17 +1974,21 @@ Selecting a stable origin includes CORS, cookies, trusted headers, certificates,
 - [ ] Create private Mumbai S3, encryption/versioning/CORS, scoped document/backup/custodial identities, and retention/quotas.
 - [ ] Confirm society-owned accounts, repository/releases, two custodians, and independent encrypted-key recovery.
 - [x] Pin/test the actual Go SQLite engine including the WAL-reset fix and per-connection settings (local engine 3.53.4; four pooled connections checked).
-- [ ] Implement the safe backup CLI/timer, manifests/encryption, restore mode, off-host alerts, and backup-age protection.
-- [ ] Complete a clean restore and record measured recovery time; register initial numbering policy/series.
+- [x] Implement consistent local snapshot/manifest and matching-release restore-check commands, with provenance, integrity, foreign keys and credential invalidation verified.
+- [ ] Complete encrypted scheduled off-site backup, production restore mode, off-host alerts and backup-age finance protection.
+- [x] Measure matching-release local pre/post-upgrade restores while preserving original money, receipts, uploaded originals and held key bindings.
+- [ ] Complete the clean production restore rehearsal and register adopted numbering policy/recovery series.
 
 ## Core application and manual records
 
-- [ ] Implement invitations, scoped identities/memberships/roles/terms, sessions/recovery, and required MFA.
-- [ ] Implement transactional audit, mutation identities, leased jobs, and validated/version-pinned storage before receipt PDFs.
+- [x] Implement invitations, scoped identities/memberships/roles/terms, sessions/recovery and required MFA, with current-access checks.
+- [x] Implement transactional audit, actor-bound mutation identities, leased local jobs and validated immutable local originals/receipt PDFs.
+- [ ] Connect version-pinned private production storage and verify failure/recovery behavior with its configured credentials.
 - [ ] Review representative given charges/already-paid records, receipt fields and authorized confirmation/correction policy.
-- [ ] Implement exact-paise manual entry validation and derived balances without inventing charge/interest rules.
-- [ ] Implement given entries, immutable account effects, receipts/PDF states, linked corrections and numbering/recovery.
-- [ ] Implement scoped manual-record/receipt reports, notices/audiences, complaints/private notes and document library.
+- [x] Implement exact-paise manual entry validation and derived balances without inventing charge/interest rules.
+- [x] Implement given entries, immutable originals, receipts/PDF states, linked corrections and local yearly receipt numbering/recovery.
+- [x] Implement separate approved maintenance/funds, explicit credit allocations, private incidents/fines, scoped manual-record/receipt views, notices, service conversations and document/financial-original publication.
+- [ ] Complete scoped operational finance exports and the remaining ordered community workflows in the roadmap.
 - [ ] Implement PWA cache/update/logout/accessibility behavior and operator degraded-state views.
 
 ## Migration, budget, and pilot
@@ -1998,10 +2004,11 @@ Selecting a stable origin includes CORS, cookies, trusted headers, certificates,
 
 ## Later only
 
-- [ ] Add payment execution, bank/billing automation, allocations or Tally integration only after a separate request and requirements/control proof.
+- [ ] Add payment execution, bank/billing automation or Tally integration only after a separate request and requirements/control proof. Requested manual allocations are already verified locally.
 - [ ] Assess actual OCR/search demand and language samples before Phase 7.
 - [ ] Verify FTS5 capability in the release driver/build before any future full-text search implementation.
-- [ ] Separately approve provider/data/cost/evaluation requirements before automated WhatsApp or AI.
+- [ ] Activate requested WhatsApp/email delivery only after society-owned provider onboarding/configuration, current consent/templates and authorised real-send checks. Development delivery stays synthetic.
+- [ ] Add runtime AI only after a separate request and provider/data/cost/evaluation decisions.
 
 ---
 

@@ -1,7 +1,7 @@
 export { useFundLoad as useMessageLoad } from './collections'
 export { useFineWrite as useMessageWrite } from './fines'
 export type MessageTarget = { kind:string; wing:string; ids:string[] }
-export type MessageSource = { kind:string; id:string; version:string; title:string; audience:string; wing:string; home_id:string; entry_id:string; link:string }
+export type MessageSource = { publication_target?:MessageTarget; kind:string; id:string; version:string; title:string; audience:string; wing:string; home_id:string; entry_id:string; link:string }
 export type MessageCounts = { target_people:number; source_people:number; consented_people:number; eligible_people:number; destinations:number; omitted_people:number; reasons:Record<string,number> }
 export type MessageRecipient = { id:string; name:string; contact_version:number; destination?:string; reason:string; delivery_id?:string; state?:string }
 export type MessagePreview = { source:MessageSource; channel:string; purpose:string; target:MessageTarget; counts:MessageCounts; envelope:string; preview_hash:string; recipients:MessageRecipient[]; page:number; page_size:number; simulation:boolean }

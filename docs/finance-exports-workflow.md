@@ -1,0 +1,62 @@
+# Scoped operational finance exports
+
+Recorded before implementation, 7 October 2026. This is the checkpoint after [statement messaging](statement-messaging-workflow.md), whose acceptance remains pending when this contract is saved. It implements the export portion of the [original statement contract](statements-workflow.md). A written plan is not passing implementation evidence.
+
+Statement messaging subsequently passes its [0.18 local acceptance](statement-messaging-baseline.md). This export contract is the next independent implementation checkpoint; it is not implemented or accepted yet.
+
+## User outcome and authority
+
+A permitted person chooses a report, an explicit date range and a permitted home or fund, sees the scope, current totals and row count, and downloads a consistent CSV snapshot. Report choices are confirmed ledger, original receipt register, maintenance reconciliation and fund reconciliation. Keep the shared forest/ivory controls and accessible scrolling dialog; place the action beside the relevant existing finance workspace rather than adding another crowded navigation item.
+
+Society-wide export requires current Treasury authority and recent privileged verification. Registry/community authority and a read-only society audit grant alone do not permit broad export. A resident may export only currently financially entitled homes, including explicitly permitted joint/multiple-home ownership. A tenant's deliberate society-statement publication grants no household finance export. Every preview, creation, retry, metadata read and download checks current identity and the exact scope. An ended home relationship or removed authority prevents new downloads, including previously created snapshots; it cannot retrieve a copy already downloaded.
+
+## Meaning of the report
+
+The export is a current snapshot of supplied operational records. An explicit date range filters source dates: ledger entry date, original receipt date, maintenance period start or fund start. It is not a reconstructed historical statutory close. Each report records its date basis, creation time and scope. Current reversals and live allocations remain current even if they were recorded after a source date. Clearly distinguish period-selected rows from an entitled home's current balance; never present an outstanding purpose-specific charge as the home's net balance.
+
+Ledger rows retain posted original identities and mark linked reversals. Draft entries and unconfirmed reported payments do not add received money. Receipt rows preserve the original receipt identity, number, date and amount even when their source was later reversed. Maintenance/fund rows retain their approved source and charge identity, requested/active/allocated/outstanding amounts, original allocation links and corrections. A correction does not silently remove its original link. Pending-report counts contain no payer, evidence or another person's private report details. Allocation rows never count as another collection.
+
+Generate monetary strings directly from integer paise with exactly two decimal places. Controlled numeric columns may contain a valid negative balance. Opening credit is credit rather than cash received. Broad audit/log records contain the actor, scope, time, report kind and counts; they omit private transaction descriptions, references and file bytes.
+
+## Snapshot, retries and CSV handling
+
+Use one consistent database transaction for current permission, selected records, totals and snapshot creation, with writer reservation before reads when recording audit/operation identity. SQLite documents why a deferred read transaction must not be upgraded after another writer commits. [SQLite isolation](https://www.sqlite.org/isolation.html).
+
+Preview a bounded export and freeze its reviewed scope/content hash. Create an immutable actor-bound snapshot through an exact stable operation identity. A changed preview requires reload and fresh confirmation. A lost response retries the same snapshot and audit event; changed payload or current denied access cannot replay it. Bound the initial implementation to 10,000 output rows and 5 MiB; report an explicit limit instead of truncating a report or allocating unbounded memory. A fresh explicit export produces a new current snapshot.
+
+CSV uses UTF-8, proper delimiter/quote/newline escaping and stable columns. Neutralise untrusted formula-leading text, including leading whitespace/control characters and full-width variants, while preserving ordinary Unicode. Prefer a visible text marker on risky cells so spreadsheet reopening cannot silently remove a quote-only guard. Original stored records and uploaded originals remain unchanged. Verify generated CSV bytes and parser round trips independently; do not claim universal spreadsheet or actual Windows/Excel acceptance. OWASP explains formula-leading characters, quoting limitations and differences across spreadsheet programs. [CSV injection guidance](https://community.owasp.org/attacks/CSV_Injection).
+
+A browser receives an authenticated no-store attachment only after current permission succeeds. Pending creation locks edits/dismissal; network/error/stale/denied states retain a truthful retry or reload. A download error cannot produce a success message. Read-only native WebMCP may expose bounded current export status/scope/count metadata, preserving open human forms; it does not create snapshots, download private bytes or widen access.
+
+## Implementation decisions before coding
+
+The scope chooser distinguishes society-wide records, all of the actor's financially entitled homes, and one selected financially entitled home. Resolve and freeze the exact home set for each snapshot. A society audit or community appointment must not be reused as broad export authority. If any home in a frozen personal snapshot becomes inaccessible, deny that snapshot rather than returning only its still-accessible rows. A new export may use the actor's changed current scope.
+
+Keep an immutable export record containing the actor, report/filter/scope metadata, frozen home set, row count, byte length, checksum and generated CSV. Reuse the existing actor-bound operation mechanism with a distinct export action. Check current permission before accepted-operation replay. Replay returns the original reviewed snapshot even if later money records have changed; creating another export requires a new preview and operation identity. Preview content hashes exclude generated IDs and creation time so they can be compared meaningfully during creation.
+
+Record the authority used as well as the homes. A snapshot created through Treasury authority still requires that current authority and fresh verification after creation; a later personal relationship does not silently convert its permission. A personal snapshot requires every originally selected home to remain financially entitled. Additional newly entitled homes do not alter an accepted snapshot; a fresh all-own-homes preview resolves them. Do not reuse generic financial-home helpers with an auditor/community broad-read flag to expand export scope.
+
+Bound stored export bytes as well as individual responses: 100 MiB per actor and 1 GiB for society export snapshots in the initial local implementation. Exceeding either allowance must be explicit and create no snapshot or audit side effect. Retention/export disposal for production requires its own adopted policy; original money, receipts and corrections are never deleted to free export space.
+
+CSV columns record report, snapshot time, scope, chosen range, date basis and row type alongside the financial fields. A scope/totals row preserves the report meaning even for an empty range. Original ledger/receipt rows remain distinct from correction and allocation rows. Mark linked reversal amounts with a signed controlled numeric column; preserve original amounts separately. Maintenance and fund reconciliation include retained allocation identities and correction links rather than only a current aggregate. Count all output rows toward the row limit and show that count before creation.
+
+| Report | Selected sources and retained links | Current interpretation |
+|---|---|---|
+| Confirmed ledger | Posted entries whose source date is in range; linked reversal rows; each associated allocation and correction once even when both linked entries are selected | Original debit/credit amounts remain separate from current active amounts and the scope's current net balance |
+| Original receipt register | Original receipt/source date in range, unchanged number and amount; linked source reversal | Original issued amount is not usable current received money after reversal |
+| Maintenance reconciliation | Published period-start sources in range, selected home lines/charge identities and their original allocation/correction links | Requested, active, allocated and outstanding amounts describe the selected maintenance purpose |
+| Fund reconciliation | Published/closed start-date sources in range, selected participants, original/current charge identities, approved exemption replacements, allocation/contribution corrections | Fixed requested/outstanding money differs from voluntary attribution; pending reports contribute no confirmed money |
+
+Correction rows stay linked to a selected source even when the correction happened after the selected source-date range. Include all approved exemption replacement charge identities, not only the latest participant pointer. Omit private report comments/evidence, staff reasons, reviewer identities and unpublished proposals from generated reports. Show only scoped pending-report counts, using personal author scope for residents. Freeze row ordering by source date and stable source/link identity; do not depend on current list pagination.
+
+Use the existing Entries/Receipts, Maintenance and Collections workspaces to open the export dialog with the relevant report preselected. The report remains a deliberate choice. Show the current scope, source-date basis, original/usable received amounts where relevant, and the difference between current home balance and purpose-specific outstanding money. A ready snapshot exposes a separate download action and a way to prepare a new current export. Keep error/retry feedback next to the action that failed.
+
+## Independent fixture and acceptance
+
+Use actual source-linked records: a separately published maintenance charge of 20,000 paise, a fixed fund charge of 43,219 and a one-paise manual charge. Do not manually duplicate the cycle/fund charges. Add opening credit of 10,000, original received entries of 50,000 and 101, then link a reversal of the 101-paise original. Expect two unchanged original receipts totaling 50,101, reversed received money of 101, usable received money of 50,000, and current net balance of 3,220 (₹32.20). A pending report contributes no cash or receipt.
+
+Maintenance allocates 10,000 opening credit and 10,000 received money. A fund allocation of 10,000 is fully corrected and replaced by 6,000. Expect 34,000 available received credit, maintenance outstanding zero and fund outstanding 37,219, distinct from the home's net 3,220 balance. Verify these expectations against original sources and correction identities rather than deriving them from exported totals.
+
+Cover cross-home guessing, tenant/registry/auditor denial, role and membership changes before replay/download, current multi-home scope, stale preview, duplicate/lost responses, exact originals, empty/range/row/byte limits and malformed inputs. Include Unicode, commas, quotes, newlines, formula-leading ASCII/full-width/control text and valid numeric negatives. Restore populated snapshots, audit/operations and original money with the matching release; invalidate old credentials.
+
+Run formatting/vet/full backend race, TypeScript and production build, full ordinary regression, actual native WebMCP, browser controls at 1440/768/375/320 and short-phone sizes, selected/hover/focus/keyboard behavior, scrolling/dismissal and loading/error/retry/pending/allow/deny states. Capture and actually inspect the final screenshots. Preserve the accepted preview while developing on disposable synthetic databases. Record finite executed coverage and limitations before acceptance and personal public publication. Production accountant/policy/custody and actual target-host inputs remain separate.

@@ -1,0 +1,45 @@
+# Published financial-statement messaging — local acceptance
+
+**Accepted locally:** 7 October 2026. **Release:** 0.18.0-dev, schema 17. The [before-code contract](statement-messaging-workflow.md) binds deliberate delivery to an exact approved publication, current audience and verified finance consent. All required stages passed separately, all final captures were inspected, and the retained preview and matching recovery are verified. Personal public publication is being verified; application-commit evidence is recorded after push. Scoped operational finance exports follow this checkpoint.
+
+## Outcome and permissions
+
+A current eligible Treasury operator selects an exact published financial original, channel and target in Messages, previews the current publication/audience/verified-finance-consent intersection, and proposes delivery. A different current eligible Treasury reviewer approves that frozen source and audience. The external envelope contains a generic availability message and authenticated original-version link, without figures, file bytes or private preparation history. A tenant's shared society statement grants no private home-finance access. Delivery creates no money, charge, allocation or receipt.
+
+Publication/version, both approving operators, current account/membership and verified purpose/channel consent are checked at approval, claim and handoff. Revoked or superseded publication suppresses new handoffs without substituting a replacement. Accepted/delivered/explicit-read history remains truthful; unknown handoffs reconcile durable provider proof without blindly resending. Personal history removes private actors/targets and inaccessible links while preserving delivery facts. Delivery remains a persistent local simulation; no real provider messages were sent.
+
+## Rendered, native and visual coverage
+
+The six new rendered journeys cover source/target search and pagination; owner/tenant/wing/selected-home/person intersections; separate review; current publication removal/supersession; shared contacts; finance-only opt-out; private-home denial; error/loading/retry; lost accepted proposal/approval responses with one side effect; pending dismissal locks; and unknown reconciliation with one attempt. Actual controls are exercised at 1440px, 768px, 375px and 320px, including short 320×440 dialogs, open menus, selection, hover, focus, keyboard, internal scrolling and dismissal.
+
+All **41 final PNGs** were actually inspected through **118 native-scale parts/30 viewed sheets and 12 unique original PNGs**. A supplemental phone probe passes once in 19.9 seconds. Exact hashes and inspection flags are retained in `reports/local/statement-messages-review-final/review.json`. These finite synthetic journeys do not prove every possible interaction.
+
+Two additional actual native WebMCP cases verify STATEMENT source filtering, bounded status metadata, current tenant/finance authority, strict arguments, no figures/originals/contact targets/write/download exposure, unchanged human forms, cancellation and held-result discard after membership changes. The full native run passes **44 cases across five isolated suites** using the installed Chrome native API.
+
+## Executed gates and findings
+
+SM-01 was independently reproduced in a rendered Overview: statement delivery was labelled Active service request, with 0 items and Showing 1 of 0. The repair uses full scoped attention counts rather than capped preview length and gives message-review/outcome labels and the matching workspace link. Three independent affected backend declarations pass, including one batch/two envelopes, cancelled history, five pending batches/four previews, twelve pending originals/four previews and current/denied publication scope. Full rendered/native/backend checks and recovery close this one product group. Cumulative accepted findings are **76 unique groups: 74 product/UI and two operational**.
+
+| Gate | Executed result |
+|---|---|
+| Formatting, Go vet, full race and TypeScript | Pass; 179 Go declarations; 741.733 seconds elapsed, database 733.382 seconds; ended 7 October 06:06:30.094688 UTC |
+| Production build | Pass; JS 920.64 kB / 246.11 kB gzip, CSS 146.24 kB / 27.31 kB gzip |
+| New rendered focus | Six cases pass in 1.5 minutes, plus the supplemental phone probe |
+| Full ordinary regression | 171 cases pass across 25 isolated suites; ended 06:16:37.471103 UTC |
+| Actual native WebMCP | 44 cases pass across five suites |
+| Visual review | All 41 final captures actually inspected |
+| Matching recovery and retained preview | Pass; all 74 prior/post persistent tables preserved and recovered |
+
+The first sequential full backend run failed a stale historical QA expectation of 16 migration rows after applying current schema 17. The sole correction changes that inventory expectation to SchemaVersion; original frozen data/checksums, the 43219-paise source, seven statement tables, integrity and foreign-key checks remain. The affected historical declaration passes in 16.818 seconds elapsed (3.793 seconds package time). This is a QA correction, not another product finding. It is the only source difference after completed build/focused/native stages; runtime Go/SQL/TypeScript and the exact 18-file binary/web pair remain unchanged. The subsequent full ordinary run uses the corrected QA source. All Go/migration sources remain unchanged during the final full race; six documentation-only changes are recorded explicitly.
+
+Earlier failed, interrupted and incomplete runs are retained: a 20-minute real-Argon2 package timeout; a later interrupted run with PDF_CHECK_LIMIT under combined load and an unchanged focused real-qpdf/race pass; lost full-check/ordinary processes of unknown cause; and the repeated existing OPS-01 static-runtime isolation issue. Each disposable browser runner now copies its exact binary/web pair before startup. Current full race uses serial packages and a 30-minute package budget without weakening runtime validation or password fixtures. Evidence: `statement-messages-check-verification.json`, `statement-messages-gates-verification.json` and retained RED/affected/final logs under `reports/local`. No green aggregate invocation or completed whole plan is claimed.
+
+## Migration, recovery and operating limits
+
+Schema 17 introduces a distinct STATEMENT/FINANCE constraint by rebuilding message_batches on a dedicated transaction connection, retaining prior batch order/rows, recipient authorization, attempts, unknown proof, triggers and migration checksums. Foreign-key mode changes before the transaction, is checked before commit and is restored before returning the connection. Failure rolls back and preserves enforced pooled connections. Populated migration/recovery checks preserve original publication/file bytes, pending replacement, finance consent, unknown handoff/provider proof, original ₹432.19 money and separately held messaging-key binding.
+
+Pre-upgrade schema-16 bundle: `var/snapshots/statement-messages-0.18-pre-upgrade-20261007`, **1,175,552 bytes**, SHA-256 `9a2b174fe23a84bbd30db2e4aa2f9897f5d12bd07735c7eabd358998793e2333`, matching 0.17 restore **37.676 ms**. Post-upgrade schema-17 bundle: `var/snapshots/statement-messages-0.18-20261007`, **1,175,552 bytes**, SHA-256 `642c87d8be37329b880f7c0e5933a402ab00eebecf1222d8c74913c0a1ba2565`, matching 0.18 restore **46.661 ms**. All 74 prior persistent tables preserve exact rows and provenance 1–16; no persistent table is added. All 74 tables restore exactly, four temporary credential tables are purged, integrity/foreign keys pass and both separately held MFA/message keys remain unchanged. Startup preserves prior rows and existing key fingerprints.
+
+The retained pair is `var/preview-releases/0.18`, served at `http://127.0.0.1:8080` by detached local PID **79164** when started, with readiness 200. Revalidate the current exact PID/command before process action. All 18 packaged files equal the tested build and all 17 served files equal that pair; all 74 persistent tables remain unchanged after startup. Keep `var/demo/society.db`, `var/keys/mfa.key` and `var/keys/messages.key`. The continuing preview has no statement/message fixtures; browser mutations used disposable databases. Private recovery/preview/process manifests remain under `reports/local`.
+
+Windows amd64 cross-compilation passes: **21,770,240 bytes**, SHA-256 `7bd480175d7cd72cea5f4b3d2e3ba89bcb90c996f7671a6e2348724c89b0d443`. Actual Windows execution/resource use remains untested. The JS chunk warning remains for measured performance/code splitting. Real providers, identities/data, policies/custodians, infrastructure and production acceptance remain separate. Keys/databases/downloads/screenshots/logs/binaries and private evidence stay outside Git; earlier accepted archives remain immutable.

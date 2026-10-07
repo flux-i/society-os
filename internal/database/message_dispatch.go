@@ -22,7 +22,7 @@ type SimulationHandoff struct {
 
 func messageOperatorCurrent(ctx context.Context, q identityReader, id, kind string) (bool, error) {
 	roles := "'ADMINISTRATOR','COMMITTEE'"
-	if kind == "RECEIPT" {
+	if kind == "RECEIPT" || kind == "STATEMENT" {
 		roles = "'TREASURER'"
 	}
 	var current bool

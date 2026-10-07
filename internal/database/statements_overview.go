@@ -16,7 +16,12 @@ func overviewStatements(ctx context.Context, tx *sql.Tx, p Principal, out *Overv
 		return err
 	}
 	if !statementStaff(p) {
-		return overviewItems(ctx, tx, out, `SELECT x.id,x.title,'',x.kind,'PUBLISHED','NORMAL',x.period_end,sp.reviewed_at,0 FROM statement_files x JOIN statement_groups g ON g.id=x.group_id JOIN statement_publications sp ON sp.id=g.current_publication_id AND sp.file_id=x.id AND sp.state='PUBLISHED' WHERE `+scope+` AND date(sp.reviewed_at,'unixepoch','+5 hours','+30 minutes')>=:recent ORDER BY sp.reviewed_at DESC,sp.id LIMIT 4`, append(args, sql.Named("recent", out.PeriodStart))...)
+		from := ` FROM statement_files x JOIN statement_groups g ON g.id=x.group_id JOIN statement_publications sp ON sp.id=g.current_publication_id AND sp.file_id=x.id AND sp.state='PUBLISHED' WHERE ` + scope + ` AND date(sp.reviewed_at,'unixepoch','+5 hours','+30 minutes')>=:recent`
+		values := append(args, sql.Named("recent", out.PeriodStart))
+		if err := overviewCounts(ctx, tx, out, []string{"attention_items"}, `SELECT COUNT(*)`+from, values...); err != nil {
+			return err
+		}
+		return overviewItems(ctx, tx, out, `SELECT x.id,x.title,'',x.kind,'PUBLISHED','NORMAL',x.period_end,sp.reviewed_at,0`+from+` ORDER BY sp.reviewed_at DESC,sp.id LIMIT 4`, values...)
 	}
 	if err := overviewCounts(ctx, tx, out, []string{"originals_checking", "pending_review", "awaiting_other_reviewer", "upload_attention"}, `SELECT COUNT(CASE WHEN validation IN('PENDING','VALIDATING') AND uploaded_at>0 THEN 1 END),COUNT(CASE WHEN validation='AVAILABLE' AND uploaded_by<>? THEN 1 END),COUNT(CASE WHEN validation='AVAILABLE' AND uploaded_by=? THEN 1 END),COUNT(CASE WHEN validation IN('REJECTED','ABANDONED') OR uploaded_at=0 THEN 1 END) FROM statement_files WHERE state='PENDING'`, p.ID, p.ID); err != nil {
 		return err
@@ -24,9 +29,13 @@ func overviewStatements(ctx context.Context, tx *sql.Tx, p Principal, out *Overv
 	if err := overviewCounts(ctx, tx, out, []string{"publication_review", "publication_awaiting_other"}, `SELECT COUNT(CASE WHEN proposed_by<>? THEN 1 END),COUNT(CASE WHEN proposed_by=? THEN 1 END) FROM statement_publications WHERE state='PENDING'`, p.ID, p.ID); err != nil {
 		return err
 	}
-	return overviewItems(ctx, tx, out, `SELECT id,title,'',kind,state,'NORMAL',period_end,at,0 FROM (
+	from := ` FROM (
  SELECT x.id,x.title,x.kind,x.period_end,CASE WHEN x.validation='AVAILABLE' THEN 'READY_REVIEW' ELSE 'UPLOAD_ATTENTION' END state,x.created_at at,CASE WHEN x.validation='AVAILABLE' THEN 1 ELSE 0 END priority FROM statement_files x WHERE x.state='PENDING' AND ((x.validation='AVAILABLE' AND x.uploaded_by<>?) OR ((x.validation IN('REJECTED','ABANDONED') OR x.uploaded_at=0) AND x.uploaded_by=?))
- UNION ALL SELECT f.id,f.title,f.kind,f.period_end,'PUBLICATION_REVIEW',sp.proposed_at,2 FROM statement_publications sp JOIN statement_files f ON f.id=sp.file_id WHERE sp.state='PENDING' AND sp.proposed_by<>?) ORDER BY priority,at,id LIMIT 4`, p.ID, p.ID, p.ID)
+ UNION ALL SELECT f.id,f.title,f.kind,f.period_end,'PUBLICATION_REVIEW',sp.proposed_at,2 FROM statement_publications sp JOIN statement_files f ON f.id=sp.file_id WHERE sp.state='PENDING' AND sp.proposed_by<>?)`
+	if err := overviewCounts(ctx, tx, out, []string{"attention_items"}, `SELECT COUNT(*)`+from, p.ID, p.ID, p.ID); err != nil {
+		return err
+	}
+	return overviewItems(ctx, tx, out, `SELECT id,title,'',kind,state,'NORMAL',period_end,at,0`+from+` ORDER BY priority,at,id LIMIT 4`, p.ID, p.ID, p.ID)
 }
 
 // The finance appointment permits this deliberate audience chooser. It does

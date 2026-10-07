@@ -1,6 +1,6 @@
 // A fresh fictional database keeps browser mutations out of the user's preview.
 import { spawn, execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, openSync, closeSync, rmSync, readdirSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, openSync, closeSync, rmSync, readdirSync, cpSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve, join, basename } from 'node:path'
 import { createServer } from 'node:net'
@@ -27,7 +27,9 @@ const root = mkdtempSync(join(tmpdir(), 'society-browser-'))
 const artifacts = resolve('../reports/local/browser-runs', basename(root))
 mkdirSync(artifacts, { recursive: true, mode: 0o700 })
 const db = join(root, 'society.db')
-const binary = resolve('../build/society-server')
+// Retain the tested runtime pair for this run. A later build must not remove
+// files that the QA server is serving or replace its binary between restarts.
+const binary = join(root, 'society-server'),webDir = join(root,'web')
 const reservation = createServer()
 await new Promise((resolve, reject) => { reservation.once('error', reject); reservation.listen(0, '127.0.0.1', resolve) })
 const port = reservation.address().port
@@ -36,8 +38,10 @@ const base = `http://127.0.0.1:${port}`
 const logs = openSync(join(root, 'server.log'), 'w', 0o600)
 let server
 try {
+  cpSync(resolve('../build/society-server'),binary)
+  cpSync(resolve('../build/web'),webDir,{recursive:true})
   execFileSync(binary, ['seed-demo', '--demo', '--db', db], { stdio: 'ignore' })
-  server = spawn(binary, ['serve', '--demo', '--db', db, '--mfa-key-file', join(root, 'keys', 'mfa.key'), '--addr', `127.0.0.1:${port}`, '--web-dir', resolve('../build/web')], { stdio: ['ignore', logs, logs] })
+  server = spawn(binary, ['serve', '--demo', '--db', db, '--mfa-key-file', join(root, 'keys', 'mfa.key'), '--addr', `127.0.0.1:${port}`, '--web-dir', webDir], { stdio: ['ignore', logs, logs] })
   const deadline = Date.now() + 15000
   while (true) {
     try { const response = await fetch(`${base}/ready`); if (response.ok) break } catch { /* local startup */ }

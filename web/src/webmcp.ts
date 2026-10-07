@@ -111,9 +111,9 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       return statementMetadata(await request<StatementDetail>('/api/financial-statements/'+encodeURIComponent(input.statement_id),signal))
     })
     const messageMetadata=(x:MessageBatch)=>({id:x.id,source_kind:x.source.kind,state:x.state,channel:x.channel,purpose:x.purpose,simulation:x.simulation,version:x.version,snapshot_version:x.snapshot_version,counts:x.counts,outcomes:x.outcomes,retryable_deliveries:x.retryable_deliveries})
-    add('society_find_messages','Read at most twelve currently permitted delivery-status snapshots. Resident history contains only own approved recipient decisions. Source identities, wording, destinations, recipients, actors and private reasons are excluded. This cannot compose, approve, dispatch, cancel, retry or reconcile messages.',{kind:{type:'string',enum:['','NOTICE','RECEIPT']},state:{type:'string',enum:['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED']},page},[],async(input,signal)=>{
+    add('society_find_messages','Read at most twelve currently permitted delivery-status snapshots. Resident history contains only own approved recipient decisions. Source identities, wording, destinations, recipients, actors and private reasons are excluded. This cannot compose, approve, dispatch, cancel, retry or reconcile messages.',{kind:{type:'string',enum:['','NOTICE','RECEIPT','STATEMENT']},state:{type:'string',enum:['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED']},page},[],async(input,signal)=>{
       const kind=input.kind??'',state=input.state??''
-      if(typeof kind!=='string'||!['','NOTICE','RECEIPT'].includes(kind)||typeof state!=='string'||!['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED'].includes(state))throw new Error('Choose a supported source kind and decision state.')
+      if(typeof kind!=='string'||!['','NOTICE','RECEIPT','STATEMENT'].includes(kind)||typeof state!=='string'||!['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED'].includes(state))throw new Error('Choose a supported source kind and decision state.')
       const data=await request<MessagePage>('/api/messages?'+new URLSearchParams({kind,state,page:String(pageNumber(input.page))}),signal)
       return {items:data.items.map(messageMetadata),total:data.total,page:data.page,page_size:data.page_size}
     })

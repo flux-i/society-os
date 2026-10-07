@@ -43,7 +43,7 @@ func TestMessageAttentionCountsOnlyApprovedQueueAndKeepsPendingReviewSeparate(t 
 		t.Fatal("unapproved snapshots were described as approved queued delivery", summary, e)
 	}
 	attention, e := s.OverviewFor(ctx, a, "messages")
-	if e != nil || attention.Counts["awaiting_review"] != 1 || attention.Counts["QUEUED"] != 0 || len(attention.Items) != 1 || attention.Items[0].Title != "Community message" {
+	if e != nil || attention.Counts["attention_items"] != 1 || attention.Counts["awaiting_review"] != 1 || attention.Counts["QUEUED"] != 0 || len(attention.Items) != 1 || attention.Items[0].Title != "Community message" {
 		t.Fatal("overview conflated separate approval and queue", attention, e)
 	}
 	x := messageDetail(t, s, b, id)
@@ -53,6 +53,10 @@ func TestMessageAttentionCountsOnlyApprovedQueueAndKeepsPendingReviewSeparate(t 
 	summary, e = s.MessageSummaryFor(ctx, a)
 	if e != nil || summary.Batches["PENDING"] != 0 || summary.Outcomes["QUEUED"] != 2 {
 		t.Fatal("approved unique destinations", summary, e)
+	}
+	attention, e = s.OverviewFor(ctx, a, "messages")
+	if e != nil || attention.Counts["attention_items"] != 1 || len(attention.Items) != 1 {
+		t.Fatal("two envelopes belong to one actionable batch", attention, e)
 	}
 	x = messageDetail(t, s, a, id)
 	if x.Outcomes["QUEUED"] != 2 || x.DeliveryTotal != 2 || len(x.Deliveries) != 2 {
@@ -64,6 +68,10 @@ func TestMessageAttentionCountsOnlyApprovedQueueAndKeepsPendingReviewSeparate(t 
 	summary, e = s.MessageSummaryFor(ctx, a)
 	if e != nil || summary.Outcomes["QUEUED"] != 0 || summary.Outcomes["CANCELLED"] != 2 {
 		t.Fatal("cancelled queue still needs handoff", summary, e)
+	}
+	attention, e = s.OverviewFor(ctx, a, "messages")
+	if e != nil || attention.Counts["attention_items"] != 0 || len(attention.Items) != 0 {
+		t.Fatal("cancelled history is not an actionable batch", attention, e)
 	}
 	x = messageDetail(t, s, a, id)
 	if x.Outcomes["CANCELLED"] != 2 || x.DeliveryTotal != 2 || len(x.Deliveries) != 2 {
@@ -79,5 +87,12 @@ func TestMessageAttentionCountsOnlyApprovedQueueAndKeepsPendingReviewSeparate(t 
 			t.Fatal(e)
 		}
 		assertPreparedOnly(id)
+	}
+	for i := 0; i < 5; i++ {
+		messagePropose(t, s, a, messageInput(notice))
+	}
+	attention, e = s.OverviewFor(ctx, a, "messages")
+	if e != nil || attention.Counts["attention_items"] != 5 || len(attention.Items) != 4 {
+		t.Fatal("complete batch count was confused with the four-item preview", attention, e)
 	}
 }

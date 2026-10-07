@@ -97,7 +97,9 @@ func TestSchemaSixteenStatementUpgradePreservesEveryPriorTableAndMigrationChecks
 			t.Fatal("prior table changed during statement migration", table)
 		}
 	}
-	maintenanceCount(t, s, "SELECT COUNT(*) FROM schema_migrations", 16)
+	// Migrate applies every current migration; the frozen rows above still
+	// verify the original schema-fifteen data and migration checksums.
+	maintenanceCount(t, s, "SELECT COUNT(*) FROM schema_migrations", SchemaVersion)
 	maintenanceCount(t, s, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name LIKE 'statement_%'", 7)
 	var integrity string
 	if err = s.DB.QueryRow("PRAGMA integrity_check").Scan(&integrity); err != nil || integrity != "ok" {

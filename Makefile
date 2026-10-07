@@ -8,7 +8,9 @@ MFA_KEY_FILE ?= var/keys/mfa.key
 MESSAGE_KEY_FILE ?= var/keys/messages.key
 REPORT ?= reports/local/account-security-baseline.json
 # Full race coverage retains real password hashing and isolated fixtures.
-GO_TEST_TIMEOUT ?= 20m
+GO_TEST_TIMEOUT ?= 30m
+# Serial packages retain real hashing fixtures without starving bounded checks.
+GO_TEST_PACKAGE_PARALLEL ?= 1
 
 setup:
 	go mod download
@@ -21,7 +23,7 @@ build:
 check:
 	@test -z "$$(gofmt -l cmd internal)" || (gofmt -l cmd internal; exit 1)
 	go vet ./...
-	go test -race -timeout "$(GO_TEST_TIMEOUT)" ./...
+	go test -race -p "$(GO_TEST_PACKAGE_PARALLEL)" -timeout "$(GO_TEST_TIMEOUT)" ./...
 	npm run check --prefix web
 
 seed: build

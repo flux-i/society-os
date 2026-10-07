@@ -43,5 +43,7 @@ export async function messageApprove(reviewer:Page,id:string) {
   await messagePost(reviewer,'/api/messages/'+id+'/actions',{version:current.version,action:'APPROVED',reason:'PRIVATE_MESSAGE_APPROVAL independently reviewed the frozen content and recipient decisions.'})
 }
 export async function openMessage(page:Page,id:string) {
-  await page.goto('/#messages?message='+id);await expect(page.getByRole('dialog').locator('.contact-state').first()).toBeVisible()
+  const target=new URL('/#messages?message='+id,page.url()).href
+  if(page.url()===target)await page.reload();else await page.goto(target)
+  await expect(page.getByRole('dialog').locator('.contact-state').first()).toBeVisible()
 }

@@ -199,6 +199,13 @@ func TestStatementReplacementRetainsPublishedOriginalUntilSeparatePublicationAnd
 	if err != nil || summary.Counts["published"] != 1 {
 		t.Fatal("publication overview", summary, err)
 	}
+	if summary.Counts["attention_items"] != 0 {
+		t.Fatal("internally approved publications create no staff review item", summary)
+	}
+	residentSummary, err := s.OverviewFor(ctx, tenant, "statements")
+	if err != nil || residentSummary.Counts["attention_items"] != 1 || len(residentSummary.Items) != 1 || residentSummary.Items[0].ID != old {
+		t.Fatal("recent tenant publication preview and full count must match the exact accessible original", residentSummary, err)
+	}
 	nextPub := publishStatement(t, s, a, b, next, "TENANTS")
 	if _, _, err = s.DownloadStatement(ctx, tenant, old); !errors.Is(err, sql.ErrNoRows) {
 		t.Fatal("superseded original still exposed", err)
@@ -324,6 +331,14 @@ func TestStatementFreshAuthorityPrecedesAcceptedRetriesAndScopeChoosersAreBounde
 	page, err = s.StatementsFor(ctx, a, "", "", "", 2)
 	if err != nil || len(page.Items) != 1 {
 		t.Fatal("second page", page, err)
+	}
+	attention, err := s.OverviewFor(ctx, a, "statements")
+	if err != nil || attention.Counts["attention_items"] != 12 || len(attention.Items) != 4 {
+		t.Fatal("full statement attention count must remain separate from four metadata rows", attention, err)
+	}
+	deniedAttention, err := s.OverviewFor(ctx, b, "statements")
+	if err != nil || deniedAttention.Counts["attention_items"] != 0 || len(deniedAttention.Items) != 0 {
+		t.Fatal("community authority reveals no private preparation count", deniedAttention, err)
 	}
 	for _, kind := range []string{"HOMES", "PEOPLE"} {
 		choices, err := s.StatementTargetsFor(ctx, a, kind, "", 1)
