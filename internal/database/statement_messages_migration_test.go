@@ -46,6 +46,18 @@ func statementMessageSchemaSixteen(t *testing.T) (*Store, string, string) {
 	return s, a, b
 }
 
+func historicalMessageReads(t *testing.T, s *Store) {
+	t.Helper()
+	// Current readers have two additive provider lookups. Empty TEMP views let
+	// this historical fixture build legacy envelopes without introducing any
+	// persistent tables or provider bindings into the schema being migrated.
+	// One connection keeps these fixture-only views connection-local. Remove
+	// them and restore the normal pool before running the actual migration.
+	s.DB.SetMaxOpenConns(1)
+	accessExec(t, s, "CREATE TEMP VIEW message_provider_bindings AS SELECT '' AS batch_id,0 AS snapshot_version,'null' AS provider_json WHERE 0")
+	accessExec(t, s, "CREATE TEMP VIEW whatsapp_handoffs AS SELECT '' AS attempt_id,0 AS retry_at WHERE 0")
+}
+
 func statementMessageRows(t *testing.T, s *Store, tables []string) map[string]string {
 	t.Helper()
 	out := map[string]string{}
@@ -86,6 +98,7 @@ func statementMessageRows(t *testing.T, s *Store, tables []string) map[string]st
 
 func TestSchemaSixteenStatementMessagesPreserveAll74TablesOriginalsAndUnknownProof(t *testing.T) {
 	s, a, b := statementMessageSchemaSixteen(t)
+	historicalMessageReads(t, s)
 	ctx := context.Background()
 	contact := contactInput()
 	contact.Phone, contact.Email = "+919000000101", "owner@example.test"
@@ -151,6 +164,9 @@ func TestSchemaSixteenStatementMessagesPreserveAll74TablesOriginalsAndUnknownPro
 		t.Fatal("74 persistent plus migration provenance", len(tables), err)
 	}
 	before := statementMessageRows(t, s, tables)
+	accessExec(t, s, "DROP VIEW temp.message_provider_bindings")
+	accessExec(t, s, "DROP VIEW temp.whatsapp_handoffs")
+	s.DB.SetMaxOpenConns(4)
 	if err = s.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}

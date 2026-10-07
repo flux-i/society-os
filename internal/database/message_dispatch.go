@@ -165,7 +165,7 @@ func (s *Store) ClaimMessageDispatch(ctx context.Context, token, id string, in M
 	if in.Action != "DISPATCH" || in.Version < 1 || !in.Confirmed || !validText(in.Reason, 5, 300) {
 		return nil, "", ErrInvalid
 	}
-	if in.Outcome != "ACCEPTED" && in.Outcome != "DELIVERED" && in.Outcome != "READ" && in.Outcome != "REJECTED" && in.Outcome != "UNKNOWN" {
+	if in.Outcome != "" && in.Outcome != "ACCEPTED" && in.Outcome != "DELIVERED" && in.Outcome != "READ" && in.Outcome != "REJECTED" && in.Outcome != "UNKNOWN" {
 		return nil, "", ErrInvalid
 	}
 	if e := s.RequireDemo(ctx); e != nil {
@@ -190,10 +190,13 @@ func (s *Store) ClaimMessageDispatch(ctx context.Context, token, id string, in M
 	if result != "" {
 		return []MessageClaim{}, result, tx.Commit()
 	}
+	if (x.Provider == nil && in.Outcome == "") || (x.Provider != nil && (in.Outcome != "" || !SameMessageProvider(x.Provider, in.Provider))) {
+		return nil, "", ErrInvalid
+	}
 	if x.Version != in.Version || x.State != "APPROVED" {
 		return nil, "", ErrConflict
 	}
-	rows, e := tx.QueryContext(ctx, "SELECT id,attempts FROM message_deliveries WHERE batch_id=? AND snapshot_version=? AND state IN('QUEUED','FAILED') AND attempts<3 ORDER BY id LIMIT 25", id, x.SnapshotVersion)
+	rows, e := tx.QueryContext(ctx, `SELECT id,attempts FROM message_deliveries WHERE batch_id=? AND snapshot_version=? AND state IN('QUEUED','FAILED') AND attempts<3 AND NOT EXISTS(SELECT 1 FROM whatsapp_handoffs h JOIN message_attempts a ON a.id=h.attempt_id WHERE a.delivery_id=message_deliveries.id AND a.attempt_number=message_deliveries.attempts AND h.retry_at>?) ORDER BY id LIMIT 25`, id, x.SnapshotVersion, time.Now().Unix())
 	if e != nil {
 		return nil, "", e
 	}
@@ -244,7 +247,11 @@ func (s *Store) ClaimMessageDispatch(ctx context.Context, token, id string, in M
 		if _, e = tx.ExecContext(ctx, "UPDATE message_deliveries SET state='CLAIMED',attempts=attempts+1,reason='',provider_id='',updated_at=? WHERE id=?", time.Now().Unix(), d.id); e != nil {
 			return nil, "", e
 		}
-		if e = messageDeliveryEvent(ctx, tx, d.id, claim.ID, "CLAIMED", "Local simulation claim.", "", time.Now().Unix()); e != nil {
+		reason := "Local simulation claim."
+		if x.Provider != nil {
+			reason = "WHATSAPP_CLAIMED"
+		}
+		if e = messageDeliveryEvent(ctx, tx, d.id, claim.ID, "CLAIMED", reason, "", time.Now().Unix()); e != nil {
 			return nil, "", e
 		}
 		claims = append(claims, claim)
@@ -297,6 +304,9 @@ func (s *Store) SyntheticMessageHandoff(ctx context.Context, token, attempt, out
 	x, e := messageBatchIn(ctx, tx, claim.BatchID)
 	if e != nil {
 		return SimulationHandoff{}, e
+	}
+	if x.Provider != nil {
+		return SimulationHandoff{}, ErrForbidden
 	}
 	var state string
 	if e = tx.QueryRowContext(ctx, "SELECT state FROM message_deliveries WHERE id=?", claim.DeliveryID).Scan(&state); e != nil {
@@ -514,7 +524,11 @@ func (s *Store) ReconcileMessage(ctx context.Context, token, id, delivery string
 	if e != nil {
 		return "", e
 	}
-	if _, e = simulationHandoffIn(ctx, tx, attempt); errors.Is(e, sql.ErrNoRows) {
+	if x.Provider != nil {
+		if e = reconcileWhatsApp(ctx, tx, claim); e != nil {
+			return "", e
+		}
+	} else if _, e = simulationHandoffIn(ctx, tx, attempt); errors.Is(e, sql.ErrNoRows) {
 		if _, e = tx.ExecContext(ctx, "UPDATE message_deliveries SET state='FAILED',reason='Reconciliation proves no local simulation handoff occurred.',updated_at=? WHERE id=?", time.Now().Unix(), delivery); e != nil {
 			return "", e
 		}

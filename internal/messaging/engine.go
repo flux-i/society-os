@@ -16,8 +16,8 @@ import (
 	"society.local/portal/internal/database"
 )
 
-// Provider is the handoff boundary. The only configured implementation in this
-// release is local and persistent; it has no network client or live credentials.
+// Provider retains the original local synthetic boundary. Official WhatsApp
+// protocol preparation uses the separately configured, explicit fixture path.
 type Provider interface {
 	Handoff(context.Context, string, string, string) (database.SimulationHandoff, error)
 }
@@ -31,6 +31,7 @@ type Engine struct {
 	Store    *database.Store
 	provider Provider
 	key      []byte
+	whatsapp *WhatsAppClient
 }
 
 func New(store *database.Store, key []byte) (*Engine, error) {
@@ -104,6 +105,13 @@ func (e *Engine) callback(ctx context.Context, provider, state string) error {
 	return e.Callback(ctx, payload, e.Signature(payload), time.Now())
 }
 func (e *Engine) Dispatch(ctx context.Context, token, id string, in database.MessageAction) (result string, err error) {
+	x, err := e.Store.MessageFor(ctx, token, id, 1, 1, 1)
+	if err != nil {
+		return "", err
+	}
+	if x.Provider != nil {
+		return e.dispatchWhatsApp(ctx, token, id, in)
+	}
 	claims, result, err := e.Store.ClaimMessageDispatch(ctx, token, id, in)
 	if err != nil {
 		return "", err

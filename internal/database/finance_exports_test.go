@@ -30,6 +30,16 @@ func exportPreview(t *testing.T, s *Store, token string, in FinanceExportFilter)
 func exportInput(out FinanceExport) FinanceExportInput {
 	return FinanceExportInput{FinanceExportFilter: out.FinanceExportFilter, OperationKey: randomToken(), PreviewHash: out.ContentHash, Confirmed: true}
 }
+
+// Opaque base64url identities can begin with '-'. The CSV contract protects
+// that leading character as text; expectations retain the exact identity.
+// Do not call the production formula guard to derive this expectation.
+func exportIdentityCell(id string) string {
+	if strings.HasPrefix(id, "-") {
+		return "[text] " + id
+	}
+	return id
+}
 func exportCreate(t *testing.T, s *Store, token string, in FinanceExportInput) FinanceExport {
 	t.Helper()
 	out, err := s.CreateFinanceExport(context.Background(), token, in)
@@ -138,24 +148,24 @@ func TestFinanceExportsIndependentExactSourcesOriginalsLinksAndSnapshotAudit(t *
 						t.Fatal("receipt identity absent")
 					}
 				}
-				if row["row_type"] == "ENTRY_REVERSAL" && row["entry_id"] == ids["reversed"] && row["signed_rupees"] == "1.01" {
+				if row["row_type"] == "ENTRY_REVERSAL" && row["entry_id"] == exportIdentityCell(ids["reversed"]) && row["signed_rupees"] == "1.01" {
 					reversal = true
 				}
 			}
-			if originals[ids["received"]] != "500.00" || originals[ids["reversed"]] != "1.01" || !reversal {
+			if originals[exportIdentityCell(ids["received"])] != "500.00" || originals[exportIdentityCell(ids["reversed"])] != "1.01" || !reversal {
 				t.Fatal("receipt originals rewritten", rows)
 			}
 		}
 		if tc.report == "FUNDS" {
 			var old, new, correction bool
 			for _, row := range rows {
-				if row["row_type"] == "ALLOCATION" && row["linked_id"] == ids["fund-old"] && row["original_rupees"] == "100.00" && row["active_rupees"] == "0.00" {
+				if row["row_type"] == "ALLOCATION" && row["linked_id"] == exportIdentityCell(ids["fund-old"]) && row["original_rupees"] == "100.00" && row["active_rupees"] == "0.00" {
 					old = true
 				}
-				if row["row_type"] == "ALLOCATION" && row["linked_id"] == ids["fund-new"] && row["active_rupees"] == "60.00" {
+				if row["row_type"] == "ALLOCATION" && row["linked_id"] == exportIdentityCell(ids["fund-new"]) && row["active_rupees"] == "60.00" {
 					new = true
 				}
-				if row["row_type"] == "ALLOCATION_REVERSAL" && row["linked_id"] == ids["fund-old"] && row["signed_rupees"] == "-100.00" {
+				if row["row_type"] == "ALLOCATION_REVERSAL" && row["linked_id"] == exportIdentityCell(ids["fund-old"]) && row["signed_rupees"] == "-100.00" {
 					correction = true
 				}
 			}
@@ -340,6 +350,11 @@ func TestFinanceExportUnicodeCSVFormulaTextAndControlledNumericNegatives(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Force the formerly random leading-minus case before posting, without
+	// modifying any immutable confirmed entry or formula-protection rule.
+	protectedID := "-" + strings.Repeat("A", 42)
+	accessExec(t, s, "UPDATE entries SET id=? WHERE id=?", protectedID, id)
+	id = protectedID
 	original := "\t\r\n =HYPERLINK(\"fictional\",\"text\")\nनमस्ते, society 🌿"
 	accessExec(t, s, "UPDATE entries SET description=? WHERE id=?", original, id)
 	if _, err = s.PostEntry(ctx, a, id, EntryAction{OperationKey: randomToken(), Confirmed: true}); err != nil {
@@ -349,6 +364,9 @@ func TestFinanceExportUnicodeCSVFormulaTextAndControlledNumericNegatives(t *test
 	_, rows, _ := exportCSV(t, s, a, x.ID)
 	if rows[0]["current_net_rupees"] != "-432.19" || rows[1]["signed_rupees"] != "-432.19" || rows[1]["description"] != "[text] "+strings.ReplaceAll(original, "\r\n", "\n") || rows[1]["payer"] != "[text] "+in.Payer || rows[1]["reference"] != "[text] "+in.Reference {
 		t.Fatal("formula guard or exact Unicode round trip", rows)
+	}
+	if rows[1]["entry_id"] != "[text] "+protectedID {
+		t.Fatal("opaque identity lost its exact text protection", rows[1])
 	}
 	var stored string
 	if err = s.DB.QueryRow("SELECT description FROM entries WHERE id=?", id).Scan(&stored); err != nil || stored != original {
@@ -474,7 +492,7 @@ func TestFinanceExportFundReplacementHistoryVoluntaryCorrectionAndPrivateAuthorC
 			reversed[row["entry_id"]] = true
 		}
 	}
-	if !retained[replacements[0]] || !retained[replacements[1]] || !reversed[ids["fund-charge"]] || !reversed[replacements[0]] || strings.Contains(string(body), "PRIVATE") {
+	if !retained[exportIdentityCell(replacements[0])] || !retained[exportIdentityCell(replacements[1])] || !reversed[exportIdentityCell(ids["fund-charge"])] || !reversed[exportIdentityCell(replacements[0])] || strings.Contains(string(body), "PRIVATE") {
 		t.Fatal("intermediate replacement or private source", rows)
 	}
 	voluntary := fundProposal()
@@ -506,11 +524,11 @@ func TestFinanceExportFundReplacementHistoryVoluntaryCorrectionAndPrivateAuthorC
 		if row["row_type"] == "CONTRIBUTION" {
 			retained[row["linked_id"]] = true
 		}
-		if row["row_type"] == "CONTRIBUTION_REVERSAL" && row["linked_id"] == old && row["signed_rupees"] == "-100.00" {
+		if row["row_type"] == "CONTRIBUTION_REVERSAL" && row["linked_id"] == exportIdentityCell(old) && row["signed_rupees"] == "-100.00" {
 			corrected = true
 		}
 	}
-	if !retained[old] || !retained[live] || !corrected || strings.Contains(string(body), "PRIVATE") {
+	if !retained[exportIdentityCell(old)] || !retained[exportIdentityCell(live)] || !corrected || strings.Contains(string(body), "PRIVATE") {
 		t.Fatal("voluntary original or private comment", rows)
 	}
 	maintenanceCount(t, s, "SELECT COUNT(*) FROM receipts", 2)

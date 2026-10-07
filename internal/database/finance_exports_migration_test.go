@@ -76,7 +76,7 @@ func TestSchemaEighteenExportsPreserveAllPriorPersistentTablesProvenanceAndOrigi
 		t.Fatal(err)
 	}
 	maintenanceCount(t, s, "SELECT COUNT(*) FROM finance_exports", 0)
-	maintenanceCount(t, s, "SELECT MAX(version) FROM schema_migrations", 18)
+	maintenanceCount(t, s, "SELECT MAX(version) FROM schema_migrations", SchemaVersion)
 	owner := reviewLogin(t, s, "owner@demo.society")
 	x := exportCreate(t, s, owner, exportInput(exportPreview(t, s, owner, exportFilter("RECEIPTS", "OWN"))))
 	_, data, _ := exportCSV(t, s, owner, x.ID)

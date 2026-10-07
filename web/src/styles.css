@@ -1658,6 +1658,12 @@
 .message-envelope p { font-size:14px; line-height:1.9; overflow-wrap:anywhere; }
 .message-envelope small { display:flex; align-items:flex-start; gap:9px; color:var(--color-muted); font-size:11px; line-height:1.7; }
 .message-envelope svg { width:15px; height:15px; flex-shrink:0; margin-top:2px; }
+.message-template { margin:22px 0; padding:20px; border:1px solid var(--color-line); border-radius:12px; background:var(--color-surface); }
+.message-template dl { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr); gap:16px; margin:16px 0; }
+.message-template dl>div { min-width:0; }
+.message-template dt { color:var(--color-muted); font-size:11px; line-height:1.6; margin-bottom:5px; }
+.message-template dd { margin:0; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+@media(max-width:520px) { .message-template { padding:17px; } .message-template dl { grid-template-columns:minmax(0,1fr); gap:12px; } }
 .message-counts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px 22px; padding:23px 0; border-block:1px solid var(--color-line); margin:24px 0; }
 .message-counts > div { min-width:0; display:flex; flex-direction:column; }
 .message-counts span { display:block; flex:1; color:var(--color-muted); font-size:11px; line-height:1.6; }

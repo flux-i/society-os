@@ -20,23 +20,25 @@ type MessageTarget struct {
 	IDs  []string `json:"ids"`
 }
 type MessageInput struct {
-	OperationKey string        `json:"operation_key"`
-	SourceKind   string        `json:"source_kind"`
-	SourceID     string        `json:"source_id"`
-	Channel      string        `json:"channel"`
-	Target       MessageTarget `json:"target"`
-	PreviewHash  string        `json:"preview_hash"`
-	Reason       string        `json:"reason"`
-	Confirmed    bool          `json:"confirmed"`
-	PortalOrigin string        `json:"-"`
+	OperationKey string           `json:"operation_key"`
+	SourceKind   string           `json:"source_kind"`
+	SourceID     string           `json:"source_id"`
+	Channel      string           `json:"channel"`
+	Target       MessageTarget    `json:"target"`
+	PreviewHash  string           `json:"preview_hash"`
+	Reason       string           `json:"reason"`
+	Confirmed    bool             `json:"confirmed"`
+	PortalOrigin string           `json:"-"`
+	Provider     *MessageProvider `json:"-"`
 }
 type MessageAction struct {
-	OperationKey string `json:"operation_key"`
-	Version      int    `json:"version"`
-	Action       string `json:"action"`
-	Reason       string `json:"reason"`
-	Confirmed    bool   `json:"confirmed"`
-	Outcome      string `json:"outcome"`
+	OperationKey string           `json:"operation_key"`
+	Version      int              `json:"version"`
+	Action       string           `json:"action"`
+	Reason       string           `json:"reason"`
+	Confirmed    bool             `json:"confirmed"`
+	Outcome      string           `json:"outcome"`
+	Provider     *MessageProvider `json:"-"`
 }
 type MessageSource struct {
 	PublicationTarget *MessageTarget `json:"publication_target,omitempty"`
@@ -80,34 +82,37 @@ type MessagePreview struct {
 	Page        int                `json:"page"`
 	PageSize    int                `json:"page_size"`
 	Simulation  bool               `json:"simulation"`
+	Provider    *MessageProvider   `json:"provider,omitempty"`
 }
 type MessageBatch struct {
-	ID                  string         `json:"id"`
-	Source              MessageSource  `json:"source"`
-	Target              MessageTarget  `json:"target"`
-	Counts              MessageCounts  `json:"counts"`
-	PreviewHash         string         `json:"preview_hash"`
-	Channel             string         `json:"channel"`
-	Purpose             string         `json:"purpose"`
-	PortalOrigin        string         `json:"portal_origin"`
-	Envelope            string         `json:"envelope"`
-	State               string         `json:"state"`
-	ProposedBy          string         `json:"proposed_by"`
-	ProposedAt          int64          `json:"proposed_at"`
-	ReviewedBy          string         `json:"reviewed_by"`
-	ReviewedAt          int64          `json:"reviewed_at"`
-	UpdatedAt           int64          `json:"updated_at"`
-	SnapshotVersion     int            `json:"snapshot_version"`
-	Version             int            `json:"version"`
-	Simulation          bool           `json:"simulation"`
-	CanApprove          bool           `json:"can_approve"`
-	CanRefresh          bool           `json:"can_refresh"`
-	CanWithdraw         bool           `json:"can_withdraw"`
-	CanDispatch         bool           `json:"can_dispatch"`
-	CanCancel           bool           `json:"can_cancel"`
-	ReviewProblem       string         `json:"review_problem"`
-	Outcomes            map[string]int `json:"outcomes"`
-	RetryableDeliveries int            `json:"retryable_deliveries"`
+	ID                  string           `json:"id"`
+	Source              MessageSource    `json:"source"`
+	Target              MessageTarget    `json:"target"`
+	Counts              MessageCounts    `json:"counts"`
+	PreviewHash         string           `json:"preview_hash"`
+	Channel             string           `json:"channel"`
+	Purpose             string           `json:"purpose"`
+	PortalOrigin        string           `json:"portal_origin"`
+	Envelope            string           `json:"envelope"`
+	State               string           `json:"state"`
+	ProposedBy          string           `json:"proposed_by"`
+	ProposedAt          int64            `json:"proposed_at"`
+	ReviewedBy          string           `json:"reviewed_by"`
+	ReviewedAt          int64            `json:"reviewed_at"`
+	UpdatedAt           int64            `json:"updated_at"`
+	SnapshotVersion     int              `json:"snapshot_version"`
+	Version             int              `json:"version"`
+	Simulation          bool             `json:"simulation"`
+	Provider            *MessageProvider `json:"provider,omitempty"`
+	ProviderMode        string           `json:"provider_mode"`
+	CanApprove          bool             `json:"can_approve"`
+	CanRefresh          bool             `json:"can_refresh"`
+	CanWithdraw         bool             `json:"can_withdraw"`
+	CanDispatch         bool             `json:"can_dispatch"`
+	CanCancel           bool             `json:"can_cancel"`
+	ReviewProblem       string           `json:"review_problem"`
+	Outcomes            map[string]int   `json:"outcomes"`
+	RetryableDeliveries int              `json:"retryable_deliveries"`
 }
 type MessageDelivery struct {
 	ID          string `json:"id"`
@@ -120,6 +125,7 @@ type MessageDelivery struct {
 	DeliveredAt int64  `json:"delivered_at"`
 	ReadAt      int64  `json:"read_at"`
 	UpdatedAt   int64  `json:"updated_at"`
+	RetryAt     int64  `json:"retry_at,omitempty"`
 }
 type MessageEvent struct {
 	Version  int          `json:"version"`
@@ -183,6 +189,12 @@ func messageAuthority(p Principal, kind string, fresh bool) error {
 	return nil
 }
 func validateMessageInput(in MessageInput) (MessageInput, error) {
+	if e := ValidateMessageProvider(in.Provider); e != nil {
+		return in, e
+	}
+	if in.Provider != nil && in.Channel != "WHATSAPP" {
+		return in, ErrInvalid
+	}
 	if (in.SourceKind != "NOTICE" && in.SourceKind != "RECEIPT" && in.SourceKind != "STATEMENT") || in.SourceID == "" || len(in.SourceID) > 100 || (in.Channel != "WHATSAPP" && in.Channel != "EMAIL") {
 		return in, ErrInvalid
 	}
@@ -373,6 +385,10 @@ func resolveMessage(ctx context.Context, q identityReader, in MessageInput) (mes
 		}
 	}
 	x := messageResolution{MessagePreview: MessagePreview{Source: src, Channel: in.Channel, Purpose: purpose, Target: in.Target, Envelope: title + "\n" + in.PortalOrigin + src.Link, Simulation: true, Counts: MessageCounts{Reasons: map[string]int{}}}, People: []MessageRecipient{}}
+	x.Provider = in.Provider
+	if in.Provider != nil {
+		x.Envelope = providerEnvelope(in.Provider, in.PortalOrigin+src.Link)
+	}
 	destinations := map[string]bool{}
 	seen := map[string]bool{}
 	for _, p := range people {
@@ -432,7 +448,8 @@ func resolveMessage(ctx context.Context, q identityReader, in MessageInput) (mes
 		Target                             MessageTarget
 		Counts                             MessageCounts
 		People                             []MessageRecipient
-	}{src, in.Channel, purpose, in.PortalOrigin, x.Envelope, in.Target, x.Counts, x.People})
+		Provider                           *MessageProvider `json:",omitempty"`
+	}{src, in.Channel, purpose, in.PortalOrigin, x.Envelope, in.Target, x.Counts, x.People, in.Provider})
 	if e != nil {
 		return x, e
 	}
@@ -553,22 +570,26 @@ func (s *Store) MessageSourcesFor(ctx context.Context, token, kind, query string
 	return out, tx.Commit()
 }
 
-const messageBatchSelect = `SELECT id,source_json,target_json,counts_json,preview_hash,channel,purpose,portal_origin,envelope,state,proposed_by,proposed_at,COALESCE(reviewed_by,''),reviewed_at,updated_at,snapshot_version,version FROM message_batches`
+const messageBatchSelect = `SELECT id,source_json,target_json,counts_json,preview_hash,channel,purpose,portal_origin,envelope,state,proposed_by,proposed_at,COALESCE(reviewed_by,''),reviewed_at,updated_at,snapshot_version,version,COALESCE((SELECT provider_json FROM message_provider_bindings pb WHERE pb.batch_id=message_batches.id AND pb.snapshot_version=message_batches.snapshot_version),'null') FROM message_batches`
 
 func scanMessageBatch(row interface{ Scan(...any) error }) (MessageBatch, error) {
 	x := MessageBatch{Simulation: true, Outcomes: map[string]int{}}
-	var source, target, counts string
-	e := row.Scan(&x.ID, &source, &target, &counts, &x.PreviewHash, &x.Channel, &x.Purpose, &x.PortalOrigin, &x.Envelope, &x.State, &x.ProposedBy, &x.ProposedAt, &x.ReviewedBy, &x.ReviewedAt, &x.UpdatedAt, &x.SnapshotVersion, &x.Version)
+	x.ProviderMode = "SIMULATION"
+	var source, target, counts, provider string
+	e := row.Scan(&x.ID, &source, &target, &counts, &x.PreviewHash, &x.Channel, &x.Purpose, &x.PortalOrigin, &x.Envelope, &x.State, &x.ProposedBy, &x.ProposedAt, &x.ReviewedBy, &x.ReviewedAt, &x.UpdatedAt, &x.SnapshotVersion, &x.Version, &provider)
 	if e != nil {
 		return x, e
 	}
 	for _, v := range []struct {
 		s string
 		p any
-	}{{source, &x.Source}, {target, &x.Target}, {counts, &x.Counts}} {
+	}{{source, &x.Source}, {target, &x.Target}, {counts, &x.Counts}, {provider, &x.Provider}} {
 		if e = json.Unmarshal([]byte(v.s), v.p); e != nil {
 			return x, e
 		}
+	}
+	if x.Provider != nil {
+		x.ProviderMode = x.Provider.Mode
 	}
 	return x, nil
 }
@@ -645,10 +666,18 @@ func (s *Store) ProposeMessage(ctx context.Context, token string, input MessageI
 	}
 	now := time.Now().Unix()
 	x := MessageBatch{ID: randomToken(), Source: resolved.Source, Target: in.Target, Counts: resolved.Counts, PreviewHash: resolved.PreviewHash, Channel: in.Channel, Purpose: resolved.Purpose, PortalOrigin: in.PortalOrigin, Envelope: resolved.Envelope, State: "PENDING", ProposedBy: p.ID, ProposedAt: now, UpdatedAt: now, SnapshotVersion: 1, Version: 1, Simulation: true}
+	x.Provider = in.Provider
+	x.ProviderMode = "SIMULATION"
+	if x.Provider != nil {
+		x.ProviderMode = x.Provider.Mode
+	}
 	source, _ := json.Marshal(x.Source)
 	target, _ := json.Marshal(x.Target)
 	counts, _ := json.Marshal(x.Counts)
 	if _, e = tx.ExecContext(ctx, `INSERT INTO message_batches(id,source_kind,source_id,source_json,target_json,counts_json,preview_hash,channel,purpose,portal_origin,envelope,state,proposed_by,proposed_at,updated_at,snapshot_version,version) VALUES(?,?,?,?,?,?,?,?,?,?,?,'PENDING',?,?,?,1,1)`, x.ID, in.SourceKind, in.SourceID, string(source), string(target), string(counts), x.PreviewHash, x.Channel, x.Purpose, x.PortalOrigin, x.Envelope, p.ID, now, now); e != nil {
+		return "", e
+	}
+	if e = storeMessageProvider(ctx, tx, x); e != nil {
 		return "", e
 	}
 	if e = storeMessageRecipients(ctx, tx, x, resolved.People); e != nil {
@@ -700,6 +729,9 @@ func (s *Store) ActOnMessage(ctx context.Context, token, id string, in MessageAc
 			return "", ErrConflict
 		}
 		if in.Action == "APPROVED" {
+			if !SameMessageProvider(x.Provider, in.Provider) {
+				return "", ErrConflict
+			}
 			current, err := messageOperatorCurrent(ctx, tx, x.ProposedBy, x.Source.Kind)
 			if err != nil {
 				return "", err
@@ -707,7 +739,7 @@ func (s *Store) ActOnMessage(ctx context.Context, token, id string, in MessageAc
 			if !current {
 				return "", ErrConflict
 			}
-			resolved, e := resolveMessage(ctx, tx, MessageInput{SourceKind: x.Source.Kind, SourceID: x.Source.ID, Channel: x.Channel, Target: x.Target, PortalOrigin: x.PortalOrigin})
+			resolved, e := resolveMessage(ctx, tx, MessageInput{SourceKind: x.Source.Kind, SourceID: x.Source.ID, Channel: x.Channel, Target: x.Target, PortalOrigin: x.PortalOrigin, Provider: in.Provider})
 			if e != nil {
 				return "", e
 			}
@@ -726,7 +758,10 @@ func (s *Store) ActOnMessage(ctx context.Context, token, id string, in MessageAc
 		if in.Action == "WITHDRAWN" {
 			x.State = "WITHDRAWN"
 		} else {
-			resolved, e := resolveMessage(ctx, tx, MessageInput{SourceKind: x.Source.Kind, SourceID: x.Source.ID, Channel: x.Channel, Target: x.Target, PortalOrigin: x.PortalOrigin})
+			if e = ValidateMessageProvider(in.Provider); e != nil || (x.Provider != nil && in.Provider == nil) {
+				return "", ErrConflict
+			}
+			resolved, e := resolveMessage(ctx, tx, MessageInput{SourceKind: x.Source.Kind, SourceID: x.Source.ID, Channel: x.Channel, Target: x.Target, PortalOrigin: x.PortalOrigin, Provider: in.Provider})
 			if e != nil {
 				return "", e
 			}
@@ -737,7 +772,14 @@ func (s *Store) ActOnMessage(ctx context.Context, token, id string, in MessageAc
 				return "", e
 			}
 			x.Source, x.Counts, x.PreviewHash, x.Envelope = resolved.Source, resolved.Counts, resolved.PreviewHash, resolved.Envelope
+			x.Provider = in.Provider
+			if x.Provider != nil {
+				x.ProviderMode = x.Provider.Mode
+			}
 			x.SnapshotVersion++
+			if e = storeMessageProvider(ctx, tx, x); e != nil {
+				return "", e
+			}
 			if e = storeMessageRecipients(ctx, tx, x, resolved.People); e != nil {
 				return "", e
 			}

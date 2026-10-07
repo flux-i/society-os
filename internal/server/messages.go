@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"society.local/portal/internal/database"
+	"society.local/portal/internal/messaging"
 )
 
 func messageOrigin(r *http.Request) string {
@@ -25,7 +26,11 @@ func (s *Server) messageConfigured(w http.ResponseWriter, r *http.Request) bool 
 }
 func (s *Server) messageRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/messages/config", s.protected(func(w http.ResponseWriter, r *http.Request) {
-		respond(w, 200, map[string]any{"simulation_enabled": s.Messages != nil, "whatsapp_live": false, "email_live": false, "attempt_limit": 3, "dispatch_limit": 25})
+		if s.Messages == nil {
+			respond(w, 200, map[string]any{"simulation_enabled": false, "whatsapp_live": false, "email_live": false, "attempt_limit": 3, "dispatch_limit": 25})
+			return
+		}
+		respond(w, 200, s.Messages.Configuration())
 	}))
 	mux.HandleFunc("GET /api/messages/summary", s.protected(func(w http.ResponseWriter, r *http.Request) {
 		out, err := s.Store.MessageSummaryFor(r.Context(), sessionToken(r))
@@ -107,7 +112,7 @@ func (s *Server) messageRoutes(mux *http.ServeMux) {
 		if !ok {
 			return
 		}
-		out, err := s.Store.MessagePreviewFor(r.Context(), sessionToken(r), in, page)
+		out, err := s.Messages.Preview(r.Context(), sessionToken(r), in, page)
 		if err != nil {
 			s.resultError(w, r, err)
 			return
@@ -123,7 +128,7 @@ func (s *Server) messageRoutes(mux *http.ServeMux) {
 			return
 		}
 		in.PortalOrigin = messageOrigin(r)
-		id, err := s.Store.ProposeMessage(r.Context(), sessionToken(r), in)
+		id, err := s.Messages.Propose(r.Context(), sessionToken(r), in)
 		if err != nil {
 			s.resultError(w, r, err)
 			return
@@ -135,7 +140,13 @@ func (s *Server) messageRoutes(mux *http.ServeMux) {
 		if !decode(w, r, &in) {
 			return
 		}
-		id, err := s.Store.ActOnMessage(r.Context(), sessionToken(r), r.PathValue("id"), in)
+		var id string
+		var err error
+		if s.Messages != nil {
+			id, err = s.Messages.Act(r.Context(), sessionToken(r), r.PathValue("id"), in)
+		} else {
+			id, err = s.Store.ActOnMessage(r.Context(), sessionToken(r), r.PathValue("id"), in)
+		}
 		if err != nil {
 			s.resultError(w, r, err)
 			return
@@ -193,5 +204,38 @@ func (s *Server) messageRoutes(mux *http.ServeMux) {
 			return
 		}
 		respond(w, 200, map[string]any{"recorded": true, "simulation": true})
+	})
+	mux.HandleFunc("GET /providers/whatsapp/webhook", func(w http.ResponseWriter, r *http.Request) {
+		if !s.messageConfigured(w, r) {
+			return
+		}
+		challenge, err := s.Messages.WhatsAppChallenge(r.URL.Query())
+		if err != nil {
+			s.resultError(w, r, err)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(200)
+		io.WriteString(w, challenge)
+	})
+	mux.HandleFunc("POST /providers/whatsapp/webhook", func(w http.ResponseWriter, r *http.Request) {
+		if !s.messageConfigured(w, r) {
+			return
+		}
+		kind, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil || kind != "application/json" {
+			respond(w, 415, map[string]string{"error": "json_required"})
+			return
+		}
+		payload, err := io.ReadAll(http.MaxBytesReader(w, r.Body, messaging.WhatsAppWebhookLimit))
+		if err != nil {
+			respond(w, 413, map[string]string{"error": "webhook_too_large"})
+			return
+		}
+		if err = s.Messages.WhatsAppCallback(r.Context(), payload, r.Header.Get("X-Hub-Signature-256"), time.Now()); err != nil {
+			s.resultError(w, r, err)
+			return
+		}
+		respond(w, 200, map[string]any{"recorded": true, "live": false})
 	})
 }

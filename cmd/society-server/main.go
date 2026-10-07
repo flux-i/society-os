@@ -21,7 +21,7 @@ import (
 	"society.local/portal/internal/server"
 )
 
-var version = "0.19.0-dev"
+var version = "0.20.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -47,6 +47,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	snapshot := flags.String("snapshot", "", "snapshot bundle to restore")
 	keyPath := flags.String("mfa-key-file", "var/keys/mfa.key", "private MFA encryption key held separately from snapshots")
 	messageKeyPath := flags.String("message-key-file", "", "separate private simulation signing key; defaults to keys/messages.key beside the database")
+	whatsappFixturePath := flags.String("whatsapp-fixture-config", "", "separately held private official-protocol loopback fixture configuration; no external sends")
 	userEmail := flags.String("user", "", "account email for offline MFA recovery")
 	custodianOne := flags.String("custodian-one", "", "first verified recovery custodian")
 	custodianTwo := flags.String("custodian-two", "", "second verified recovery custodian")
@@ -190,6 +191,22 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		}
 		if err = messageEngine.VerifyKey(ctx, messages == 0 && bound == 0); err != nil {
 			return err
+		}
+		if *whatsappFixturePath != "" {
+			config, err := messaging.LoadWhatsAppConfig(*whatsappFixturePath)
+			if err != nil {
+				return err
+			}
+			client, err := messaging.NewWhatsAppClient(config, true)
+			if err != nil {
+				return err
+			}
+			if err = messageEngine.WithWhatsAppFixture(client); err != nil {
+				return err
+			}
+			if err = messageEngine.VerifyWhatsAppKey(ctx); err != nil {
+				return err
+			}
 		}
 		if err = store.RecoverMessageClaims(ctx); err != nil {
 			return err

@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, openSync, closeSync, rmSync, readdirSync, cpSyn
 import { tmpdir } from 'node:os'
 import { resolve, join, basename } from 'node:path'
 import { createServer } from 'node:net'
+import { createWhatsAppFixture } from './whatsapp-provider-fixture.mjs'
 
 // Each suite gets its own database, server and real login limiter. The complete
 // gate must not weaken production throttling to accommodate repeated QA logins.
@@ -37,11 +38,13 @@ await new Promise(resolve => reservation.close(resolve))
 const base = `http://127.0.0.1:${port}`
 const logs = openSync(join(root, 'server.log'), 'w', 0o600)
 let server
+let whatsappFixture
 try {
   cpSync(resolve('../build/society-server'),binary)
   cpSync(resolve('../build/web'),webDir,{recursive:true})
   execFileSync(binary, ['seed-demo', '--demo', '--db', db], { stdio: 'ignore' })
-  server = spawn(binary, ['serve', '--demo', '--db', db, '--mfa-key-file', join(root, 'keys', 'mfa.key'), '--addr', `127.0.0.1:${port}`, '--web-dir', webDir], { stdio: ['ignore', logs, logs] })
+  if(['whatsapp-provider.spec.ts','webmcp-whatsapp-provider.spec.ts'].includes(process.argv[2]))whatsappFixture=await createWhatsAppFixture(root,base)
+  server = spawn(binary, ['serve', '--demo', '--db', db, '--mfa-key-file', join(root, 'keys', 'mfa.key'), '--addr', `127.0.0.1:${port}`, '--web-dir', webDir,...(whatsappFixture?['--whatsapp-fixture-config',whatsappFixture.config]:[])], { stdio: ['ignore', logs, logs] })
   const deadline = Date.now() + 15000
   while (true) {
     try { const response = await fetch(`${base}/ready`); if (response.ok) break } catch { /* local startup */ }
@@ -55,7 +58,7 @@ try {
     !argument.startsWith('-') && argument.endsWith('.spec.ts')
       ? '(?:^|[\\\\/])' + argument.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'
       : argument)
-  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_ARTIFACTS: artifacts } })
+  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_ARTIFACTS: artifacts,...(whatsappFixture?{SOCIETY_WHATSAPP_FIXTURE:whatsappFixture.origin}:{}) } })
   process.exitCode = await new Promise(resolve => runner.on('exit', code => resolve(code ?? 1)))
 } finally {
   if (server && server.exitCode === null) {
@@ -66,5 +69,6 @@ try {
     clearTimeout(timer)
   }
   closeSync(logs)
+  if(whatsappFixture)await whatsappFixture.close()
   rmSync(root, { recursive: true, force: true })
 }

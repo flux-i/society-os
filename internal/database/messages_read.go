@@ -89,12 +89,14 @@ func decorateMessageBatch(ctx context.Context, q identityReader, p Principal, x 
 		x.Source.Version, x.Source.Audience, x.Source.Wing = "", "", ""
 		x.Target = MessageTarget{Kind: "PERSONAL", IDs: []string{}}
 		x.ProposedBy, x.ReviewedBy, x.PortalOrigin, x.PreviewHash = "", "", "", ""
+		// Provider account/configuration identities are staff-only metadata.
+		x.Provider = nil
 		return nil
 	}
 	x.CanRefresh = x.State == "PENDING" && x.ProposedBy == p.ID
 	x.CanWithdraw = x.CanRefresh
 	if x.State == "PENDING" {
-		fresh, e := resolveMessage(ctx, q, MessageInput{SourceKind: x.Source.Kind, SourceID: x.Source.ID, Channel: x.Channel, Target: x.Target, PortalOrigin: x.PortalOrigin})
+		fresh, e := resolveMessage(ctx, q, MessageInput{SourceKind: x.Source.Kind, SourceID: x.Source.ID, Channel: x.Channel, Target: x.Target, PortalOrigin: x.PortalOrigin, Provider: x.Provider})
 		if e == sql.ErrNoRows {
 			x.ReviewProblem = "SOURCE_UNAVAILABLE"
 		} else if e != nil {
@@ -112,7 +114,7 @@ func decorateMessageBatch(ctx context.Context, q identityReader, p Principal, x 
 			x.CanApprove = false
 		}
 	}
-	if e = q.QueryRowContext(ctx, "SELECT COUNT(*) FROM message_deliveries WHERE batch_id=? AND snapshot_version=? AND state='FAILED' AND attempts<3", x.ID, x.SnapshotVersion).Scan(&x.RetryableDeliveries); e != nil {
+	if e = q.QueryRowContext(ctx, `SELECT COUNT(*) FROM message_deliveries WHERE batch_id=? AND snapshot_version=? AND state='FAILED' AND attempts<3 AND NOT EXISTS(SELECT 1 FROM whatsapp_handoffs h JOIN message_attempts a ON a.id=h.attempt_id WHERE a.delivery_id=message_deliveries.id AND a.attempt_number=message_deliveries.attempts AND h.retry_at>?)`, x.ID, x.SnapshotVersion, time.Now().Unix()).Scan(&x.RetryableDeliveries); e != nil {
 		return e
 	}
 	x.CanDispatch = x.State == "APPROVED" && (x.Outcomes["QUEUED"] > 0 || x.RetryableDeliveries > 0)
@@ -234,13 +236,13 @@ func (s *Store) MessageFor(ctx context.Context, token, id string, recipientPage,
 	if e = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM message_deliveries WHERE batch_id=? AND snapshot_version=? AND ? IN('APPROVED','CANCELLED')", id, x.SnapshotVersion, x.State).Scan(&out.DeliveryTotal); e != nil {
 		return out, e
 	}
-	rows, e = tx.QueryContext(ctx, `SELECT id,destination,state,attempts,provider_id,reason,accepted_at,delivered_at,read_at,updated_at FROM message_deliveries WHERE batch_id=? AND snapshot_version=? AND ? IN('APPROVED','CANCELLED') ORDER BY id LIMIT 20 OFFSET ?`, id, x.SnapshotVersion, x.State, (deliveryPage-1)*20)
+	rows, e = tx.QueryContext(ctx, `SELECT id,destination,state,attempts,provider_id,reason,accepted_at,delivered_at,read_at,updated_at,COALESCE((SELECT h.retry_at FROM whatsapp_handoffs h JOIN message_attempts a ON a.id=h.attempt_id WHERE a.delivery_id=message_deliveries.id AND a.attempt_number=message_deliveries.attempts),0) FROM message_deliveries WHERE batch_id=? AND snapshot_version=? AND ? IN('APPROVED','CANCELLED') ORDER BY id LIMIT 20 OFFSET ?`, id, x.SnapshotVersion, x.State, (deliveryPage-1)*20)
 	if e != nil {
 		return out, e
 	}
 	for rows.Next() {
 		var d MessageDelivery
-		if e = rows.Scan(&d.ID, &d.Destination, &d.State, &d.Attempts, &d.ProviderID, &d.Reason, &d.AcceptedAt, &d.DeliveredAt, &d.ReadAt, &d.UpdatedAt); e != nil {
+		if e = rows.Scan(&d.ID, &d.Destination, &d.State, &d.Attempts, &d.ProviderID, &d.Reason, &d.AcceptedAt, &d.DeliveredAt, &d.ReadAt, &d.UpdatedAt, &d.RetryAt); e != nil {
 			rows.Close()
 			return out, e
 		}

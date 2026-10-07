@@ -1,10 +1,14 @@
-import type { MessageCounts, MessageRecipient } from '../messages'
+import type { MessageCounts, MessageRecipient, MessageProvider } from '../messages'
 import { deliveryStates, messageReasons } from '../messages'
 import { PageControls } from './Maintenance'
 import { Icon } from './Icon'
 
 export function MessageEnvelope({ envelope }: { envelope:string }) {
   return <section className="message-envelope" aria-label="Exact message preview"><span className="eyebrow">WHAT LEAVES THE PORTAL</span><p className="preserve-lines">{envelope}</p><small><Icon name="shield" />The linked record still requires a permitted portal account.</small></section>
+}
+export function MessageProviderFacts({provider}:{provider?:MessageProvider}) {
+  if(!provider)return null
+  return <section className="message-template" aria-label="Reviewed WhatsApp template"><span className="eyebrow">THE APPROVED TEMPLATE</span><dl><div><dt>Template</dt><dd>{provider.name}</dd></div><div><dt>Language</dt><dd>{provider.language}</dd></div><div><dt>Provider category</dt><dd>{provider.category==='UTILITY'?'Utility':'Marketing'}</dd></div></dl><p className="form-help">The wording and provider category are frozen with this proposal. Changed templates require a fresh review.</p></section>
 }
 export function MessageCountFacts({ counts }: { counts:MessageCounts }) {
   return <section className="message-counts" aria-label="Exact recipient counts">{[
