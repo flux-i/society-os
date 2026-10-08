@@ -2249,3 +2249,18 @@
  .checklist-check-rows .text-link { grid-column:2; justify-self:start; }
  .checklist-history article > div { flex-direction:column; gap:6px; }
 }
+
+/* Deferred screens keep the workspace controls available. */
+.screen-state { min-height:390px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding:42px; border:1px solid var(--color-line); border-radius:22px; background:var(--color-surface); }
+.screen-state .chapter-icon { margin-bottom:25px; }
+.screen-state h1 { font:400 49px/1.12 var(--font-display); letter-spacing:-.6px; margin:18px 0; max-width:620px; }
+.screen-state p { max-width:520px; color:var(--color-muted); font-size:14px; line-height:1.8; }
+.screen-state .form-actions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:24px; }
+.screen-loading-mark { width:min(240px,100%); height:3px; overflow:hidden; background:#e8ecdf; border-radius:3px; margin-top:26px; }
+.screen-loading-mark::after { content:''; display:block; width:42%; height:100%; background:#879666; animation:screen-progress 1.4s ease-in-out infinite alternate; }
+@keyframes screen-progress { to { transform:translateX(135%); } }
+@media(prefers-reduced-motion:reduce) { .screen-loading-mark::after { animation:none; } }
+@media(max-width:760px) { .screen-state { min-height:330px; padding:26px 22px; } .screen-state h1 { font-size:38px; } .screen-state .form-actions { align-items:stretch; flex-direction:column; width:100%; } .screen-state .form-actions .button { justify-content:center; } }
+
+/* Keep record titles clear of the Close control and its focus ring. */
+.record-entry-dialog .records-dialog-heading { padding-right:84px; }

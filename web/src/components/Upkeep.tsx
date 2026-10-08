@@ -1,3 +1,4 @@
+import { useFragmentSync } from '../navigation'
 import { useEffect, useState } from 'react'
 import { request } from '../api'
 import type { User } from '../api'
@@ -21,7 +22,7 @@ export function Upkeep({user}:{user:User}){
  const [data,setData]=useState<WorkPage|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0)
  const [selected,setSelected]=useState(()=>linkedCare('task')),[creating,setCreating]=useState(()=>operator&&!!linkedCare('case')),[repeat,setRepeat]=useState<Work|null>(null)
  const [asset,setAsset]=useState(()=>linkedCare('asset'))
- useEffect(()=>{const update=()=>{setSelected(linkedCare('task'));setAsset(linkedCare('asset'));if(linkedCare('asset'))setTab('ASSET');if(operator&&linkedCare('case'))setCreating(true)};update();window.addEventListener('hashchange',update);return()=>window.removeEventListener('hashchange',update)},[operator])
+ useFragmentSync(()=>{const update=()=>{setSelected(linkedCare('task'));setAsset(linkedCare('asset'));if(linkedCare('asset'))setTab('ASSET');if(operator&&linkedCare('case'))setCreating(true)};update()},[operator])
  useEffect(()=>{const controller=new AbortController();setLoading(true);setError('');const timer=window.setTimeout(()=>request<WorkPage>('/api/upkeep?'+new URLSearchParams({q:query,state,page:String(page)}),controller.signal).then(value=>{setData(value);setLoading(false)}).catch((err:Error)=>{if(!controller.signal.aborted){setError(err.message);setLoading(false)}}),query?200:0);return()=>{controller.abort();clearTimeout(timer)}},[query,state,page,revision])
  const refresh=()=>setRevision(n=>n+1),clear=()=>{setQuery('');setState('');setPage(1)},close=()=>{setSelected('');window.history.replaceState(null,'','#upkeep')}
  const counts=!loading&&!error?data?.counts:undefined

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useFragmentSync } from '../navigation'
+import { useState } from 'react'
 import type { User } from '../api'
 import { fundLink, fundStates, reportStates, selectOptions, useFundLoad } from '../collections'
 import type { Contribution, ContributionPage, Fund, FundDetail, FundLine, FundPage, PaymentReport, ReportPage, WaiverPage } from '../collections'
@@ -24,7 +25,7 @@ export function Collections({user}:{user:User}){
  const [tab,setTab]=useState(()=>fundLink('report')?'REPORTS':fundLink('waiver')?'WAIVERS':'FUNDS'),[query,setQuery]=useState(''),[home,setHome]=useState(''),[state,setState]=useState(()=>fundLink('state')),[page,setPage]=useState(1),[modal,setModal]=useState<Modal>(linkedModal),[revision,setRevision]=useState(0)
  const load=useFundLoad<FundPage>('/api/collections?'+new URLSearchParams({q:query,home,state,page:String(page),refresh:String(revision)}),user.can_read_records)
  const metrics=useFundLoad<FundPage>('/api/collections?'+new URLSearchParams({home,page:'1',refresh:String(revision)}),user.can_read_records)
- useEffect(()=>{const update=()=>{const next=linkedModal();setModal(next);if(next?.kind==='report')setTab('REPORTS');if(next?.kind==='waiver')setTab('WAIVERS');if(next?.kind==='fund')setTab('FUNDS');if(fundLink('state')){setState(fundLink('state'));setPage(1)}};window.addEventListener('hashchange',update);return()=>window.removeEventListener('hashchange',update)},[])
+ useFragmentSync(()=>{const update=()=>{const next=linkedModal();setModal(next);if(next?.kind==='report')setTab('REPORTS');if(next?.kind==='waiver')setTab('WAIVERS');if(next?.kind==='fund')setTab('FUNDS');if(fundLink('state')){setState(fundLink('state'));setPage(1)}};update()},[])
  const changed=()=>setRevision(value=>value+1),close=()=>{setModal(null);window.history.replaceState(null,'','#collections')},open=(kind:'fund'|'report'|'waiver',id:string)=>{setModal({kind,id});window.history.replaceState(null,'','#collections?'+(kind==='fund'?'campaign':kind)+'='+id)}
  const clear=()=>{setQuery('');setHome('');setState('');setPage(1)},counts=!metrics.loading&&!metrics.error?metrics.data?.totals:undefined
  const flow=(kind:'report-new'|'waiver-new'|'attribute',campaign:FundDetail,line:FundLine)=>{setModal({kind,campaign,line});window.history.replaceState(null,'','#collections')}

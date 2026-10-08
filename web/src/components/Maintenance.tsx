@@ -1,3 +1,4 @@
+import { useFragmentSync } from '../navigation'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { APIError, mutate, request } from '../api'
@@ -26,7 +27,7 @@ export function Maintenance({ user }: { user: User }) {
   const [query,setQuery]=useState(''),[home,setHome]=useState(''),[state,setState]=useState(''),[page,setPage]=useState(1)
   const [revision,setRevision]=useState(0),[loading,setLoading]=useState(true),[error,setError]=useState('')
   const [creating,setCreating]=useState(false),[selected,setSelected]=useState(linkedCycle),[statementHome,setStatementHome]=useState(linkedHome),[homeChoice,setHomeChoice]=useState('')
-  useEffect(()=>{const update=()=>{setSelected(linkedCycle());setStatementHome(linkedHome())};window.addEventListener('hashchange',update);return()=>window.removeEventListener('hashchange',update)},[])
+  useFragmentSync(()=>{const update=()=>{setSelected(linkedCycle());setStatementHome(linkedHome())};update()},[])
   useEffect(()=>{
     if (!user.can_read_records) {setLoading(false);return}
     const controller=new AbortController();setLoading(true);setError('')

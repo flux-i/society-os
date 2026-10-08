@@ -1,3 +1,4 @@
+import { useFragmentSync } from '../navigation'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { APIError, mutate, request } from '../api'
@@ -36,7 +37,7 @@ export function Records({ user, receipts }: { user: User; receipts: boolean }) {
   useEffect(() => { if (error) feedback.current?.scrollIntoView({ block: 'nearest' }) }, [error])
   const [creating, setCreating] = useState(false)
   const [selected, setSelected] = useState(linkedEntry)
-  useEffect(() => { const update = () => setSelected(linkedEntry()); window.addEventListener('hashchange', update); return () => window.removeEventListener('hashchange', update) }, [])
+  useFragmentSync(()=>{ const update = () => setSelected(linkedEntry()); update()},[])
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError('')
     const timer = window.setTimeout(() => request<RecordPage>(`/api/entries?${new URLSearchParams({ home, q: query, state, receipts: String(receipts), page: String(page) })}`, controller.signal).then(value => { setData(value); setLoading(false) }).catch((err: Error) => { if (!controller.signal.aborted) { setError(err.message); setLoading(false) } }), query ? 200 : 0)
@@ -92,7 +93,7 @@ function NewEntry({ homes, initialHome, onClose, onCreated }: { homes: Home[]; i
     catch (err) { setError((err as Error).message); if (err instanceof APIError && [400, 403, 404].includes(err.status)) { pending.current = null; setLocked(false) } else setLocked(true) }
     finally { setBusy(false) }
   }
-  return <PortalDialog titleId="new-entry-title" closeLabel="Close new entry" busy={busy} onClose={onClose}><div className="dialog-heading records-dialog-heading"><span className="eyebrow">ONE DETAIL AT A TIME</span><h2 id="new-entry-title">A new <em>entry.</em></h2><p>Save a draft first. You’ll review it before it becomes a confirmed record.</p></div><div className="dialog-scroll detail-body"><form className="portal-form" onSubmit={submit}>
+  return <PortalDialog titleId="new-entry-title" closeLabel="Close new entry" className="record-entry-dialog" busy={busy} onClose={onClose}><div className="dialog-heading records-dialog-heading"><span className="eyebrow">ONE DETAIL AT A TIME</span><h2 id="new-entry-title">A new <em>entry.</em></h2><p>Save a draft first. You’ll review it before it becomes a confirmed record.</p></div><div className="dialog-scroll detail-body"><form className="portal-form" onSubmit={submit}>
     <fieldset disabled={busy || locked} className="records-fieldset"><div className="form-pair"><label>Home<FormSelect label="Entry home" value={home} onChange={setHome} required options={[{ value: '', label: 'Choose a home…' }, ...homes.map(item => ({ value: item.id, label: 'Home ' + item.label }))]} /></label><label>Entry type<FormSelect label="Entry type" value={kind} onChange={setKind} options={Object.entries(kinds).map(([value, label]) => ({ value, label }))} /></label></div>
     <div className="form-pair"><label>Amount in rupees<input inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} required pattern="(0|[1-9][0-9]{0,7})([.][0-9]{1,2})?" maxLength={11} placeholder="For example, 1500.00" /></label><label>Entry date<input type="date" value={entryDate} onChange={event => setEntryDate(event.target.value)} required min="1900-01-01" max={date()} /></label></div>
     <label>Description<input value={description} onChange={event => setDescription(event.target.value)} required minLength={5} maxLength={300} placeholder={kind === 'RECEIVED' ? 'For example, maintenance already paid for October' : 'For example, given maintenance charge for October'} /></label>
@@ -144,7 +145,7 @@ function RecordDetail({ id, user, onClose, onSaved }: { id: string; user: User; 
     } catch (err) { setError((err as Error).message) }
     finally { setBusy(false) }
   }
-  return <PortalDialog titleId="record-detail-title" closeLabel="Close entry details" onClose={onClose} busy={busy}>
+  return <PortalDialog titleId="record-detail-title" closeLabel="Close entry details" className="record-entry-dialog" onClose={onClose} busy={busy}>
     <div className="dialog-heading records-dialog-heading"><span className="eyebrow">{entry ? `HOME ${entry.home} · ${kinds[entry.kind].toUpperCase()}` : 'OPENING THE RECORD'}</span><h2 id="record-detail-title">{entry?.state === 'DRAFT' ? <>Review this <em>draft.</em></> : <>A clear <em>record.</em></>}</h2>{entry && <span className={`record-status record-status-${entry.state.toLowerCase()}`}>{entry.state === 'POSTED' ? 'Confirmed' : entry.state === 'DRAFT' ? 'Draft · awaiting your review' : entry.state === 'DISCARDED' ? 'Discarded · draft preserved' : 'Reversed · original preserved'}</span>}</div>
     <div className="dialog-scroll detail-body">{loadError ? <div className="empty-state" role="alert"><p>{loadError}</p><button className="button button-dark" onClick={() => setRevision(n => n + 1)}>Reload record<Icon name="refresh" /></button></div> : !entry ? <p role="status">Opening this entry…</p> : <>
       <div className="record-detail-amount"><small>{entry.kind === 'RECEIVED' ? 'AMOUNT ALREADY RECEIVED' : kinds[entry.kind].toUpperCase()}</small><strong>{money(entry.amount_paise)}</strong></div>

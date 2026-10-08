@@ -1,3 +1,4 @@
+import { useFragmentSync } from '../navigation'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { APIError, mutate, request, uploadOriginal } from '../api'
@@ -29,7 +30,7 @@ export function Documents({ user }: { user: User }) {
  const [revision, setRevision] = useState(0), [loading, setLoading] = useState(true), [error, setError] = useState('')
  const [selected, setSelected] = useState(initialDocument), [upload, setUpload] = useState<LibraryItem | 'new' | null>(null)
  const feedback = useRef<HTMLDivElement>(null)
- useEffect(() => { const callback = () => setSelected(initialDocument()); window.addEventListener('hashchange', callback); return () => window.removeEventListener('hashchange', callback) }, [])
+ useFragmentSync(()=>{ const callback = () => setSelected(initialDocument()); callback()},[])
  useEffect(() => { const controller = new AbortController(); setLoading(true); setError(''); const timer = window.setTimeout(() => request<LibraryPage>('/api/documents?' + new URLSearchParams({ q: query, category, state, page: String(page) }), controller.signal).then(result => { setData(result); setLoading(false) }).catch((err: Error) => { if (!controller.signal.aborted) { setError(err.message); setLoading(false) } }), query ? 180 : 0); return () => { controller.abort(); clearTimeout(timer) } }, [query, category, state, page, revision])
  useEffect(() => { if (error) reveal(feedback.current) }, [error])
  const clear = () => { setQuery(''); setCategory(''); setState(''); setPage(1) }

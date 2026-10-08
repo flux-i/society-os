@@ -1,3 +1,4 @@
+import { useFragmentSync } from '../navigation'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { APIError, mutate, request } from '../api'
@@ -42,7 +43,7 @@ export function Complaints({ user }: { user: User }) {
   const [selected, setSelected] = useState(linkedCase)
   const feedback = useRef<HTMLDivElement>(null)
   useEffect(() => { if (error) feedbackIntoView(feedback.current) }, [error])
-  useEffect(() => { const update = () => setSelected(linkedCase()); window.addEventListener('hashchange', update); return () => window.removeEventListener('hashchange', update) }, [])
+  useFragmentSync(()=>{ const update = () => setSelected(linkedCase()); update()},[])
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError('')
     const timer = setTimeout(() => request<CasePage>('/api/complaints?' + new URLSearchParams({ q: query, status, page: String(page) }), controller.signal).then(value => { setData(value); setLoading(false) }).catch((err: Error) => { if (!controller.signal.aborted) { setError(err.message); setLoading(false) } }), query ? 200 : 0)

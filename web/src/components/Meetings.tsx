@@ -1,3 +1,4 @@
+import { useFragmentSync } from '../navigation'
 import { useEffect, useState } from 'react'
 import type { User } from '../api'
 import type { MeetingPage } from '../meetings'
@@ -13,7 +14,7 @@ function meetingRoute(user:User){return {id:communityLink('meeting'),desk:commun
 function MeetingArt(){return <svg className="community-art" viewBox="0 0 210 168" fill="none" aria-hidden="true"><ellipse cx="107" cy="143" rx="81" ry="12" fill="#dce2d2"/><rect x="35" y="30" width="134" height="110" rx="17" fill="#e7e9da" transform="rotate(-6 102 85)"/><rect x="53" y="41" width="134" height="110" rx="17" fill="#fffdf7" stroke="#bcc6ad" transform="rotate(7 120 96)"/><path d="m56 72 130 16M86 35l-2 23m65-15-2 23" stroke="#81946c" strokeWidth="3" strokeLinecap="round"/><circle cx="99" cy="103" r="19" fill="#dfe8c9"/><path d="m90 103 6 6 12-14" stroke="#41604b" strokeWidth="2" strokeLinecap="round"/><path d="m137 108 25 3m-27 12 19 2" stroke="#c7ceb9" strokeWidth="3" strokeLinecap="round"/><circle cx="41" cy="112" r="18" fill="#eadfce"/><path d="M41 104v16m-6-8h12" stroke="#9b8468" strokeWidth="2" strokeLinecap="round"/></svg>}
 export function Meetings({user}:{user:User}){
  const [route,setRoute]=useState(()=>meetingRoute(user)),[creating,setCreating]=useState(false),[revision,setRevision]=useState(0)
- useEffect(()=>{const sync=()=>setRoute(meetingRoute(user));window.addEventListener('hashchange',sync);return()=>window.removeEventListener('hashchange',sync)},[user.can_review_requests])
+ useFragmentSync(()=>{const sync=()=>setRoute(meetingRoute(user));sync()},[user.can_review_requests])
  const changed=()=>{setRevision(x=>x+1);window.dispatchEvent(new Event('meetings-changed'))}
  return <><MeetingList key={String(route.desk)} desk={route.desk} canPrepare={user.can_review_requests} revision={revision} onCreate={()=>setCreating(true)} onOpen={id=>{window.location.hash='community?meeting='+id+(route.desk?'&desk=true':'')}}/>
  {route.id&&<MeetingDialog key={route.id+':'+route.desk} id={route.id} desk={route.desk} onClose={()=>{window.location.hash='community?panel=meetings'+(route.desk?'&desk=true':'')}} onChanged={changed}/>}

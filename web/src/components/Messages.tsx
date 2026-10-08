@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useFragmentSync } from '../navigation'
+import { useState } from 'react'
 import type { User } from '../api'
 import { deliveryStates, messageKindLabels, messageStates, messageTargetLabel, useMessageLoad } from '../messages'
 import type { MessageConfig, MessagePage, MessageSummary } from '../messages'
@@ -19,7 +20,7 @@ export function Messages({user}:{user:User}) {
   const staff=user.can_review_requests||user.can_manage_records
   const config=useMessageLoad<MessageConfig>('/api/messages/config'),summary=useMessageLoad<MessageSummary>('/api/messages/summary?refresh='+revision),load=useMessageLoad<MessagePage>('/api/messages?'+new URLSearchParams({q:search,state,kind,page:String(page),refresh:String(revision)})),visible=!load.loading&&!load.error?load.data:null
   const open=(id:string,nextPage=1,nextDelivery='')=>{setCompose(false);setSelected(id);setDeliveryPage(nextPage);setDelivery(nextDelivery);window.history.replaceState(null,'','#messages?'+new URLSearchParams({message:id,...(panel==='exceptions'?{panel:'exceptions'}:{}),...(nextDelivery?{delivery:nextDelivery,delivery_page:String(nextPage)}:{})}))},close=()=>{setCompose(false);setSelected(null);window.history.replaceState(null,'','#messages'+(panel==='exceptions'?'?panel=exceptions':''))}
-  useEffect(()=>{const change=()=>{setSelected(hashMessage());setDeliveryPage(hashDeliveryPage());setDelivery(messageHash().get('delivery')??'');setPanel(messageHash().get('panel')==='exceptions'?'exceptions':'register');setCompose(false)};window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[])
+  useFragmentSync(()=>{const change=()=>{setSelected(hashMessage());setDeliveryPage(hashDeliveryPage());setDelivery(messageHash().get('delivery')??'');setPanel(messageHash().get('panel')==='exceptions'?'exceptions':'register');setCompose(false)};change()},[])
   const totals=summary.loading||summary.error?null:summary.data
   const providerTest=config.data?.whatsapp_provider_mode==='CLOUD_FIXTURE'
   return <div className="page-enter messages-page"><section className="maintenance-hero message-hero"><div><span className="eyebrow">THOUGHTFULLY SENT. CLEARLY TRACKED.</span><h1>A little message.<br/><em>A closer community.</em></h1><p>{staff?'The right people, a separate review, and a clear record of what happened.':'Your community’s messages, with your choices respected at every step.'}</p>{staff&&<button className="button button-dark" disabled={config.loading||!!config.error||!config.data?.simulation_enabled} onClick={()=>setCompose(true)}>Prepare a message<Icon name="arrow"/></button>}</div><DeliveryArt/></section>

@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { MoveChecklists } from './components/MoveChecklists'
+import { useFragmentSync } from './navigation'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { canReadChecklists } from './checklists'
 import { APIError, mutate, request, setSession, statuses, userAccessScope } from './api'
 import type { Building, Flat, FlatDetail, FlatPage, Summary, User } from './api'
@@ -12,20 +12,24 @@ import { Access, AccountLink, AccountSecurity, MFAGate } from './components/Iden
 
 import { PortalDialog } from './components/PortalDialog'
 import { FilterSelect } from './components/FilterSelect'
-import { Records } from './components/Records'
 import { useSocietyTools } from './webmcp'
-import { Reviews } from './components/Reviews'
-import { Community } from './components/Community'
-import { Complaints } from './components/Complaints'
-import { Incidents } from './components/Incidents'
-import { Documents } from './components/Documents'
-import { Maintenance } from './components/Maintenance'
-import { Upkeep } from './components/Upkeep'
-import { Collections } from './components/Collections'
-import { Fines } from './components/Fines'
-import { Contacts } from './components/Contacts'
-import { Messages } from './components/Messages'
-import { Statements } from './components/Statements'
+
+import { ScreenBoundary, ScreenLoading } from './components/ScreenBoundary'
+
+const MoveChecklists=lazy(()=>import('./components/MoveChecklists').then(module=>({default:module.MoveChecklists})))
+const Records=lazy(()=>import('./components/Records').then(module=>({default:module.Records})))
+const Reviews=lazy(()=>import('./components/Reviews').then(module=>({default:module.Reviews})))
+const Community=lazy(()=>import('./components/Community').then(module=>({default:module.Community})))
+const Complaints=lazy(()=>import('./components/Complaints').then(module=>({default:module.Complaints})))
+const Incidents=lazy(()=>import('./components/Incidents').then(module=>({default:module.Incidents})))
+const Documents=lazy(()=>import('./components/Documents').then(module=>({default:module.Documents})))
+const Maintenance=lazy(()=>import('./components/Maintenance').then(module=>({default:module.Maintenance})))
+const Upkeep=lazy(()=>import('./components/Upkeep').then(module=>({default:module.Upkeep})))
+const Collections=lazy(()=>import('./components/Collections').then(module=>({default:module.Collections})))
+const Fines=lazy(()=>import('./components/Fines').then(module=>({default:module.Fines})))
+const Contacts=lazy(()=>import('./components/Contacts').then(module=>({default:module.Contacts})))
+const Messages=lazy(()=>import('./components/Messages').then(module=>({default:module.Messages})))
+const Statements=lazy(()=>import('./components/Statements').then(module=>({default:module.Statements})))
 
 type View = 'overview' | 'homes' | 'access' | 'security' | 'entries' | 'receipts' | 'reviews' | 'community' | 'help' | 'documents' | 'maintenance' | 'upkeep' | 'collections' | 'conduct' | 'fines' | 'contacts' | 'messages' | 'statements'
 const currentView = (): View => { const hash = window.location.hash.slice(1).split('?')[0]; return ['homes', 'access', 'security', 'entries', 'receipts', 'reviews', 'community', 'help', 'documents', 'maintenance', 'upkeep', 'collections', 'conduct', 'fines', 'contacts', 'messages', 'statements'].includes(hash) ? hash as View : 'overview' }
@@ -107,7 +111,7 @@ function CommunityCounts({ summary }: { summary: Summary | null }) {
 
 function Registry(props: { summary: Summary | null; user: User; refresh: number; initialWing: string; onOpen: (id: string) => void }) {
  const permitted=canReadChecklists(props.user),[panel,setPanel]=useState(()=>new URLSearchParams(window.location.hash.split('?')[1]??'').get('panel')==='checklists')
- useEffect(()=>{const change=()=>setPanel(new URLSearchParams(window.location.hash.split('?')[1]??'').get('panel')==='checklists');window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[])
+ useFragmentSync(()=>{const change=()=>setPanel(new URLSearchParams(window.location.hash.split('?')[1]??'').get('panel')==='checklists');change()},[])
  const choose=(checklists:boolean)=>{setPanel(checklists);window.location.hash=checklists?'homes?panel=checklists':'homes'}
  return <>{permitted&&<nav className="homes-views" aria-label="Home views"><button type="button" aria-current={!panel?'page':undefined} onClick={()=>choose(false)}>{props.user.can_read_registry?'Homes & people':'Your homes'}</button><button type="button" aria-current={panel?'page':undefined} onClick={()=>choose(true)}>Move & contact reviews<Icon name="arrow"/></button></nav>}{permitted&&panel?<MoveChecklists key={props.user.scope_key} user={props.user}/>:<RegistryRegister {...props}/>}</>
 }
@@ -200,11 +204,9 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
   const [about, setAbout] = useState(false)
   const [refresh, setRefresh] = useState(0)
   useSocietyTools(user, setSelected)
-  useEffect(() => {
+  useFragmentSync(()=>{
     const handler = () => { const next = currentView(); setView(next); if (next !== 'homes') setInitialWing(''); window.scrollTo({ top: 0, behavior: 'instant' }); setSelected(next==='homes'?new URLSearchParams(window.location.hash.split('?')[1]??'').get('home'):null); setAbout(false) }
-    window.addEventListener('hashchange', handler)
-    return () => window.removeEventListener('hashchange', handler)
-  }, [])
+    handler()},[])
   useEffect(() => {
     if (!user.can_read_registry || view !== 'homes') { setSummary(null); setError(''); return }
     const controller = new AbortController()
@@ -221,7 +223,7 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
       <div className="preview-banner"><span><Icon name="spark" />A first look at your community workspace.</span><span>Fictional data <i /> Live local registry</span></div>
       <main id="main-content" tabIndex={-1} className="main-content">
         {view === 'homes' && error && <div className="connection-error" role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Reconnect<Icon name="refresh" /></button></div>}
-        {view === 'statements' ? <Statements user={user} /> : view === 'messages' ? <Messages user={user} /> : view === 'contacts' ? <Contacts user={user} /> : view === 'fines' ? <Fines user={user} /> : view === 'conduct' ? <Incidents user={user} /> : view === 'collections' ? <Collections user={user} /> : view === 'upkeep' ? <Upkeep user={user} /> : view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'community' ? <Community user={user} /> : view === 'reviews' ? <Reviews user={user} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}
+        <ScreenBoundary key={view}><Suspense fallback={<ScreenLoading/>}>{view === 'statements' ? <Statements user={user} /> : view === 'messages' ? <Messages user={user} /> : view === 'contacts' ? <Contacts user={user} /> : view === 'fines' ? <Fines user={user} /> : view === 'conduct' ? <Incidents user={user} /> : view === 'collections' ? <Collections user={user} /> : view === 'upkeep' ? <Upkeep user={user} /> : view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'community' ? <Community user={user} /> : view === 'reviews' ? <Reviews user={user} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}</Suspense></ScreenBoundary>
         <footer className="page-footer"><span><span className="footer-wordmark">society.</span> Made for everyday life.</span><button onClick={() => setAbout(true)}>About this preview<Icon name="arrow" /></button></footer>
       </main>
     </div>

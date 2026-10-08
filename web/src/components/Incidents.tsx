@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useFragmentSync } from '../navigation'
+import { useState } from 'react'
 import type { User } from '../api'
 import {
   incidentLink,
@@ -126,7 +127,7 @@ export function Incidents({ user }: { user: User }) {
       '/api/incidents?page=1&refresh=' + revision,
       tab !== 'REPORTS'
     )
-  useEffect(() => {
+  useFragmentSync(()=>{
     const update = () => {
       const next = linked()
       setModal(next)
@@ -134,9 +135,7 @@ export function Incidents({ user }: { user: User }) {
       else if (next?.kind === 'notice') setTab('NOTICES')
       else if (next?.kind === 'case') setTab('REPORTS')
     }
-    window.addEventListener('hashchange', update)
-    return () => window.removeEventListener('hashchange', update)
-  }, [])
+    update()},[])
   const load = tab === 'RULES' ? rules : tab === 'NOTICES' ? notices : reports,
     data = load.data,
     open = (kind: 'case' | 'rule' | 'notice', id: string) => {

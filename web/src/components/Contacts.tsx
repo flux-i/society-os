@@ -1,3 +1,4 @@
+import { useFragmentSync } from '../navigation'
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '../api'
@@ -109,7 +110,7 @@ export function Contacts({ user }: { user: User }) {
   const initial = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('person'), [selected, setSelected] = useState<string | null>(initial), [search, setSearch] = useState(''), [relationship, setRelationship] = useState(''), [building, setBuilding] = useState(''), [state, setState] = useState(''), [page, setPage] = useState(1), [revision, setRevision] = useState(0)
   const query = new URLSearchParams({ q: search, relationship, building, state, page: String(page), refresh: String(revision) }), load = useContactLoad<ContactPage>('/api/contacts?' + query, user.can_read_contacts), visible = !load.loading && !load.error ? load.data : null
   const open = (id: string) => { setSelected(id); window.history.replaceState(null, '', '#contacts?person=' + encodeURIComponent(id)) }, close = () => { setSelected(null); window.history.replaceState(null, '', '#contacts') }
-  useEffect(() => { const change = () => setSelected(new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('person')); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change) }, [])
+  useFragmentSync(()=>{ const change = () => setSelected(new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('person')); change()},[])
   if (!user.can_read_contacts) return <div className="empty-state"><h2>Contact preferences are unavailable.</h2><p>This account needs a linked resident or current community review appointment.</p></div>
   return <div className="page-enter contacts-page"><section className="maintenance-hero contact-hero"><div><span className="eyebrow">A COMMUNITY, IN CONVERSATION</span><h1>Good neighbours.<br /><em>Better connected.</em></h1><p>{user.can_manage_contacts ? 'Keep destinations verified, choices respected, and the right people in the conversation.' : 'Choose how your community reaches you. Every preference stays in your hands.'}</p></div><ConnectionArt /></section>
     <section className="contact-register"><div className="section-heading"><div><h2>{user.can_manage_contacts ? 'People & preferences' : 'Your communication choices'}</h2><p>{user.can_manage_contacts ? 'Open a person to register, independently verify or stop messages.' : 'Your destinations are private. Register a change or stop selected messages whenever you need.'}</p></div><span className="result-count">{visible ? visible.total + (visible.total === 1 ? ' person in this view' : ' people in this view') : 'Checking current people…'}</span></div>

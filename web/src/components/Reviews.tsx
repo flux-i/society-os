@@ -1,3 +1,4 @@
+import { useFragmentSync } from '../navigation'
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { APIError, mutate, request } from '../api'
@@ -36,7 +37,7 @@ export function Reviews({ user, notices = false }: { user: User; notices?: boole
   const [editing, setEditing] = useState<Review | null>(null)
   const loadFeedback = useRef<HTMLDivElement>(null)
   useEffect(() => { if (error) loadFeedback.current?.scrollIntoView({ block: 'center', behavior: 'instant' }) }, [error])
-  useEffect(() => { const update = () => setSelected(linkedReview(notices)); window.addEventListener('hashchange', update); return () => window.removeEventListener('hashchange', update) }, [notices])
+  useFragmentSync(()=>{ const update = () => setSelected(linkedReview(notices)); update()},[notices])
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError('')
     const timer = setTimeout(() => request<ReviewPage>(`/api/${notices ? 'notices' : 'reviews'}?${new URLSearchParams({ q: query, state, page: String(page) })}`, controller.signal).then(value => { setData(value); setLoading(false) }).catch((err: Error) => { if (!controller.signal.aborted) { setError(err.message); setLoading(false) } }), query ? 200 : 0)
