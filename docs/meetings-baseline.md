@@ -1,6 +1,6 @@
 # Meeting agendas, minutes and personal acknowledgements — checkpoint evidence
 
-**Locally accepted: 0.22.0-dev/schema 21, 8 October 2026.** The [before-code contract](meetings-acknowledgements-workflow.md) defines current authority, separate publication review, immutable versions and exact personal acknowledgements. Required gates, final visual review and matching recovery pass. Personal publication verification is recorded separately. The preceding [0.21 checkpoint](community-services-baseline.md) and its immutable archive remain accepted. Cumulative closed findings are **87 unique groups: 85 product/UI and two operational**.
+**Locally accepted: 0.22.0-dev/schema 21, 8 October 2026.** The [before-code contract](meetings-acknowledgements-workflow.md) defines current authority, separate publication review, immutable versions and exact personal acknowledgements. Required gates, final visual review and matching recovery pass. Personal publication is verified for [application `e8d1d53`](https://github.com/flux-i/society-os/commit/e8d1d53aeba576bd010c4daa5c5187a57c28c299). The preceding [0.21 checkpoint](community-services-baseline.md) and its immutable archive remain accepted. Cumulative closed findings are **87 unique groups: 85 product/UI and two operational**.
 
 ## Implemented outcome
 
@@ -58,3 +58,7 @@ Post-upgrade schema 21, matching 0.22: `var/snapshots/meetings-0.22-20261008`; *
 Pinned preview `var/preview-releases/0.22` serves http://127.0.0.1:8080 under detached PID **8356 when started**. Revalidate its exact command before process action. Readiness 200, all 18 packaged/17 served hashes, all 85 persistent rows/column shapes/provenance, integrity/FK checks and both held key bindings are verified after startup. Four temporary credential tables are purged on restore. New meeting tables remain empty in the developer preview; browser QA uses disposable synthetic databases.
 
 Continue with [private reminders/delivery exceptions](reminders-delivery-exceptions-workflow.md), then budget/move checklists, measured performance/PWA/migration and independent production/pilot preparation. Real identities, policies, custody, provider credentials, host/network proof and human pilot acceptance remain separate inputs. This checkpoint does not complete the whole plan.
+
+## Personal publication
+
+Application `e8d1d53aeba576bd010c4daa5c5187a57c28c299` is published to the personal public `flux-i/society-os` repository. At `2026-10-08T07:14:12.872228+00:00`, account, author, credential-free origin, clean tree and GitHub API main all verify. Immutable private `reports/local/checkpoints/meetings-0.22-accepted` retains **397 source files/765 verified hashes**; every archived source blob matches that application commit. The documentation-only child records this evidence without changing the tested application/runtime or rewriting the archive. Publication proofs remain private and the whole goal stays active.
