@@ -1,6 +1,6 @@
 # Installation and offline safety — checkpoint evidence
 
-**Locally accepted: 0.27.0-dev/schema 24, 8 October 2026.** The [before-code contract](pwa-workflow.md) defines installation, public-only storage, immediate local sign-out and safe waiting updates. Current required gates, inspected visuals, matching recovery and retained preview pass. Personal 0.27 publication is pending. Closed findings are **104 unique groups: 102 product/UI and two operational**; this checkpoint closes PWA01–04. QA scheduling/fixture corrections add none.
+**Locally accepted: 0.27.0-dev/schema 24, 8 October 2026.** The [before-code contract](pwa-workflow.md) defines installation, public-only storage, immediate local sign-out and safe waiting updates. Current required gates, inspected visuals, matching recovery and retained preview pass. Personal 0.27 publication is verified at [application 51fbc14f](https://github.com/flux-i/society-os/commit/51fbc14f4005af71c21f2bbc4e44050b6f6e2186) (2026-10-08T17:24:07.051727+00:00); the immutable `pwa-0.27-accepted` archive binds all 489 source files and verifies 839 hashes. The metadata child follows separately. Closed findings are **104 unique groups: 102 product/UI and two operational**; this checkpoint closes PWA01–04. QA scheduling/fixture corrections add none.
 
 ## Implemented outcome and authority
 
