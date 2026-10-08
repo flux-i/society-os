@@ -12,6 +12,7 @@ import type { MessageBatch, MessageDetail, MessagePage } from './messages'
 import type { StatementFile, StatementDetail, StatementPage } from './statements'
 import type { FinanceExport, ExportPage } from './finance-exports'
 import type { CommunityPage, CommunityDetail, CommunityResource } from './community'
+import type { MeetingPage, MeetingDetail, MeetingResource } from './meetings'
 
 type Tool = {
   name: string
@@ -69,6 +70,12 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
     }
     const search = { type: 'string', maxLength: 100, description: 'A home number or name from the signed-in account’s permitted results.' }
     const page = { type: 'integer', minimum: 1, maximum: 10000 }
+    const readCurrentMeeting = async <T,>(path:string, signal:AbortSignal, select:(value:T)=>unknown=value=>value) => {
+      const first=await request<T>(path,signal)
+      const fresh=await request<T>(path,signal)
+      if(JSON.stringify(select(first))!==JSON.stringify(select(fresh)))throw new Error('The meeting publication changed. Read its current version again.')
+      return fresh
+    }
     if (user.can_export_finance) {
       const exportMetadata = (item: FinanceExport) => ({ id: item.id, report: item.report, scope: item.scope, date_basis: item.date_basis, from: item.from, to: item.to, generated_at: item.generated_at, rows: item.rows, bytes: item.bytes, homes_count: item.homes.length })
       add('society_find_finance_exports', 'Read one page of this actor’s currently permitted immutable export status metadata. CSV bytes, financial amounts, descriptions, references and individual homes are excluded. This cannot preview, create or download an export or alter an open human form.', { page }, [], async (input, signal, me) => {
@@ -98,20 +105,33 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
       if (!views.includes(screen) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
-      window.location.hash = screen
+      window.location.hash = screen==='meetings'?'community?panel=meetings':screen
       return { screen }
     }, false)
-    const sections = ['community', 'reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', 'statements', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
+    const sections = ['meetings', 'community', 'reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', 'statements', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
     add('society_read_overview', 'Read a current role-scoped overview section with full counts and at most four metadata rows. Financial amounts describe confirmed supplied records, not overdue bills. No evidence, private notes or file bytes are returned. This never approves, posts or sends anything.', { section: { type: 'string', enum: sections } }, ['section'], async (input, signal, me) => {
       const section = String(input.section)
       if (!sections.includes(section) || (['finance','maintenance','collections'].includes(section) && !me.can_read_records)) throw new Error('Choose a currently permitted overview section.')
-      const data = await request<{section:string;as_of:number;day:string;period_start:string;calendar:string;counts:Record<string,number>;items:{id:string;kind:string;state:string;at:number}[]}>('/api/overview/' + section, signal)
-      return section==='community'?{...data,items:data.items.map(x=>({id:x.id,kind:x.kind,state:x.state,at:x.at}))}:data
+      type OverviewMetadata={section:string;as_of:number;day:string;period_start:string;calendar:string;counts:Record<string,number>;items:{id:string;kind:string;state:string;at:number}[]}
+      const data = section==='meetings'?await readCurrentMeeting<OverviewMetadata>('/api/overview/meetings',signal,value=>({counts:value.counts,items:value.items})):await request<OverviewMetadata>('/api/overview/' + section, signal)
+      return ['community','meetings'].includes(section)?{...data,items:data.items.map(x=>({id:x.id,kind:x.kind,state:x.state,at:x.at}))}:data
+    })
+    const meetingMetadata=(x:MeetingResource)=>({id:x.id,state:x.state,version:x.version,start_at:x.snapshot.start_at,end_at:x.snapshot.end_at,held_at:x.snapshot.held_at,homes_count:x.snapshot.homes.length,published_at:x.published_at,acknowledgement_required:x.acknowledgement.required,acknowledged:x.acknowledgement.acknowledged,acknowledgement_deadline:x.acknowledgement.deadline})
+    const meetingStates=['','UPCOMING','PAST','MINUTES','CANCELLED']
+    add('society_find_meetings','Read at most twelve currently permitted published meeting status snapshots and this actor’s personal acknowledgement status. Titles, agendas, locations, minutes, exact homes, fingerprints, private proposals and response identities are excluded. This cannot acknowledge, prepare, approve or publish a meeting.',{state:{type:'string',enum:meetingStates},page},[],async(input,signal)=>{
+      const state=input.state??''
+      if(typeof state!=='string'||!meetingStates.includes(state))throw new Error('Choose a supported published meeting status.')
+      const data=await readCurrentMeeting<MeetingPage>('/api/meetings?'+new URLSearchParams({state,page:String(pageNumber(input.page))}),signal)
+      return {items:data.items.map(meetingMetadata),total:data.total,page:data.page,page_size:data.page_size,counts:data.counts}
+    })
+    add('society_read_meeting','Read one currently permitted published meeting’s timing, status and own acknowledgement metadata. Agendas, minutes, locations, exact homes, fingerprints, private decisions and response identities are excluded. This cannot acknowledge or change an active human form.',{meeting_id:{type:'string',minLength:1,maxLength:100}},['meeting_id'],async(input,signal)=>{
+      if(typeof input.meeting_id!=='string'||!input.meeting_id||input.meeting_id.length>100)throw new Error('A permitted meeting identity is required.')
+      return meetingMetadata(await readCurrentMeeting<MeetingDetail>('/api/meetings/'+encodeURIComponent(input.meeting_id),signal))
     })
     const communityMetadata=(x:CommunityResource)=>({id:x.id,kind:x.snapshot.kind,service:x.snapshot.service,state:x.state,version:x.version,start_at:x.snapshot.start_at,estimated_end:x.snapshot.estimated_end,resolved_at:x.snapshot.resolved_at,homes_count:x.snapshot.homes.length,published_at:x.published_at})
     const communityKinds=['','CONTACT','INTERRUPTION'],communityStates=['','AVAILABLE','ACTIVE','UPDATE_NEEDED','PLANNED','RESOLVED']

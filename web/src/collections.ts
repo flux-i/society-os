@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { APIError, mutate, request } from './api'
 import type { FinancialHome, StatementEntry } from './maintenance'
 export type FundTotals = { requested_paise:number; active_paise:number; allocated_paise:number; outstanding_paise:number; overdue_paise:number; waived_paise:number; voluntary_paise:number; pending_reports:number; paid_homes:number; partial_homes:number; unpaid_homes:number; exempt_homes:number }
@@ -25,7 +25,8 @@ export const fundLink = (key:string) => new URLSearchParams(window.location.hash
 export function useFundLoad<T>(path:string,enabled=true){
  const [data,setData]=useState<T|null>(null),[loading,setLoading]=useState(enabled),[error,setError]=useState(''),[revision,setRevision]=useState(0)
  useEffect(()=>{if(!enabled){setData(null);setLoading(false);return}const controller=new AbortController();setLoading(true);setError('');const timer=setTimeout(()=>request<T>(path,controller.signal).then(value=>{setData(value);setLoading(false)}).catch((err:Error)=>{if(!controller.signal.aborted){setError(err.message);setLoading(false)}}),0);return()=>{clearTimeout(timer);controller.abort()}},[path,enabled,revision])
- return {data,loading,error,reload:()=>setRevision(value=>value+1)}
+ const reload=useCallback(()=>setRevision(value=>value+1),[])
+ return {data,loading,error,reload}
 }
 export function useFundWrite(){
  const pending=useRef<{path:string;payload:Record<string,unknown>}|null>(null),inFlight=useRef(false),feedback=useRef<HTMLDivElement>(null)

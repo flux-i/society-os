@@ -8,7 +8,8 @@ import (
 	"testing"
 )
 
-func TestSchemaTwentyCommunityPreservesAll78PriorPersistentTablesOriginalMoneyAndUnknownHandoff(t *testing.T) {
+func communitySchemaNineteen(t *testing.T) (*Store, string, string) {
+	t.Helper()
 	s, a, b := statementMessageSchemaSixteen(t)
 	ctx := context.Background()
 	conn, e := s.DB.Conn(ctx)
@@ -35,6 +36,35 @@ func TestSchemaTwentyCommunityPreservesAll78PriorPersistentTablesOriginalMoneyAn
 		t.Fatal(e)
 	}
 	conn.Close()
+	return s, a, b
+}
+
+func applyHistoricalCommunityMigration(t *testing.T, s *Store, version int) {
+	t.Helper()
+	body, e := migrationBody(version)
+	if e != nil {
+		t.Fatal(e)
+	}
+	tx, e := s.DB.BeginTx(context.Background(), nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer tx.Rollback()
+	if _, e = tx.Exec(string(body)); e != nil {
+		t.Fatal(e)
+	}
+	hash := sha256.Sum256(body)
+	if _, e = tx.Exec("INSERT INTO schema_migrations VALUES(?,?,?)", version, hex.EncodeToString(hash[:]), "2026-10-07"); e != nil {
+		t.Fatal(e)
+	}
+	if e = tx.Commit(); e != nil {
+		t.Fatal(e)
+	}
+}
+
+func TestSchemaTwentyCommunityPreservesAll78PriorPersistentTablesOriginalMoneyAndUnknownHandoff(t *testing.T) {
+	s, a, b := communitySchemaNineteen(t)
+	ctx := context.Background()
 	entry := post(t, s, a, received("432.19"))
 	original, e := s.EntryFor(ctx, a, entry)
 	if e != nil || original.AmountPaise != 43219 || original.ReceiptID == "" {
@@ -87,9 +117,8 @@ func TestSchemaTwentyCommunityPreservesAll78PriorPersistentTablesOriginalMoneyAn
 	if e = s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations ORDER BY version)").Scan(&provenance); e != nil {
 		t.Fatal(e)
 	}
-	if e = s.Migrate(ctx); e != nil {
-		t.Fatal(e)
-	}
+	// Retain the historical 19 -> 20 boundary even as current schema advances.
+	applyHistoricalCommunityMigration(t, s, 20)
 	if got := statementMessageRows(t, s, tables); !reflect.DeepEqual(before, got) {
 		t.Fatal("prior original rows changed")
 	}
@@ -103,6 +132,9 @@ func TestSchemaTwentyCommunityPreservesAll78PriorPersistentTablesOriginalMoneyAn
 	var retained string
 	if e = s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations WHERE version<=19 ORDER BY version)").Scan(&retained); e != nil || retained != provenance {
 		t.Fatal("prior provenance changed", e)
+	}
+	if e = s.Migrate(ctx); e != nil {
+		t.Fatal(e)
 	}
 	if e = s.VerifySchema(ctx); e != nil {
 		t.Fatal(e)

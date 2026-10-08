@@ -1,0 +1,17 @@
+import { expect } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { financialHeaders } from './maintenance-fixtures'
+
+export const meetingProposalConfirmation='I checked this exact agenda, timing, homes and acknowledgement choice for separate review.'
+export const meetingDecisionConfirmation='I reviewed this exact meeting version, times, homes and acknowledgement choice.'
+export const meetingAckConfirmation='I read and personally acknowledge this exact published meeting version.'
+export const meetingRequestAcknowledgement="Request each eligible member's personal acknowledgement of this version"
+export async function meetingPost(page:Page,path:string,data:Record<string,unknown>){const response=await page.request.post(path,{headers:await financialHeaders(page),data:{operation_key:crypto.randomUUID(),confirmed:true,...data}});expect(response.status(),await response.text()).toBe(200);return response.json()}
+export async function meetingDetail(page:Page,id:string,desk=true){const response=await page.request.get('/api/meetings/'+id+'?desk='+desk);expect(response.status(),await response.text()).toBe(200);return response.json()}
+export async function meetingProposal(page:Page,title:string,changes:Record<string,unknown>={}){const options=await(await page.request.get('/api/meetings/options')).json(),now=Math.floor(Date.now()/1000);return (await meetingPost(page,'/api/meetings',{action:'AGENDA',title,body:'The supplied fictional agenda is deliberately prepared for the exact meeting homes.',location:'PRIVATE_MEETING fictional meeting room',scope:'ALL',area_key:options.area_key,start_at:now+3600,end_at:now+7200,ack_required:true,ack_deadline:now+86400,reason:'PRIVATE_MEETING exact supplied agenda, schedule and homes checked',...changes})).id as string}
+export async function meetingApprove(page:Page,id:string){const x=await meetingDetail(page,id);await meetingPost(page,'/api/meetings/'+id+'/decisions',{version:x.version,action:'APPROVED',reason:'PRIVATE_MEETING independently reviewed the exact version and audience'})}
+export async function openMeeting(page:Page,id:string,desk=true){const target=new URL('/#community?meeting='+id+(desk?'&desk=true':''),page.url()).href;if(target===page.url())await page.reload();else await page.goto(target);await expect(page.getByRole('dialog').locator('.community-state').first()).toBeVisible()}
+export async function meetingCapture(page:Page,name:string){if(process.env.SOCIETY_CAPTURE_UI!=='1')return;await page.evaluate(async()=>{await document.fonts.ready;await Promise.all(document.getAnimations().filter(a=>Number.isFinite(Number(a.effect?.getComputedTiming().endTime))).map(a=>a.finished.catch(()=>{})))});const folder=resolve('../reports/local/meetings-ui');mkdirSync(folder,{recursive:true,mode:0o700});await page.screenshot({path:resolve(folder,name+'.png'),fullPage:false})}
+export async function meetingWithin(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);for(const role of ['dialog','listbox'] as const){const control=page.getByRole(role);if(await control.count()){const b=await control.boundingBox();expect(b!.x).toBeGreaterThanOrEqual(0);expect(b!.x+b!.width).toBeLessThanOrEqual(page.viewportSize()!.width+1);expect(b!.y).toBeGreaterThanOrEqual(0);expect(b!.y+b!.height).toBeLessThanOrEqual(page.viewportSize()!.height+1)}}}

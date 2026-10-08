@@ -81,26 +81,28 @@ test('denied and stale request or entry deep links disclose no hidden record and
 test('a combined source outage shows unknowns and section retries restore usable work', async ({ page }) => {
   await login(page); await page.route('**/api/overview/*', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' })); await overview(page)
   await expect(page.locator('.overview-metric > strong')).toHaveText(['—','—','—','—'])
-  const unavailable = ['Financial records','Requests','Service requests','Notices','Documents','Maintenance','Upkeep','Collections','Rules & conduct','Fines & appeals','Messages','Financial statements','Service updates']
+  const unavailable = ['Financial records','Requests','Service requests','Notices','Documents','Maintenance','Upkeep','Collections','Rules & conduct','Fines & appeals','Messages','Financial statements','Service updates','Meetings']
   for (const label of unavailable) {
     // Operational decisions, messaging and statements need retries in both queue and summary.
-    await expect(page.getByRole('alert').filter({has:page.getByText(label+' unavailable',{exact:true})})).toHaveCount(['Rules & conduct','Fines & appeals','Messages','Financial statements','Service updates'].includes(label)?2:1)
+    await expect(page.getByRole('alert').filter({has:page.getByText(label+' unavailable',{exact:true})})).toHaveCount(['Rules & conduct','Fines & appeals','Messages','Financial statements','Service updates','Meetings'].includes(label)?2:1)
   }
-  await expect(page.getByRole('alert')).toHaveCount(18)
-  for (const label of ['Maintenance, in view.','Collections, in view.','Rules, with care.','Communication, in view.','Accounts, with context.','Services, in view.']) await expect(page.getByRole('region',{name:label,exact:true}).locator('.overview-maintenance-amounts strong')).toHaveText(['—','—','—'])
+  await expect(page.getByRole('alert')).toHaveCount(20)
+  for (const label of ['Maintenance, in view.','Collections, in view.','Rules, with care.','Communication, in view.','Accounts, with context.','Services, in view.','Meetings, in view.']) await expect(page.getByRole('region',{name:label,exact:true}).locator('.overview-maintenance-amounts strong')).toHaveText(['—','—','—'])
   await expect(page.getByRole('heading', { name: 'All clear for now.' })).toHaveCount(0); await expect(page.getByText('Some sections need a retry', { exact: true })).toBeVisible(); await capture(page, 'combined-source-outage', true)
-  await page.unroute('**/api/overview/*'); await page.getByRole('button', { name: 'Retry service requests', exact: true }).click(); await expect(page.getByRole('alert')).toHaveCount(17); await expect(page.getByRole('link', { name: 'Urgent service request: DAY Urgent water leak', exact: true })).toBeVisible()
+  await page.unroute('**/api/overview/*'); await page.getByRole('button', { name: 'Retry service requests', exact: true }).click(); await expect(page.getByRole('alert')).toHaveCount(19); await expect(page.getByRole('link', { name: 'Urgent service request: DAY Urgent water leak', exact: true })).toBeVisible()
   const conduct=page.getByRole('region',{name:'Rules, with care.',exact:true})
   await conduct.getByRole('button',{name:'Retry rules & conduct',exact:true}).click()
   await expect(conduct.locator('.overview-maintenance-amounts strong')).toHaveText(['0','0','0'])
   await expect(page.getByText('Rules & conduct unavailable',{exact:true})).toHaveCount(0)
-  await expect(page.getByRole('alert')).toHaveCount(15)
+  await expect(page.getByRole('alert')).toHaveCount(17)
   const messages=page.getByRole('region',{name:'Communication, in view.',exact:true})
-  await messages.getByRole('button',{name:'Retry messages',exact:true}).click();await expect(messages.locator('.overview-maintenance-amounts strong')).toHaveText(['0','0','0']);await expect(page.getByText('Messages unavailable',{exact:true})).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(13)
+  await messages.getByRole('button',{name:'Retry messages',exact:true}).click();await expect(messages.locator('.overview-maintenance-amounts strong')).toHaveText(['0','0','0']);await expect(page.getByText('Messages unavailable',{exact:true})).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(15)
   const statements=page.getByRole('region',{name:'Accounts, with context.',exact:true})
-  await statements.getByRole('button',{name:'Retry financial statements',exact:true}).click();await expect(statements.locator('.overview-maintenance-amounts strong')).toHaveText(['0','0','0']);await expect(page.getByText('Financial statements unavailable',{exact:true})).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(11)
+  await statements.getByRole('button',{name:'Retry financial statements',exact:true}).click();await expect(statements.locator('.overview-maintenance-amounts strong')).toHaveText(['0','0','0']);await expect(page.getByText('Financial statements unavailable',{exact:true})).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(13)
   const services=page.getByRole('region',{name:'Services, in view.',exact:true})
-  await services.getByRole('button',{name:'Retry service updates',exact:true}).click();await expect(services.locator('.overview-maintenance-amounts strong')).toHaveText(['0','0','0']);await expect(page.getByText('Service updates unavailable',{exact:true})).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(9)
+  await services.getByRole('button',{name:'Retry service updates',exact:true}).click();await expect(services.locator('.overview-maintenance-amounts strong')).toHaveText(['0','0','0']);await expect(page.getByText('Service updates unavailable',{exact:true})).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(11)
+  const meetings=page.getByRole('region',{name:'Meetings, in view.',exact:true})
+  await meetings.getByRole('button',{name:'Retry meetings',exact:true}).click();await expect(meetings.locator('.overview-maintenance-amounts strong')).toHaveText(['0','0','0']);await expect(page.getByText('Meetings unavailable',{exact:true})).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(9)
   await expect(page.getByRole('region',{name:'Collections, in view.',exact:true}).locator('.overview-maintenance-amounts strong')).toHaveText(['—','—','—'])
   await capture(page, 'partial-outage-recovery', true); await page.getByRole('button', { name: 'Refresh overview' }).click(); await expect(page.getByRole('alert')).toHaveCount(0)
 })

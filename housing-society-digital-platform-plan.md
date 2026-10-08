@@ -12,7 +12,7 @@
 **Accounting:** Existing very old Tally installation; exact version/import compatibility pending
 **Society state:** Pending for receipt/retention policy; statutory billing rules are future inputs
 
-**Implementation status:** Locally accepted Go/React release **0.21/schema 20** adds reviewed service contacts and water/power/lift interruptions, explicit restoration and independently retriable current Overview attention. [Community acceptance](docs/community-services-baseline.md) records **215 Go declarations, 190 ordinary cases/28 suites, 52 actual native cases/eight suites and 45 actually inspected PNGs/104 native parts/26 sheets/eight originals**, matching schema-19/20 recovery, all 78 prior persistent tables preserved plus three additive tables, unchanged held keys and a pinned verified preview. Closed findings are **81 groups (79 product/UI, two operational)**; fixture/selector/outage/native-guard QA corrections add no findings. Personal public [application publication](https://github.com/flux-i/society-os/commit/a214084cae66739ddfcc563ba1d03dad5e668007) is verified against API main, personal account/author and a clean tree. Its immutable private archive retains 375 matching source files and 766 verified hashes; a separate six-document follow-up records publication metadata without changing tested application/runtime or archive evidence. Earlier [0.20 application](https://github.com/flux-i/society-os/commit/b52626e9f0c420cb647cee0a240f12ccb117dd34) and six-document main `e4cdaab574d3109c3a3c061fa2f3cdfac2608488` retain their verified immutable 354-source/753-hash archive. The whole plan stays active: meetings/acknowledgements/reminders, budget/move checklists, measured performance/PWA/migration and independent production preparation follow. Missing production inputs block only dependent activation/acceptance. See [current checkpoint state](docs/next-session.md).
+**Implementation status:** Locally accepted Go/React release **0.22/schema 21** adds separately reviewed meeting agendas/minutes/cancellations, exact personal acknowledgements, private current/historical response counts and independently retryable meeting Overview attention. [Meeting acceptance](docs/meetings-baseline.md) records **227 Go declarations, 197 ordinary cases/29 suites, 56 actual native cases/nine suites and 59 inspected PNGs/159 native parts/40 sheets/eight originals**, matching schema-20/21 recovery, all 81 prior persistent definitions/rows preserved plus four additive tables, unchanged held keys and the pinned verified 0.22 preview. Closed findings are **87 groups (85 product/UI, two operational)**; QA corrections add none. Personal publication/archive verification for this checkpoint is being recorded separately. The preceding [0.21 application](https://github.com/flux-i/society-os/commit/a214084cae66739ddfcc563ba1d03dad5e668007), six-document main `f288dd3be4a4357ec7c3e4b60ec78015a906e5d8` and immutable 375-source/766-hash archive remain intact. The whole plan stays active: [private reminders/delivery exceptions](docs/reminders-delivery-exceptions-workflow.md), budget/move checklists, measured performance/PWA/migration and independent production preparation follow. Missing production inputs block only dependent activation/acceptance. See [current checkpoint state](docs/next-session.md).
 
 **Scope addition:** The user's subsequent requests are preserved in the [society operations roadmap](docs/society-operations-roadmap.md): an actionable changing overview, maintenance, fund collection campaigns, resident external-payment reports, targeted WhatsApp/email, evidence-based rule reports and authorised fines, and externally prepared financial statements with intentional publication/sharing. This dated addendum defines the next slices and supersedes earlier deferrals of those specifically requested capabilities. No payment initiation is added; older sections remain conditional references for unrequested billing/bank/Tally automation.
 
@@ -886,7 +886,7 @@ Permanent deletion is a restricted, audited retention process that includes all 
 
 V1 includes authorized metadata filters and bounded searches on current notices/documents/complaints. Full extracted-text search is an optional Phase 7 enhancement, not a launch dependency.
 
-Use SQLite FTS5 for later full-text search across notices, permitted complaint text, and extracted text from documents such as meeting minutes. Meeting minutes initially remain documents rather than requiring a separate meeting workflow.
+Use SQLite FTS5 for later full-text search across notices, permitted complaint text, and extracted text from documents such as meeting minutes. The separately reviewed meeting workflow in release 0.22 now retains supplied minutes and exact personal acknowledgements; the general document library remains available for supporting originals.
 
 - Join search results to current authorized source records before producing snippets, titles, counts, facets, previews, or external AI context.
 - Index/reindex by document ID and exact validated version; archival, replacement, deletion, and visibility changes update or invalidate affected entries.
@@ -1994,7 +1994,8 @@ Checked implementation items below have local synthetic evidence; they do not cl
 - [x] Complete official-protocol portal provider preparation with loopback fixtures, frozen approved templates, durable handoffs, signed callbacks and matching recovery in release 0.20.
 - [ ] Activate the society-owned live provider after its supplied identity, credentials, templates, HTTPS callback and costed acceptance.
 - [x] Complete reviewed service contacts and explicit interruption/restoration with matching recovery in release 0.21.
-- [ ] Complete meeting/acknowledgement, private-reminder and remaining ordered community workflows in the roadmap.
+- [x] Complete separately reviewed meeting agendas/minutes and exact personal acknowledgements with matching recovery in release 0.22.
+- [ ] Complete private reminders/delivery exceptions and the remaining ordered community workflows in the roadmap.
 - [ ] Implement PWA cache/update/logout/accessibility behavior and operator degraded-state views.
 
 ## Migration, budget, and pilot
@@ -2050,7 +2051,7 @@ Only after V1 is stable and the added work has an owner, measured need, and annu
 - Read-only, permission-scoped AI Q&A and structured queries.
 - Contract/AMC reminder scheduling from structured expiry fields.
 - Vehicle/parking register when operationally required.
-- Amenity booking, visitor management, polls/voting, meeting workflows, digital NOC requests, vendor register, or expense tracking when explicitly justified.
+- Amenity booking, visitor management, polls/voting, digital NOC requests, vendor enhancements, or expense tracking when explicitly justified.
 - Formal accounting replacement only after a separate requirements/migration/control review.
 
 Manual-entry accuracy, linked corrections, immutable receipt/recovery, audit and backup/restore remain V1 requirements. Detailed allocations/advance automation, automatic billing, bank matching and Tally integration are conditional future features.

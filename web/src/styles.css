@@ -916,8 +916,8 @@
   .registry-editor .portal-form > h3 + .form-help { margin-top: -8px; }
   .form-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
   .form-pair:has(> label:only-child) { grid-template-columns: 1fr; }
-  .portal-form .checkbox-label { flex-direction: row; align-items: center; gap: 10px; min-height: 44px; }
-  .portal-form .checkbox-label input { min-height: 18px; height: 18px; width: 18px; accent-color: var(--color-forest); }
+  .portal-form .checkbox-label { display:flex; flex-direction: row; align-items: center; gap: 10px; min-height: 44px; font-size:12px; font-weight:400; line-height:1.7; }
+  .portal-form .checkbox-label input { min-height: 18px; height: 18px; width: 18px; flex:0 0 18px; accent-color: var(--color-forest); }
   .registry-history h3 { margin-bottom: 13px; }
   .history-empty { text-align: center; padding: 35px 18px; background: #f0f1e8; border-radius: 12px; margin-top: 22px; }
   .history-empty svg { width: 27px; height: 27px; margin: 0 auto 14px; color: #768653; }
@@ -1917,3 +1917,45 @@
 @media(max-height:520px) { .community-detail { padding-top:23px; } .community-detail > h2 { font-size:28px; margin:14px 0 22px; } .community-detail > h2 br { display:none; } }
 @media(max-width:600px) { .community-dialog-heading { padding:22px 68px 18px 20px; } .community-dialog-heading h2 { font-size:30px; } .community-dialog .community-detail { padding:18px 20px 25px; } }
 @media(max-height:520px) { .community-dialog-heading { padding-top:17px; padding-bottom:15px; } .community-dialog-heading h2 { font-size:26px; margin-top:8px; } .community-dialog-heading h2 br { display:none; } .community-dialog-heading > .eyebrow { font-size:9px; } .community-dialog .dialog-close { top:15px; } }
+
+/* Meeting records and personal responses share the community's calm paper surfaces. */
+.meeting-hero-actions { display:flex; flex-wrap:wrap; align-items:center; gap:18px; }
+.meeting-filters { display:grid; grid-template-columns:minmax(0,1fr) 250px auto; }
+.meeting-filters .filter-select { width:100%; }
+.community-card-top > .meeting-date:first-child { display:grid; gap:0; justify-items:center; min-width:61px; padding:7px 13px 9px; border:1px solid #d3dbc2; border-radius:12px; background:#eef1e3; color:#4a634c; line-height:1.15; }
+.meeting-date > strong { font:400 38px/1 var(--font-display); }
+.meeting-date > span { font-size:10px; letter-spacing:1px; text-transform:uppercase; margin-top:5px; }
+.meeting-card h3 { margin-top:22px; }
+.meeting-card .community-card-foot small { color:#61774e; }
+.meeting-state-upcoming { background:#e4ebd4; color:#536b42; }
+.meeting-state-minutes { background:#e7e2ed; color:#71617b; }
+.meeting-state-pending { background:#eee3d1; color:#886345; }
+.meeting-state-past,.meeting-state-withdrawn,.meeting-state-proposal_cancelled,.meeting-state-declined { background:#edeee6; color:#687263; }
+.meeting-state-cancelled { background:#eee0d7; color:#8a634e; }
+.meeting-ack-policy { border-top:1px solid #dce2cf; padding-top:17px; color:#526a46; }
+.meeting-held { color:var(--color-muted); }
+.meeting-ack-choice { margin:6px 0 21px; padding:18px; border:1px solid #d5dec7; border-radius:12px; background:#f1f4e8; }
+.meeting-proposal-form label:not(.checkbox-label) { display:flex; flex-direction:column; gap:8px; min-width:0; font-size:12px; font-weight:500; }
+.meeting-ack-choice > label:not(.checkbox-label) { margin-top:18px; }
+.meeting-ack-choice .checkbox-label { margin:0; align-items:flex-start; }
+.meeting-personal-response { padding:5px 0 12px; font-size:13px; line-height:1.8; }
+.meeting-personal-response .form-success { display:flex; align-items:flex-start; gap:10px; }
+.meeting-personal-response .form-success > svg { flex-shrink:0; margin-top:3px; }
+.meeting-ack-form h3,.meeting-responses h3 { font:400 30px/1.15 var(--font-display); }
+.meeting-reading-link { display:inline-flex; margin-top:20px; }
+.meeting-responses { min-width:0; }
+.meeting-response-counts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border:1px solid #d5dec7; border-radius:13px; background:#f1f4e8; overflow:hidden; margin:22px 0 28px; }
+.meeting-response-counts > div { display:flex; flex-direction:column; gap:11px; padding:17px 14px; border-right:1px solid #d5dec7; min-width:0; }
+.meeting-response-counts > div:last-child { border-right:0; }
+.meeting-response-counts span { font-size:10px; line-height:1.6; color:#62745a; }
+.meeting-response-counts strong { font:400 38px/1 var(--font-display); color:#294b3e; }
+.meeting-responses h4 { font-size:12px; font-weight:500; margin:25px 0 14px; }
+.meeting-response-list { list-style:none; padding:0; margin:0; }
+.meeting-response-list li { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; padding:16px 0; border-top:1px solid var(--color-line); font-size:12px; line-height:1.7; }
+.meeting-response-list li > div { min-width:0; }
+.meeting-response-list strong { font-weight:500; }
+.meeting-response-list small { display:block; color:var(--color-muted); margin-top:5px; }
+.meeting-response-list li > span { font-size:11px; color:#697a60; max-width:45%; text-align:right; }
+.meeting-response-list strong,.meeting-response-list small,.meeting-response-list li > span { overflow-wrap:anywhere; }
+@media(max-width:850px) { .meeting-filters { grid-template-columns:minmax(0,1fr) 220px; } .meeting-filters .clear-button { grid-column:1/-1; justify-self:end; } }
+@media(max-width:600px) { .community-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .community-tabs a { min-width:0; } .meeting-filters { grid-template-columns:minmax(0,1fr); } .meeting-filters .clear-button { grid-column:auto; } .meeting-hero-actions { align-items:flex-start; gap:15px; } .meeting-ack-choice { padding:14px; } .meeting-proposal-form input[type=datetime-local] { min-width:0; width:100%; } .meeting-response-counts { grid-template-columns:repeat(2,minmax(0,1fr)); } .meeting-response-counts > div:nth-child(2) { border-right:0; } .meeting-response-counts > div:nth-child(n+3) { border-top:1px solid #d5dec7; } .meeting-response-list li { flex-direction:column; gap:7px; } .meeting-response-list li > span { max-width:100%; text-align:left; } }
