@@ -22,7 +22,7 @@ type SimulationHandoff struct {
 
 func messageOperatorCurrent(ctx context.Context, q identityReader, id, kind string) (bool, error) {
 	roles := "'ADMINISTRATOR','COMMITTEE'"
-	if kind == "RECEIPT" || kind == "STATEMENT" {
+	if financeMessageKind(kind) {
 		roles = "'TREASURER'"
 	}
 	var current bool
@@ -46,6 +46,10 @@ func messageSourceProblem(ctx context.Context, q identityReader, x MessageBatch)
 	}
 	if e != nil {
 		return "", e
+	}
+	if source.Reminder != nil && x.Source.Reminder != nil {
+		source.Reminder.Basis = x.Source.Reminder.Basis
+		source.Reminder.Target = x.Source.Reminder.Target
 	}
 	before, _ := json.Marshal(x.Source)
 	after, _ := json.Marshal(source)
@@ -132,6 +136,12 @@ func messageDeliveryEligibility(ctx context.Context, tx *sql.Tx, x MessageBatch,
 			} else {
 				reason, dest := messageRecipientReason(person, x.Source, x.Channel, x.Purpose)
 				r.Reason = reason
+				if r.Reason == "" && x.Source.Reminder != nil {
+					r.Reason, e = reminderDispatchReason(ctx, tx, x, person)
+					if e != nil {
+						return nil, 0, "", e
+					}
+				}
 				if reason == "" && (person.Contact.Version != r.ContactVersion || dest != destination) {
 					r.Reason = "CONTACT_CHANGED"
 				}

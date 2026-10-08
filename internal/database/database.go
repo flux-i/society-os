@@ -25,7 +25,7 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-const SchemaVersion = 21
+const SchemaVersion = 22
 
 type Store struct {
 	DB           *sql.DB
@@ -176,7 +176,7 @@ func (s *Store) Migrate(ctx context.Context) (resultErr error) {
 	// Parent CHECK changes use SQLite's create/copy/drop/rename procedure.
 	// Foreign-key mode cannot be changed inside a transaction. Never return
 	// an unenforced connection to the pool, including a cancelled migration.
-	if prior < 17 {
+	if prior < 22 {
 		defer func() {
 			resetCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()

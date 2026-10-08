@@ -11,15 +11,22 @@ import (
 func messageScope(p Principal) (string, []any) {
 	notice, receipt := "0", "0"
 	if messageStaff(p, "NOTICE") {
-		notice = "source_kind='NOTICE'"
+		notice = "source_kind IN('NOTICE','MEETING_REMINDER')"
 	}
 	if messageStaff(p, "RECEIPT") {
-		receipt = "source_kind IN('RECEIPT','STATEMENT')"
+		receipt = "source_kind IN('RECEIPT','STATEMENT','MAINTENANCE_REMINDER','FUND_REMINDER')"
 	}
 	return "(" + notice + " OR " + receipt + ` OR (message_batches.state IN('APPROVED','CANCELLED') AND EXISTS(SELECT 1 FROM message_recipients mr WHERE mr.batch_id=message_batches.id AND mr.snapshot_version=message_batches.snapshot_version AND mr.resident_id=? AND mr.frozen_reason='')))`, []any{p.ResidentID}
 }
 func decorateMessageBatch(ctx context.Context, q identityReader, p Principal, x *MessageBatch) error {
 	staff := messageStaff(p, x.Source.Kind)
+	if reminderKind(x.Source.Kind) {
+		key, e := reminderReadKey(ctx, q, p, *x)
+		if e != nil {
+			return e
+		}
+		x.ReminderCurrentKey = key
+	}
 	clause, args := "d.batch_id=? AND d.snapshot_version=?", []any{x.ID, x.SnapshotVersion}
 	if !staff {
 		clause += ` AND EXISTS(SELECT 1 FROM message_recipients mr WHERE mr.delivery_id=d.id AND mr.resident_id=?)`
@@ -66,7 +73,7 @@ func decorateMessageBatch(ctx context.Context, q identityReader, p Principal, x 
 			}
 			for _, person := range people {
 				if person.ID == p.ResidentID {
-					visible = messageSourceMatches(person, src)
+					visible = messageSourceMatches(person, src) && (!reminderKind(src.Kind) || src.Version == x.Source.Version)
 					break
 				}
 			}
@@ -85,6 +92,10 @@ func decorateMessageBatch(ctx context.Context, q identityReader, p Principal, x 
 		if x.Source.Kind == "STATEMENT" {
 			x.Source.Title = "Published financial statement"
 		}
+		if reminderKind(x.Source.Kind) {
+			x.Source.Title = "Private reminder"
+			x.Source.Reminder = nil
+		}
 		x.Source.PublicationTarget = nil
 		x.Source.Version, x.Source.Audience, x.Source.Wing = "", "", ""
 		x.Target = MessageTarget{Kind: "PERSONAL", IDs: []string{}}
@@ -96,11 +107,17 @@ func decorateMessageBatch(ctx context.Context, q identityReader, p Principal, x 
 	x.CanRefresh = x.State == "PENDING" && x.ProposedBy == p.ID
 	x.CanWithdraw = x.CanRefresh
 	if x.State == "PENDING" {
-		fresh, e := resolveMessage(ctx, q, MessageInput{SourceKind: x.Source.Kind, SourceID: x.Source.ID, Channel: x.Channel, Target: x.Target, PortalOrigin: x.PortalOrigin, Provider: x.Provider})
+		fresh, e := resolveMessage(ctx, q, reminderInput(*x))
 		if e == sql.ErrNoRows {
 			x.ReviewProblem = "SOURCE_UNAVAILABLE"
+			if reminderKind(x.Source.Kind) {
+				x.CanRefresh = false
+			}
 		} else if e != nil {
 			return e
+		} else if reminderKind(x.Source.Kind) && !sameReminderSource(x.Source, fresh.Source) {
+			x.ReviewProblem = "SOURCE_CHANGED"
+			x.CanRefresh = false
 		} else if fresh.PreviewHash != x.PreviewHash {
 			x.ReviewProblem = "PREVIEW_CHANGED"
 		}
@@ -123,7 +140,7 @@ func decorateMessageBatch(ctx context.Context, q identityReader, p Principal, x 
 }
 func (s *Store) MessagesFor(ctx context.Context, token, query, state, kind string, page int) (MessagePage, error) {
 	out := MessagePage{Items: []MessageBatch{}, Page: page, PageSize: 12}
-	if page < 1 || page > 10000 || len(query) > 100 || (kind != "" && kind != "NOTICE" && kind != "RECEIPT" && kind != "STATEMENT") || (state != "" && state != "PENDING" && state != "APPROVED" && state != "DECLINED" && state != "WITHDRAWN" && state != "CANCELLED") {
+	if page < 1 || page > 10000 || len(query) > 100 || (kind != "" && !ValidMessageSourceKind(kind)) || (state != "" && state != "PENDING" && state != "APPROVED" && state != "DECLINED" && state != "WITHDRAWN" && state != "CANCELLED") {
 		return out, ErrInvalid
 	}
 	tx, e := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -146,8 +163,8 @@ func (s *Store) MessagesFor(ctx context.Context, token, query, state, kind strin
 		args = append(args, state)
 	}
 	if query != "" {
-		where += " AND ((source_kind='NOTICE' AND json_extract(source_json,'$.title') LIKE ?) OR (source_kind='STATEMENT' AND CASE WHEN ? THEN json_extract(source_json,'$.title') ELSE 'Published financial statement' END LIKE ?))"
-		args = append(args, "%"+query+"%", messageStaff(p, "STATEMENT"), "%"+query+"%")
+		where += " AND ((source_kind='NOTICE' AND json_extract(source_json,'$.title') LIKE ?) OR (source_kind='STATEMENT' AND CASE WHEN ? THEN json_extract(source_json,'$.title') ELSE 'Published financial statement' END LIKE ?) OR (source_kind IN('MAINTENANCE_REMINDER','FUND_REMINDER','MEETING_REMINDER') AND CASE WHEN ((source_kind='MEETING_REMINDER' AND ?) OR (source_kind<>'MEETING_REMINDER' AND ?)) THEN json_extract(source_json,'$.title') ELSE 'Private reminder' END LIKE ?))"
+		args = append(args, "%"+query+"%", messageStaff(p, "STATEMENT"), "%"+query+"%", messageStaff(p, "MEETING_REMINDER"), messageStaff(p, "MAINTENANCE_REMINDER"), "%"+query+"%")
 	}
 	if e = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM message_batches"+where, args...).Scan(&out.Total); e != nil {
 		return out, e
@@ -233,6 +250,22 @@ func (s *Store) MessageFor(ctx context.Context, token, id string, recipientPage,
 		}
 		return out, tx.Commit()
 	}
+	if reminderKind(x.Source.Kind) {
+		for i := range out.Recipients {
+			r := &out.Recipients[i]
+			var binding string
+			e = tx.QueryRowContext(ctx, "SELECT binding_json FROM message_reminder_recipients WHERE batch_id=? AND snapshot_version=? AND resident_id=?", id, x.SnapshotVersion, r.ID).Scan(&binding)
+			if e == sql.ErrNoRows {
+				continue
+			}
+			if e != nil {
+				return out, e
+			}
+			if e = json.Unmarshal([]byte(binding), &r.Reminder); e != nil {
+				return out, e
+			}
+		}
+	}
 	if e = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM message_deliveries WHERE batch_id=? AND snapshot_version=? AND ? IN('APPROVED','CANCELLED')", id, x.SnapshotVersion, x.State).Scan(&out.DeliveryTotal); e != nil {
 		return out, e
 	}
@@ -246,7 +279,7 @@ func (s *Store) MessageFor(ctx context.Context, token, id string, recipientPage,
 			rows.Close()
 			return out, e
 		}
-		if (x.Source.Kind == "RECEIPT" || x.Source.Kind == "STATEMENT") && !p.CanManageContacts {
+		if financeMessageKind(x.Source.Kind) && !p.CanManageContacts {
 			d.Destination = maskMessageDestination(d.Destination)
 		}
 		out.Deliveries = append(out.Deliveries, d)
@@ -368,7 +401,7 @@ func (s *Store) MessageTargetsFor(ctx context.Context, token, kind, sourceID, ta
 			}
 		} else {
 			for _, home := range person.Homes {
-				if (src.Kind == "RECEIPT" && home.ID != src.HomeID) || !statementMessageHomeChoice(person, home, src) {
+				if (src.Kind == "RECEIPT" && home.ID != src.HomeID) || !statementMessageHomeChoice(person, home, src) || (reminderKind(src.Kind) && !reminderHomeMatches(home, src)) {
 					continue
 				}
 				if seen[home.ID] {

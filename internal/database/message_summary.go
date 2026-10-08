@@ -52,7 +52,7 @@ func messageSummaryIn(ctx context.Context, q identityReader, p Principal) (Messa
 	}
 	// Staff counts are unique envelopes; a resident's stopped/suppressed decision
 	// overrides a shared envelope delivered for somebody else.
-	rows, e = q.QueryContext(ctx, `SELECT CASE WHEN ((source_kind='NOTICE' AND ?) OR (source_kind IN('RECEIPT','STATEMENT') AND ?)) THEN d.state ELSE CASE WHEN mr.disposition IN('ELIGIBLE','HANDED_OFF') THEN d.state ELSE mr.disposition END END,COUNT(*)
+	rows, e = q.QueryContext(ctx, `SELECT CASE WHEN ((source_kind IN('NOTICE','MEETING_REMINDER') AND ?) OR (source_kind IN('RECEIPT','STATEMENT','MAINTENANCE_REMINDER','FUND_REMINDER') AND ?)) THEN d.state ELSE CASE WHEN mr.disposition IN('ELIGIBLE','HANDED_OFF') THEN d.state ELSE mr.disposition END END,COUNT(*)
  FROM message_batches JOIN message_deliveries d ON d.batch_id=message_batches.id AND d.snapshot_version=message_batches.snapshot_version
  LEFT JOIN message_recipients mr ON mr.delivery_id=d.id AND mr.resident_id=? WHERE message_batches.state IN('APPROVED','CANCELLED') AND `+scope+` GROUP BY 1`, append([]any{messageStaff(p, "NOTICE"), messageStaff(p, "RECEIPT"), p.ResidentID}, args...)...)
 	if e != nil {
@@ -85,11 +85,11 @@ func overviewMessages(ctx context.Context, tx *sql.Tx, p Principal, out *Overvie
 		out.Counts[state] = int64(summary.Outcomes[state])
 	}
 	scope, args := messageScope(p)
-	where := ` WHERE ` + scope + ` AND (state='PENDING' OR (state='APPROVED' AND EXISTS(SELECT 1 FROM message_deliveries d WHERE d.batch_id=message_batches.id AND d.snapshot_version=message_batches.snapshot_version AND d.state IN('QUEUED','UNKNOWN','FAILED') AND (((source_kind='NOTICE' AND ?) OR (source_kind IN('RECEIPT','STATEMENT') AND ?)) OR EXISTS(SELECT 1 FROM message_recipients mr WHERE mr.delivery_id=d.id AND mr.resident_id=? AND mr.disposition IN('ELIGIBLE','HANDED_OFF'))))))`
+	where := ` WHERE ` + scope + ` AND (state='PENDING' OR (state='APPROVED' AND EXISTS(SELECT 1 FROM message_deliveries d WHERE d.batch_id=message_batches.id AND d.snapshot_version=message_batches.snapshot_version AND d.state IN('QUEUED','UNKNOWN','FAILED') AND (((source_kind IN('NOTICE','MEETING_REMINDER') AND ?) OR (source_kind IN('RECEIPT','STATEMENT','MAINTENANCE_REMINDER','FUND_REMINDER') AND ?)) OR EXISTS(SELECT 1 FROM message_recipients mr WHERE mr.delivery_id=d.id AND mr.resident_id=? AND mr.disposition IN('ELIGIBLE','HANDED_OFF'))))))`
 	values := append(args, messageStaff(p, "NOTICE"), messageStaff(p, "RECEIPT"), p.ResidentID)
 	if e = overviewCounts(ctx, tx, out, []string{"attention_items"}, `SELECT COUNT(*) FROM message_batches`+where, values...); e != nil {
 		return e
 	}
-	return overviewItems(ctx, tx, out, `SELECT id,CASE source_kind WHEN 'NOTICE' THEN 'Community message' WHEN 'STATEMENT' THEN 'Financial statement message' ELSE 'Private receipt message' END,'','MESSAGE',state,'','',updated_at,0
+	return overviewItems(ctx, tx, out, `SELECT id,CASE source_kind WHEN 'NOTICE' THEN 'Community message' WHEN 'STATEMENT' THEN 'Financial statement message' WHEN 'MAINTENANCE_REMINDER' THEN 'Private maintenance reminder' WHEN 'FUND_REMINDER' THEN 'Private fund reminder' WHEN 'MEETING_REMINDER' THEN 'Private meeting reminder' ELSE 'Private receipt message' END,'','MESSAGE',state,'','',updated_at,0
  FROM message_batches`+where+` ORDER BY CASE state WHEN 'PENDING' THEN 0 ELSE 1 END,updated_at,id LIMIT 4`, values...)
 }

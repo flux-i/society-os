@@ -25,6 +25,18 @@ func (s *Server) messageConfigured(w http.ResponseWriter, r *http.Request) bool 
 	return true
 }
 func (s *Server) messageRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/messages/exceptions", s.protected(func(w http.ResponseWriter, r *http.Request) {
+		page, ok := queryPage(w, r, "page")
+		if !ok {
+			return
+		}
+		out, err := s.Store.MessageExceptionsFor(r.Context(), sessionToken(r), r.URL.Query().Get("state"), page)
+		if err != nil {
+			s.resultError(w, r, err)
+			return
+		}
+		respond(w, 200, out)
+	}))
 	mux.HandleFunc("GET /api/messages/config", s.protected(func(w http.ResponseWriter, r *http.Request) {
 		if s.Messages == nil {
 			respond(w, 200, map[string]any{"simulation_enabled": false, "whatsapp_live": false, "email_live": false, "attempt_limit": 3, "dispatch_limit": 25})

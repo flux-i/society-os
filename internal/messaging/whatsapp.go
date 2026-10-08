@@ -56,12 +56,12 @@ func NewWhatsAppClient(config WhatsAppConfig, fixture bool) (*WhatsAppClient, er
 		mode = "CLOUD_FIXTURE"
 	}
 	probe := &database.MessageProvider{Mode: mode, Origin: config.Origin, APIVersion: config.APIVersion, AccountID: config.AccountID, PhoneID: config.PhoneID, MessagingAccountID: config.MessagingAccountID, TemplateID: "1", Name: "configuration_check", Language: "en", Category: "UTILITY", Body: "Your portal link: {{1}}"}
-	if database.ValidateMessageProvider(probe) != nil || !privateHeader(config.AccessToken) || !privateHeader(config.AppSecret) || !privateHeader(config.VerifyToken) || len(config.Templates) == 0 || len(config.Templates) > 3 {
+	if database.ValidateMessageProvider(probe) != nil || !privateHeader(config.AccessToken) || !privateHeader(config.AppSecret) || !privateHeader(config.VerifyToken) || len(config.Templates) == 0 || len(config.Templates) > 6 {
 		return nil, errors.New("invalid separately held WhatsApp configuration")
 	}
 	templates := map[string]WhatsAppTemplate{}
 	for kind, spec := range config.Templates {
-		if kind != "NOTICE" && kind != "RECEIPT" && kind != "STATEMENT" {
+		if !database.ValidMessageSourceKind(kind) {
 			return nil, errors.New("unsupported WhatsApp source configuration")
 		}
 		probe.TemplateID, probe.Name, probe.Language = spec.ID, spec.Name, spec.Language

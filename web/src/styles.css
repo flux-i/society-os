@@ -383,6 +383,7 @@
   .detail-dialog::backdrop { background: #102c23a6; backdrop-filter: blur(4px); }
   .dialog-close { position: absolute; right: 18px; top: 18px; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #53624d20; border-radius: 100%; background: var(--color-surface); z-index: 3; }
   .dialog-close svg { width: 17px; height: 17px; }
+  .dialog-close:disabled { opacity: .45; }
   .detail-banner { padding: 38px 35px 30px; position: relative; overflow: hidden; }
   .detail-banner-a { background: #e6e9db; }
   .detail-banner-b { background: var(--color-clay); }
@@ -1674,6 +1675,29 @@
 .message-people li { display:flex; justify-content:space-between; gap:20px; padding:16px 0; border-bottom:1px solid var(--color-line); font-size:12px; line-height:1.7; }
 .message-people li > span { min-width:0; overflow-wrap:anywhere; }
 .message-people strong { font-weight:500; }
+.message-reminder-choice { padding:20px; border:1px solid var(--color-line); border-radius:16px; background:#f2f3e8; }
+.message-reminder-choice > label { display:flex; flex-direction:column; gap:10px; }
+.message-reminder-facts { padding:24px; margin:20px 0; background:#edf0e2; border-radius:16px; line-height:1.7; }
+.message-reminder-facts h3 { font:400 27px/1.2 var(--font-display); margin:12px 0; }
+.message-reminder-facts p,.message-reminder-facts small { font-size:12px; overflow-wrap:anywhere; }
+.message-people .message-binding { color:var(--color-forest); font-weight:500; }
+.message-view-switch { display:flex; gap:8px; flex-wrap:wrap; margin:28px 0; padding:6px; background:#e9ecdf; border-radius:16px; width:fit-content; max-width:100%; }
+.message-view-switch button { border:0; border-radius:11px; background:transparent; color:var(--color-muted); padding:12px 18px; font:inherit; font-size:13px; display:flex; align-items:center; gap:12px; cursor:pointer; }
+.message-view-switch button[aria-pressed="true"] { background:var(--color-surface); color:var(--color-forest); box-shadow:0 2px 6px #203b2e0a; }
+.message-view-switch button:hover { color:var(--color-forest); }
+.message-view-switch button:focus-visible,.message-exception-counts button:focus-visible { outline:2px solid var(--color-forest); outline-offset:3px; }
+.message-exception-counts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:26px 0; }
+.message-exception-counts button { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:center; min-width:0; border:1px solid var(--color-line); border-radius:16px; background:var(--color-surface); color:var(--color-forest); padding:20px; text-align:left; cursor:pointer; }
+.message-exception-counts button[aria-pressed="true"] { border-color:var(--color-forest); background:#edf0e2; }
+.message-exception-counts span { grid-column:1/-1; font-size:12px; }
+.message-exception-counts strong { font:400 40px/1 var(--font-display); }
+.message-exception-cards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.message-exception-card { width:100%; }
+.message-exception-destination { display:block; font-size:12px; overflow-wrap:anywhere; color:var(--color-muted); margin:0 0 16px; }
+.message-exception-card .message-exception-problem { padding-top:12px; border-top:1px solid var(--color-line); }
+.message-deliveries .message-delivery-selected { border:1px solid var(--color-forest); border-radius:12px; padding:18px; background:#f0f3e8; scroll-margin:20px; }
+@media(max-width:760px) { .message-exceptions > .section-heading { flex-direction:column; align-items:flex-start; gap:14px; } .message-exceptions > .section-heading > div { width:100%; } .message-exception-cards { grid-template-columns:minmax(0,1fr); } .message-exception-counts { gap:8px; } .message-exception-counts button { padding:16px 12px; } }
+@media(max-width:380px) { .message-view-switch { width:100%; } .message-view-switch button { flex:1; padding:12px 10px; font-size:12px; justify-content:center; } .message-exception-counts { grid-template-columns:minmax(0,1fr); } .message-exception-counts button { grid-template-columns:1fr auto auto; } .message-exception-counts span { grid-column:auto; } .message-exception-counts strong { font-size:32px; } .message-reminder-facts,.message-reminder-choice { padding:16px; } }
 .message-people small { display:block; color:var(--color-muted); margin-top:5px; }
 .message-person-decision { text-align:right; max-width:48%; color:var(--color-muted); }
 .message-form-actions,.message-detail-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:24px 0; }

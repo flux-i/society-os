@@ -67,9 +67,7 @@ func TestSchemaTwentyOneMeetingsPreserveAll81PriorDefinitionsRowsProvenanceAndOr
 	if e = s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations ORDER BY version)").Scan(&provenance); e != nil {
 		t.Fatal(e)
 	}
-	if e = s.Migrate(ctx); e != nil {
-		t.Fatal(e)
-	}
+	applyHistoricalCommunityMigration(t, s, 21)
 	if got := statementMessageRows(t, s, tables); !reflect.DeepEqual(before, got) {
 		t.Fatal("prior immutable or operational rows changed")
 	}
@@ -86,6 +84,9 @@ func TestSchemaTwentyOneMeetingsPreserveAll81PriorDefinitionsRowsProvenanceAndOr
 	}
 	for _, table := range []string{"meeting_resources", "meeting_versions", "meeting_events", "meeting_acknowledgements"} {
 		maintenanceCount(t, s, "SELECT COUNT(*) FROM "+table, 0)
+	}
+	if e = s.Migrate(ctx); e != nil {
+		t.Fatal(e)
 	}
 	if e = s.VerifySchema(ctx); e != nil {
 		t.Fatal(e)

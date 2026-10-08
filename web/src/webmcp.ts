@@ -8,7 +8,8 @@ import type { Incident, IncidentDetail, IncidentNotice, IncidentPage, NoticePage
 import type { ContributionPage, Fund, FundDetail, FundPage, FundWaiver, PaymentReport, ReportPage, WaiverPage } from './collections'
 import type { Fine, FineDetail, FinePage, FineNotice, FineNoticePage, FineReport, FineReportPage, FineAppeal, FineAppealPage, FineWaiver, FineWaiverPage } from './fines'
 import type { Contact, ContactDetail, ContactPage } from './contacts'
-import type { MessageBatch, MessageDetail, MessagePage } from './messages'
+import { isReminder, messageKindLabels } from './messages'
+import type { MessageBatch, MessageDetail, MessagePage, MessageExceptionPage } from './messages'
 import type { StatementFile, StatementDetail, StatementPage } from './statements'
 import type { FinanceExport, ExportPage } from './finance-exports'
 import type { CommunityPage, CommunityDetail, CommunityResource } from './community'
@@ -105,12 +106,12 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_review_requests||user.can_manage_records?['delivery-exceptions']:[]), ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen==='delivery-exceptions'&&!me.can_review_requests&&!me.can_manage_records) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
-      window.location.hash = screen==='meetings'?'community?panel=meetings':screen
+      window.location.hash = screen==='meetings'?'community?panel=meetings':screen==='delivery-exceptions'?'messages?panel=exceptions':screen
       return { screen }
     }, false)
     const sections = ['meetings', 'community', 'reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', 'statements', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]
@@ -158,15 +159,32 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       return statementMetadata(await request<StatementDetail>('/api/financial-statements/'+encodeURIComponent(input.statement_id),signal))
     })
     const messageMetadata=(x:MessageBatch)=>({id:x.id,source_kind:x.source.kind,state:x.state,channel:x.channel,purpose:x.purpose,simulation:x.simulation,provider_mode:x.provider_mode,version:x.version,snapshot_version:x.snapshot_version,counts:x.counts,outcomes:x.outcomes,retryable_deliveries:x.retryable_deliveries})
-    add('society_find_messages','Read at most twelve currently permitted delivery-status snapshots. Resident history contains only own approved recipient decisions. Source identities, wording, destinations, recipients, actors and private reasons are excluded. This cannot compose, approve, dispatch, cancel, retry or reconcile messages.',{kind:{type:'string',enum:['','NOTICE','RECEIPT','STATEMENT']},state:{type:'string',enum:['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED']},page},[],async(input,signal)=>{
+    const messageReadGuard=(x:MessageBatch)=>({metadata:messageMetadata(x),current_key:x.reminder_current_key})
+    const currentDelivery=async<T,>(path:string,signal:AbortSignal,first:T,select:(value:T)=>unknown=value=>value)=>{
+      const fresh=await request<T>(path,signal)
+      if(JSON.stringify(select(first))!==JSON.stringify(select(fresh)))throw new Error('The delivery source or eligibility changed. Read the current status again.')
+      return fresh
+    }
+    if(user.can_review_requests||user.can_manage_records) add('society_find_delivery_exceptions','Read at most twelve private currently permitted exception status snapshots and independent full counts. Source identities, titles, destinations, amounts, people, bindings, private reasons and content are excluded. This cannot dispatch, retry, reconcile or change an open human form.',{state:{type:'string',enum:['','UNKNOWN','FAILED','CLAIMED']},page},[],async(input,signal,me)=>{
+      if(!me.can_review_requests&&!me.can_manage_records)throw new Error('Current operations or finance authority is required.')
+      const state=input.state??''
+      if(typeof state!=='string'||!['','UNKNOWN','FAILED','CLAIMED'].includes(state))throw new Error('Choose a supported delivery exception state.')
+      const path='/api/messages/exceptions?'+new URLSearchParams({state,page:String(pageNumber(input.page))})
+      const data=await currentDelivery<MessageExceptionPage>(path,signal,await request<MessageExceptionPage>(path,signal))
+      return {items:data.items.map(x=>({message_id:x.message_id,delivery_id:x.delivery_id,source_kind:x.source_kind,state:x.state,channel:x.channel,attempts:x.attempts,updated_at:x.updated_at,retry_at:x.retry_at,delivery_page:x.delivery_page,can_retry:x.can_retry,can_reconcile:x.can_reconcile})),total:data.total,page:data.page,page_size:data.page_size,counts:data.counts}
+    })
+    add('society_find_messages','Read at most twelve currently permitted delivery-status snapshots. Resident history contains only own approved recipient decisions. Source identities, wording, destinations, recipients, actors and private reasons are excluded. This cannot compose, approve, dispatch, cancel, retry or reconcile messages.',{kind:{type:'string',enum:['',...Object.keys(messageKindLabels)]},state:{type:'string',enum:['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED']},page},[],async(input,signal)=>{
       const kind=input.kind??'',state=input.state??''
-      if(typeof kind!=='string'||!['','NOTICE','RECEIPT','STATEMENT'].includes(kind)||typeof state!=='string'||!['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED'].includes(state))throw new Error('Choose a supported source kind and decision state.')
-      const data=await request<MessagePage>('/api/messages?'+new URLSearchParams({kind,state,page:String(pageNumber(input.page))}),signal)
+      if(typeof kind!=='string'||(kind!==''&&!(kind in messageKindLabels))||typeof state!=='string'||!['','PENDING','APPROVED','DECLINED','WITHDRAWN','CANCELLED'].includes(state))throw new Error('Choose a supported source kind and decision state.')
+      const path='/api/messages?'+new URLSearchParams({kind,state,page:String(pageNumber(input.page))})
+      let data=await request<MessagePage>(path,signal)
+      if(isReminder(kind)||data.items.some(x=>isReminder(x.source.kind)))data=await currentDelivery<MessagePage>(path,signal,data,value=>({total:value.total,items:value.items.map(messageReadGuard)}))
       return {items:data.items.map(messageMetadata),total:data.total,page:data.page,page_size:data.page_size}
     })
     add('society_read_message','Read one currently permitted delivery-status snapshot. Source identifiers, titles, content, destinations, recipient decisions, actors and private events are excluded. This cannot submit a delivery decision or manufacture provider proof.',{message_id:{type:'string',minLength:1,maxLength:100}},['message_id'],async(input,signal)=>{
       if(typeof input.message_id!=='string'||!input.message_id||input.message_id.length>100)throw new Error('A permitted message identity is required.')
-      return messageMetadata(await request<MessageDetail>('/api/messages/'+encodeURIComponent(input.message_id),signal))
+      const path='/api/messages/'+encodeURIComponent(input.message_id),first=await request<MessageDetail>(path,signal)
+      return messageMetadata(isReminder(first.source.kind)?await currentDelivery<MessageDetail>(path,signal,first,messageReadGuard):first)
     })
     if (user.can_read_contacts) {
       const metadata = (x: Contact) => ({ id: x.id, name: x.name, state: x.state, current: x.current, version: x.version, preferred_channel: x.preferred_channel, destinations_recorded: { whatsapp: !!x.phone, email: !!x.email }, permissions: { community_whatsapp: x.community_whatsapp, community_email: x.community_email, finance_whatsapp: x.finance_whatsapp, finance_email: x.finance_email }, eligible: x.eligible })

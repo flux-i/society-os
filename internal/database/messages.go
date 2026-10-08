@@ -20,16 +20,17 @@ type MessageTarget struct {
 	IDs  []string `json:"ids"`
 }
 type MessageInput struct {
-	OperationKey string           `json:"operation_key"`
-	SourceKind   string           `json:"source_kind"`
-	SourceID     string           `json:"source_id"`
-	Channel      string           `json:"channel"`
-	Target       MessageTarget    `json:"target"`
-	PreviewHash  string           `json:"preview_hash"`
-	Reason       string           `json:"reason"`
-	Confirmed    bool             `json:"confirmed"`
-	PortalOrigin string           `json:"-"`
-	Provider     *MessageProvider `json:"-"`
+	ReminderBasis string           `json:"reminder_basis,omitempty"`
+	OperationKey  string           `json:"operation_key"`
+	SourceKind    string           `json:"source_kind"`
+	SourceID      string           `json:"source_id"`
+	Channel       string           `json:"channel"`
+	Target        MessageTarget    `json:"target"`
+	PreviewHash   string           `json:"preview_hash"`
+	Reason        string           `json:"reason"`
+	Confirmed     bool             `json:"confirmed"`
+	PortalOrigin  string           `json:"-"`
+	Provider      *MessageProvider `json:"-"`
 }
 type MessageAction struct {
 	OperationKey string           `json:"operation_key"`
@@ -41,16 +42,17 @@ type MessageAction struct {
 	Provider     *MessageProvider `json:"-"`
 }
 type MessageSource struct {
-	PublicationTarget *MessageTarget `json:"publication_target,omitempty"`
-	Kind              string         `json:"kind"`
-	ID                string         `json:"id"`
-	Version           string         `json:"version"`
-	Title             string         `json:"title"`
-	Audience          string         `json:"audience"`
-	Wing              string         `json:"wing"`
-	HomeID            string         `json:"home_id"`
-	EntryID           string         `json:"entry_id"`
-	Link              string         `json:"link"`
+	Reminder          *MessageReminder `json:"reminder,omitempty"`
+	PublicationTarget *MessageTarget   `json:"publication_target,omitempty"`
+	Kind              string           `json:"kind"`
+	ID                string           `json:"id"`
+	Version           string           `json:"version"`
+	Title             string           `json:"title"`
+	Audience          string           `json:"audience"`
+	Wing              string           `json:"wing"`
+	HomeID            string           `json:"home_id"`
+	EntryID           string           `json:"entry_id"`
+	Link              string           `json:"link"`
 }
 type MessageCounts struct {
 	TargetPeople    int            `json:"target_people"`
@@ -62,13 +64,14 @@ type MessageCounts struct {
 	Reasons         map[string]int `json:"reasons"`
 }
 type MessageRecipient struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	ContactVersion int    `json:"contact_version"`
-	Destination    string `json:"destination,omitempty"`
-	Reason         string `json:"reason"`
-	DeliveryID     string `json:"delivery_id,omitempty"`
-	State          string `json:"state,omitempty"`
+	Reminder       *MessageReminderBinding `json:"reminder,omitempty"`
+	ID             string                  `json:"id"`
+	Name           string                  `json:"name"`
+	ContactVersion int                     `json:"contact_version"`
+	Destination    string                  `json:"destination,omitempty"`
+	Reason         string                  `json:"reason"`
+	DeliveryID     string                  `json:"delivery_id,omitempty"`
+	State          string                  `json:"state,omitempty"`
 }
 type MessagePreview struct {
 	Source      MessageSource      `json:"source"`
@@ -85,6 +88,7 @@ type MessagePreview struct {
 	Provider    *MessageProvider   `json:"provider,omitempty"`
 }
 type MessageBatch struct {
+	ReminderCurrentKey  string           `json:"reminder_current_key,omitempty"`
 	ID                  string           `json:"id"`
 	Source              MessageSource    `json:"source"`
 	Target              MessageTarget    `json:"target"`
@@ -177,7 +181,7 @@ type messageResolution struct {
 }
 
 func messageStaff(p Principal, kind string) bool {
-	return !p.MFAPending && ((kind == "NOTICE" && p.CanReviewRequests) || ((kind == "RECEIPT" || kind == "STATEMENT") && p.CanManageRecords))
+	return !p.MFAPending && (((kind == "NOTICE" || kind == "MEETING_REMINDER") && p.CanReviewRequests) || (financeMessageKind(kind) && p.CanManageRecords))
 }
 func messageAuthority(p Principal, kind string, fresh bool) error {
 	if !messageStaff(p, kind) {
@@ -195,7 +199,14 @@ func validateMessageInput(in MessageInput) (MessageInput, error) {
 	if in.Provider != nil && in.Channel != "WHATSAPP" {
 		return in, ErrInvalid
 	}
-	if (in.SourceKind != "NOTICE" && in.SourceKind != "RECEIPT" && in.SourceKind != "STATEMENT") || in.SourceID == "" || len(in.SourceID) > 100 || (in.Channel != "WHATSAPP" && in.Channel != "EMAIL") {
+	if !ValidMessageSourceKind(in.SourceKind) || in.SourceID == "" || len(in.SourceID) > 100 || (in.Channel != "WHATSAPP" && in.Channel != "EMAIL") {
+		return in, ErrInvalid
+	}
+	if reminderKind(in.SourceKind) {
+		if in.ReminderBasis != "OUTSTANDING" && in.ReminderBasis != "DEADLINE_PASSED" {
+			return in, invalid("Choose outstanding records or a passed supplied deadline.")
+		}
+	} else if in.ReminderBasis != "" {
 		return in, ErrInvalid
 	}
 	u, e := url.Parse(in.PortalOrigin)
@@ -235,6 +246,9 @@ func validateMessageInput(in MessageInput) (MessageInput, error) {
 	return in, nil
 }
 func messageSourceIn(ctx context.Context, q identityReader, kind, id string) (MessageSource, error) {
+	if reminderKind(kind) {
+		return reminderSourceIn(ctx, q, kind, id)
+	}
 	src := MessageSource{Kind: kind, ID: id}
 	switch kind {
 	case "NOTICE":
@@ -313,6 +327,14 @@ func messageTargetMatches(p messagePerson, t MessageTarget) bool {
 	return false
 }
 func messageSourceMatches(p messagePerson, src MessageSource) bool {
+	if reminderKind(src.Kind) {
+		for _, home := range p.Homes {
+			if reminderHomeMatches(home, src) {
+				return true
+			}
+		}
+		return false
+	}
 	if src.Kind == "STATEMENT" {
 		return len(p.Homes) > 0 && src.PublicationTarget != nil && messageTargetMatches(p, *src.PublicationTarget)
 	}
@@ -371,18 +393,28 @@ func resolveMessage(ctx context.Context, q identityReader, in MessageInput) (mes
 	if e != nil {
 		return messageResolution{}, e
 	}
+	if src.Reminder != nil {
+		src.Reminder.Basis = in.ReminderBasis
+		src.Reminder.Target = &in.Target
+	}
 	people, e := messagePeople(ctx, q)
 	if e != nil {
 		return messageResolution{}, e
 	}
 	purpose := "COMMUNITY"
 	title := src.Title
-	if src.Kind == "RECEIPT" || src.Kind == "STATEMENT" {
+	if financeMessageKind(src.Kind) {
 		purpose = "FINANCE"
 		title = "A receipt is available in your society portal."
 		if src.Kind == "STATEMENT" {
 			title = "A published financial statement is available in your society portal."
 		}
+		if reminderKind(src.Kind) {
+			title = "Please review your outstanding recorded amount in your society portal."
+		}
+	}
+	if src.Kind == "MEETING_REMINDER" {
+		title = "Please review the requested personal acknowledgement in your society portal."
 	}
 	x := messageResolution{MessagePreview: MessagePreview{Source: src, Channel: in.Channel, Purpose: purpose, Target: in.Target, Envelope: title + "\n" + in.PortalOrigin + src.Link, Simulation: true, Counts: MessageCounts{Reasons: map[string]int{}}}, People: []MessageRecipient{}}
 	x.Provider = in.Provider
@@ -414,6 +446,15 @@ func resolveMessage(ctx context.Context, q identityReader, in MessageInput) (mes
 			x.Counts.ConsentedPeople++
 		}
 		r.Reason, r.Destination = messageRecipientReason(p, src, in.Channel, purpose)
+		if r.Reason == "" && src.Reminder != nil {
+			r.Reminder, r.Reason, e = reminderEligibility(ctx, q, p, src)
+			if e != nil {
+				return x, e
+			}
+			if r.Reason != "" {
+				r.Destination = ""
+			}
+		}
 		if r.Reason == "" {
 			x.Counts.EligiblePeople++
 			destinations[r.Destination] = true
@@ -468,7 +509,7 @@ func maskMessageDestination(dest string) string {
 	return "••••"
 }
 func publicMessageRecipient(r MessageRecipient, p Principal, kind string) MessageRecipient {
-	if (kind == "RECEIPT" || kind == "STATEMENT") && !p.CanManageContacts {
+	if financeMessageKind(kind) && !p.CanManageContacts {
 		if r.Reason == "NO_SOURCE_ACCESS" || r.Reason == "NO_CURRENT_HOME" {
 			r.ID, r.Name = "", ""
 			r.ContactVersion = 0
@@ -537,6 +578,18 @@ func (s *Store) MessageSourcesFor(ctx context.Context, token, kind, query string
 	if kind == "STATEMENT" {
 		from = "statement_publications x JOIN statement_groups g ON g.current_publication_id=x.id JOIN statement_files f ON f.id=x.file_id"
 		condition = "x.state='PUBLISHED' AND f.state='APPROVED' AND f.validation='AVAILABLE' AND f.title LIKE ?"
+	}
+	if kind == "MAINTENANCE_REMINDER" {
+		from = "maintenance_cycles x"
+		condition = "x.state='PUBLISHED' AND x.title LIKE ?"
+	}
+	if kind == "FUND_REMINDER" {
+		from = "fund_campaigns x"
+		condition = "x.state='PUBLISHED' AND x.contribution_type='FIXED' AND x.title LIKE ?"
+	}
+	if kind == "MEETING_REMINDER" {
+		from = "meeting_resources x JOIN meeting_versions v ON v.resource_id=x.id AND v.version=x.published_version"
+		condition = "v.action IN('AGENDA','MINUTES') AND v.ack_required=1 AND v.title LIKE ?"
 	}
 	args := []any{"%" + query + "%"}
 	if e = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+from+" WHERE "+condition, args...).Scan(&out.Total); e != nil {
@@ -626,6 +679,9 @@ func storeMessageRecipients(ctx context.Context, tx *sql.Tx, x MessageBatch, peo
 			nullable = delivery
 		}
 		if _, e := tx.ExecContext(ctx, `INSERT INTO message_recipients(batch_id,snapshot_version,resident_id,name,contact_version,frozen_reason,delivery_id,disposition,reason) VALUES(?,?,?,?,?,?,?,?,?)`, x.ID, x.SnapshotVersion, r.ID, r.Name, r.ContactVersion, r.Reason, nullable, disposition, r.Reason); e != nil {
+			return e
+		}
+		if e := storeReminderBinding(ctx, tx, x, r); e != nil {
 			return e
 		}
 	}
@@ -739,7 +795,9 @@ func (s *Store) ActOnMessage(ctx context.Context, token, id string, in MessageAc
 			if !current {
 				return "", ErrConflict
 			}
-			resolved, e := resolveMessage(ctx, tx, MessageInput{SourceKind: x.Source.Kind, SourceID: x.Source.ID, Channel: x.Channel, Target: x.Target, PortalOrigin: x.PortalOrigin, Provider: in.Provider})
+			input := reminderInput(x)
+			input.Provider = in.Provider
+			resolved, e := resolveMessage(ctx, tx, input)
 			if e != nil {
 				return "", e
 			}
@@ -761,12 +819,17 @@ func (s *Store) ActOnMessage(ctx context.Context, token, id string, in MessageAc
 			if e = ValidateMessageProvider(in.Provider); e != nil || (x.Provider != nil && in.Provider == nil) {
 				return "", ErrConflict
 			}
-			resolved, e := resolveMessage(ctx, tx, MessageInput{SourceKind: x.Source.Kind, SourceID: x.Source.ID, Channel: x.Channel, Target: x.Target, PortalOrigin: x.PortalOrigin, Provider: in.Provider})
+			input := reminderInput(x)
+			input.Provider = in.Provider
+			resolved, e := resolveMessage(ctx, tx, input)
 			if e != nil {
 				return "", e
 			}
 			if resolved.Counts.Destinations == 0 {
 				return "", invalid("No eligible destination remains in this proposed audience.")
+			}
+			if reminderKind(x.Source.Kind) && !sameReminderSource(x.Source, resolved.Source) {
+				return "", ErrConflict
 			}
 			if e = cancelMessageUnsent(ctx, tx, x, "SNAPSHOT_REFRESHED"); e != nil {
 				return "", e
