@@ -37,3 +37,15 @@ Cover actual creation, home/person and kind selection, check evidence, deliberat
 Native Chrome WebMCP may return bounded permitted checklist status/count/version metadata. Omit names, home/person labels, contact values, dates, source notes and reasons. Tools cannot prepare, check, complete, correct, navigate over an active human dialog or invoke the linked workflows. Honour cancellation and discard held results after current source, membership or authority changes.
 
 Run relevant domain/HTTP/concurrency/populated recovery checks, full formatting/vet/race, current TypeScript/build, full ordinary regression and native WebMCP. Preserve all 93 preceding persistent tables, definitions, original rows/provenance and held keys through an additive migration and matching pre/post restore. Preserve the accepted budget preview while developing with disposable synthetic databases. Record finite coverage, product repairs and QA corrections separately, publish the verified checkpoint personally, then continue measured performance/PWA/migration and independent production preparation.
+
+## Implementation decisions before code
+
+Use three additive STRICT resource/immutable-version/event tables, bringing 93 persistent tables to 96. Preserve every old definition, row, SQL object and migration checksum. Every check, ready proposal, decision and correction receives an immutable version and exact event; head changes require the matching event. Approved predecessors remain readable while a correction is checked or reviewed. Home/person/kind are fixed identities.
+
+Identity, registry and contact checks are required; documents/access and practical handover permit explicit not-applicable reasons. Server-recorded actors/times and a current flat/membership/contact fingerprint bind each check. CHECKING → READY requires all applicable evidence to match the current source; completion requires an exact current preview and a different fresh registry administrator from original author, current proposal author and checking submitter. Source changes preserve notes but prevent completion until rechecked.
+
+An explicit current response flag permits registry administrators and a linked resident identity to read this workspace. Residents see only their own submissions; current membership permits new household submissions/revisions, while limited own outcome history and own pending withdrawal remain after moving out. Former administrator authors do not retain other households’ access. Wider committee/finance grants do not confer staff checking. Integrate the queue beside Homes through panel=checklists, with two bounded read-only native status tools.
+
+## Implemented checkpoint
+
+This contract is implemented and locally verified in **0.25/schema24**. See [executed evidence and finite limits](checklists-baseline.md). The saved expectations above preceded implementation; later performance work follows its own [before-code brief](performance-workflow.md).

@@ -16,6 +16,8 @@ import type { CommunityPage, CommunityDetail, CommunityResource } from './commun
 import type { MeetingPage, MeetingDetail, MeetingResource } from './meetings'
 import { canReadBudgets } from './budgets'
 import type { BudgetPage, BudgetDetail, BudgetComparison, PaidExpensePage, PaidExpenseDetail } from './budgets'
+import { canReadChecklists } from './checklists'
+import type { ChecklistPage, ChecklistDetail, ChecklistRecord } from './checklists'
 
 type Tool = {
   name: string
@@ -79,6 +81,22 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       if(JSON.stringify(select(first))!==JSON.stringify(select(fresh)))throw new Error('The meeting publication changed. Read its current version again.')
       return fresh
     }
+    if(canReadChecklists(user)) {
+      const requireReader=(me:User)=>{if(!canReadChecklists(me))throw new Error('Current checklist access is required.')}
+      const states=['','CHECKING','READY','INFO','PENDING','COMPLETED','CLOSED']
+      const readCurrent=async<T extends{current_key:string},>(path:string,signal:AbortSignal)=>{const first=await request<T>(path,signal),fresh=await request<T>(path,signal);await current(signal);if(first.current_key!==fresh.current_key)throw new Error('The checklist or its current registry/contact context changed. Read it again.');return fresh}
+      const metadata=(x:ChecklistRecord)=>({id:x.id,kind:x.snapshot.kind,state:x.state,phase:x.phase,version:x.version,pending:x.pending,approved_version:x.approved?.version??0,checked_items:x.checked,not_applicable_items:x.not_applicable,checks_needing_review:x.pending?x.stale_checks:0})
+      add('society_find_move_checklists','Read at most twelve currently permitted move/contact checklist status records and independent full counts. Names, homes, dates, supplied notes, references, actors and source keys are excluded. This cannot prepare, check, approve or change a human form.',{query:{type:'string',maxLength:100,description:'An explicitly supplied search term within the current checklist scope.'},state:{type:'string',enum:states},page},[],async(input,signal,me)=>{
+        requireReader(me);const state=input.state??'';if(typeof state!=='string'||!states.includes(state))throw new Error('Choose a supported checklist status.')
+        const data=await readCurrent<ChecklistPage>('/api/move-checklists?'+new URLSearchParams({q:queryText(input.query),state,page:String(pageNumber(input.page))}),signal)
+        return{items:data.items.map(metadata),total:data.total,page:data.page,page_size:data.page_size,counts:data.counts}
+      })
+      add('society_read_move_checklist','Read one currently permitted checklist’s status, check counts and immutable history count. Names, home/person identities, dates, notes, reasons, references, actors and source keys are excluded. Held results are discarded after context changes. This cannot check or approve anything.',{checklist_id:{type:'string',minLength:1,maxLength:100}},['checklist_id'],async(input,signal,me)=>{
+        requireReader(me);if(typeof input.checklist_id!=='string'||!input.checklist_id||input.checklist_id.length>100)throw new Error('A permitted checklist identity is required.')
+        const data=await readCurrent<ChecklistDetail>('/api/move-checklists/'+encodeURIComponent(input.checklist_id),signal)
+        return{...metadata(data),events:data.event_total}
+      })
+    }
     if(canReadBudgets(user)) {
       const requireBudgetReader=(me:User)=>{if(!canReadBudgets(me))throw new Error('Current explicit Treasury or auditor access is required.')}
       const identity=(value:unknown)=>{if(typeof value!=='string'||!value||value.length>100)throw new Error('A permitted record identity is required.');return value}
@@ -135,12 +153,12 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = [...(canReadBudgets(user)?['budgets']:[]), 'overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_review_requests||user.can_manage_records?['delivery-exceptions']:[]), ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = [...(canReadChecklists(user)?['checklists']:[]), ...(canReadBudgets(user)?['budgets']:[]), 'overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_review_requests||user.can_manage_records?['delivery-exceptions']:[]), ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen==='budgets'&&!canReadBudgets(me)) || (screen==='delivery-exceptions'&&!me.can_review_requests&&!me.can_manage_records) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen==='checklists'&&!canReadChecklists(me)) || (screen==='budgets'&&!canReadBudgets(me)) || (screen==='delivery-exceptions'&&!me.can_review_requests&&!me.can_manage_records) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
-      window.location.hash = screen==='budgets'?'statements?panel=budgets':screen==='meetings'?'community?panel=meetings':screen==='delivery-exceptions'?'messages?panel=exceptions':screen
+      window.location.hash = screen==='checklists'?'homes?panel=checklists':screen==='budgets'?'statements?panel=budgets':screen==='meetings'?'community?panel=meetings':screen==='delivery-exceptions'?'messages?panel=exceptions':screen
       return { screen }
     }, false)
     const sections = ['meetings', 'community', 'reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', 'statements', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]

@@ -1,0 +1,27 @@
+import { useState } from 'react'
+import { checklistActions, useChecklistLoad } from '../checklists'
+import type { ChecklistDetail, ChecklistRecord } from '../checklists'
+import { ChecklistCheckRows, ChecklistGiven, ChecklistReadError, ChecklistSourceCard, ChecklistState } from './MoveChecklistShared'
+import { MoveChecklistAction } from './MoveChecklistAction'
+import type { ChecklistActionMode } from './MoveChecklistAction'
+import { careTime } from '../upkeep'
+import { PageControls } from './Maintenance'
+import { PortalDialog } from './PortalDialog'
+import { Icon } from './Icon'
+
+export function MoveChecklistDetails({id,eventPage,onEventPage,onClose,onChanged,onEdit}:{id:string;eventPage:number;onEventPage:(page:number)=>void;onClose:()=>void;onChanged:()=>void;onEdit:(record:ChecklistRecord,correction:boolean)=>void}){
+ const [revision,setRevision]=useState(0),[action,setAction]=useState<{mode:ChecklistActionMode;kind?:string}|null>(null),load=useChecklistLoad<ChecklistDetail>('/api/move-checklists/'+encodeURIComponent(id)+'?event_page='+eventPage+'&refresh='+revision),data=!load.loading&&!load.error?load.data:null
+ const refresh=()=>{setRevision(value=>value+1);onChanged()}
+ if(action&&data)return <MoveChecklistAction record={data} mode={action.mode} checkKind={action.kind} onClose={()=>{setAction(null);refresh()}} onSaved={()=>{setAction(null);refresh()}}/>
+ return <PortalDialog titleId="checklist-detail-heading" closeLabel="Close checklist details" onClose={onClose} className="checklist-dialog checklist-detail-dialog"><div className="dialog-scroll"><span className="eyebrow">A CHAPTER, KEPT TOGETHER</span><h2 id="checklist-detail-heading">{data?data.snapshot.home_label+' · '+data.snapshot.person_name:load.error?'The checklist is unavailable.':'Opening the checklist…'}</h2>
+ {load.loading?<p className="empty-state" role="status">Opening the current request, checks and history…</p>:load.error?<ChecklistReadError title="This checklist could not be opened." error={load.error} onRetry={load.reload}/>:data&&<>
+ <ChecklistState record={data}/><div className="checklist-detail-actions"><button type="button" className="text-link" onClick={refresh}>Refresh checklist<Icon name="refresh"/></button>{data.can_revise&&<button type="button" className="button button-quiet" onClick={()=>onEdit(data,false)}>Revise request</button>}{data.can_correct&&<button type="button" className="button button-quiet" onClick={()=>onEdit(data,true)}>Prepare linked correction</button>}{data.can_cancel&&<button type="button" className="text-link" onClick={()=>setAction({mode:'withdraw'})}>Withdraw proposal<Icon name="arrow"/></button>}</div>
+ {data.approved&&<><ChecklistGiven snapshot={data.approved} label="Completed outcome on record"/>{data.pending&&<p className="checklist-source-note"><Icon name="shield"/>This completed predecessor stays on record during the linked correction.</p>}</>}{(!data.approved||data.pending)&&<ChecklistGiven snapshot={data.snapshot} label={data.approved?'Linked correction awaiting review':'Current supplied request'}/>}
+ <ChecklistSourceCard record={data}/>{data.pending&&data.stale_checks>0&&<div className="checklist-stale-note" role="status"><Icon name="refresh"/><div><h3>The context has moved on.</h3><p>Some checks refer to an earlier registry or contact record. Keep the notes and review those details against the current context.</p></div></div>}
+ <section className="checklist-progress" aria-label="Checklist checks"><div className="section-heading"><div><span className="eyebrow">THE DETAILS THAT MATTER</span><h3>A little care, at every step.</h3></div><span className="result-count">{data.checked+data.not_applicable} of 5 recorded</span></div><ChecklistCheckRows checks={data.snapshot.checks} currentKey={data.source.key} historical={!data.pending} onCheck={data.can_check?kind=>setAction({mode:'check',kind}):undefined}/>
+ {data.can_check&&<><p className="form-help">Identity, registry and contact reviews are required. The two handover checks may be marked not applicable with an explanation.</p><button type="button" className="button button-dark" disabled={!data.can_ready} onClick={()=>setAction({mode:'ready'})}>Prepare separate review<Icon name="arrow"/></button>{!data.can_ready&&<p className="form-help">Record all five outcomes against the current context before sending them for review.</p>}</>}
+ {data.can_return&&<button type="button" className="button button-quiet" onClick={()=>setAction({mode:'return'})}>Return to checks<Icon name="refresh"/></button>}{data.can_decide&&<button type="button" className="button button-dark" onClick={()=>setAction({mode:'review'})}>Review checklist proposal<Icon name="check"/></button>}
+ </section><section className="checklist-history" aria-label="Checklist history"><span className="eyebrow">EVERY STEP HAS ITS PLACE</span><h3>The story, on record.</h3>{data.events.map(event=><article key={event.version}><div><strong>{checklistActions[event.action]}</strong><small>{careTime(event.at)} · record version {event.version}</small></div><p>{event.reason}</p><small>{event.actor}</small><details><summary>Read retained checklist</summary><ChecklistGiven snapshot={event.snapshot} label={'Retained checklist version '+event.version}/><ChecklistCheckRows checks={event.snapshot.checks} historical/></details></article>)}{data.event_total>12&&<PageControls label="checklist history" page={eventPage} total={data.event_total} size={12} onPage={onEventPage}/>}</section>
+ </>}
+ </div></PortalDialog>
+}

@@ -1,0 +1,35 @@
+import { useEffect, useState } from 'react'
+import { checkHints, checkLabels, useChecklistLoad, useChecklistWrite } from '../checklists'
+import type { ChecklistDetail, ChecklistRecord } from '../checklists'
+import { ChecklistCheckRows, ChecklistGiven, ChecklistReadError, ChecklistSourceCard, ChecklistWriteFeedback } from './MoveChecklistShared'
+import { FilterSelect } from './FilterSelect'
+import { PortalDialog } from './PortalDialog'
+import { Icon } from './Icon'
+
+export type ChecklistActionMode='check'|'ready'|'review'|'return'|'withdraw'
+export const checklistActionConfirmation='I reviewed this exact checklist, current context and deliberate action.'
+export function MoveChecklistAction({record,mode,checkKind='',onClose,onSaved}:{record:ChecklistRecord;mode:ChecklistActionMode;checkKind?:string;onClose:()=>void;onSaved:()=>void}){
+ const load=useChecklistLoad<ChecklistDetail>('/api/move-checklists/'+encodeURIComponent(record.id)),current=!load.loading&&!load.error?load.data:null,write=useChecklistWrite()
+ const [reference,setReference]=useState(record.snapshot.checks.find(x=>x.kind===checkKind)?.reference??''),[checkState,setCheckState]=useState(record.snapshot.checks.find(x=>x.kind===checkKind)?.state==='NOT_APPLICABLE'?'NOT_APPLICABLE':'CHECKED'),[decision,setDecision]=useState(record.can_complete?'APPROVED':'DECLINED'),[reason,setReason]=useState(''),[checked,setChecked]=useState(false)
+ const optional=checkKind==='DOCUMENTS'||checkKind==='HANDOVER',frozen=write.busy||write.locked,action=mode==='check'?'CHECK':mode==='ready'?'READY':mode==='return'?'RETURN':mode==='withdraw'?'CANCELLED':decision
+ const canAct=!!current&&(mode==='check'?current.can_check:mode==='ready'?current.can_ready:mode==='return'?current.can_return:mode==='withdraw'?current.can_cancel:decision==='APPROVED'?current.can_complete:decision==='INFO'?current.can_decide&&current.phase==='READY':current.can_decide)
+ const options=[...(current?.can_complete?[{value:'APPROVED',label:'Complete review'}]:[]),...(current?.phase==='READY'?[{value:'INFO',label:'Ask for information'}]:[]),{value:'DECLINED',label:'Decline proposal'}]
+ useEffect(()=>{if(mode==='review'&&current&&!options.some(x=>x.value===decision)){setDecision('DECLINED');setChecked(false)}},[mode,current,decision])
+ useEffect(()=>{if(write.reauth)setChecked(false)},[write.reauth])
+ const reload=()=>{write.reset();setChecked(false);load.reload()}
+ const label=mode==='check'?'Record this check':mode==='ready'?'Submit for separate review':mode==='return'?'Return to checks':mode==='withdraw'?'Withdraw proposal':decision==='APPROVED'?'Complete review':decision==='INFO'?'Ask for information':'Decline proposal'
+ const submit=async()=>{if(!current||!checked||(!canAct&&!write.locked))return;const payload:Record<string,unknown>={version:current.version,action,reason};if(mode==='check'){payload.check_kind=checkKind;payload.check_state=checkState;payload.reference=reference;payload.source_key=current.source.key}else if(action==='READY'||action==='APPROVED')payload.source_key=current.source.key;const saved=await write.send('/api/move-checklists/'+encodeURIComponent(record.id)+'/actions',payload);if(saved)onSaved()}
+ return <PortalDialog titleId="checklist-action-heading" closeLabel="Close checklist action" busy={write.busy||(write.locked&&!write.conflict)} onClose={onClose} className="checklist-dialog"><div className="dialog-scroll"><span className="eyebrow">{mode==='review'?'A SEPARATE PAIR OF EYES':'ONE CAREFUL DETAIL AT A TIME'}</span><h2 id="checklist-action-heading">{mode==='check'?'Give this detail a careful look.':mode==='ready'?'The checks, ready for a second look.':mode==='review'?'A considered review. A clear decision.':mode==='return'?'Keep the notes. Recheck the context.':'Withdraw the proposal. Keep its history.'}</h2>
+ {load.loading?<p className="empty-state" role="status">Opening the current checklist and context…</p>:load.error?<ChecklistReadError title="This checklist could not be opened." error={load.error} onRetry={load.reload}/>:current&&<>
+ <ChecklistGiven snapshot={current.snapshot} label="Exact current proposal"/><ChecklistSourceCard record={current}/>
+ {mode==='check'?<div className="checklist-review-item"><span className="eyebrow">THE DETAIL TO REVIEW</span><h3>{checkLabels[checkKind]}</h3><p>{checkHints[checkKind]}</p>{checkKind==='DOCUMENTS'&&current.can_check&&<div className="checklist-source-links"><a className="text-link" href="#documents" target="_blank" rel="noopener">Review documents<Icon name="arrow"/></a><a className="text-link" href="#access" target="_blank" rel="noopener">Review account access<Icon name="arrow"/></a></div>}</div>:<ChecklistCheckRows checks={current.snapshot.checks} currentKey={current.source.key} historical={!current.pending}/>}
+ {current.approved&&current.pending&&<p className="checklist-source-note"><Icon name="shield"/>The completed predecessor stays on record while this proposal is reviewed.</p>}
+ {!canAct&&!write.locked&&<p className="form-error" role="status">This action is no longer available for the current request. Return to the record or review its current context.</p>}
+ <form onSubmit={event=>{event.preventDefault();void submit()}}><fieldset disabled={frozen||!canAct}>
+ {mode==='check'&&<>{optional&&<label>Review outcome<FilterSelect label="Checklist check outcome" value={checkState} options={[{value:'CHECKED',label:'Checked against the supplied source'},{value:'NOT_APPLICABLE',label:'Not applicable, with an explanation'}]} disabled={frozen} onChange={value=>{setCheckState(value);setChecked(false)}}/></label>}<label>{checkState==='NOT_APPLICABLE'?'Why does this not apply?':'Supplied evidence / reference'}<textarea aria-label="Checklist check reference" value={reference} onChange={event=>{setReference(event.target.value);setChecked(false)}} required minLength={5} maxLength={300} rows={3} placeholder="A short supplied reference and what you reviewed."/></label></>}
+ {mode==='review'&&<label>Decision<FilterSelect label="Checklist decision" value={decision} options={options} disabled={frozen} onChange={value=>{setDecision(value);setChecked(false)}}/></label>}
+ <label>Action reason<textarea aria-label="Checklist action reason" value={reason} onChange={event=>{setReason(event.target.value);setChecked(false)}} required minLength={10} maxLength={800} rows={4}/></label><label className="confirmation"><input type="checkbox" checked={checked} onChange={event=>setChecked(event.target.checked)}/>{checklistActionConfirmation}</label>
+ </fieldset><ChecklistWriteFeedback write={write} onReload={reload}/><div className="form-actions"><button type="button" className="button button-quiet" disabled={write.busy||(write.locked&&!write.conflict)} onClick={onClose}>Back to checklist</button><button type="submit" className="button button-dark" disabled={write.busy||write.conflict||!checked||(!canAct&&!write.locked)}>{write.busy?'Saving…':write.locked?'Retry this action':label}<Icon name="check"/></button></div></form>
+ </>}
+ </div></PortalDialog>
+}

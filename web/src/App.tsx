@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { MoveChecklists } from './components/MoveChecklists'
+import { canReadChecklists } from './checklists'
 import { APIError, mutate, request, setSession, statuses, userAccessScope } from './api'
 import type { Building, Flat, FlatDetail, FlatPage, Summary, User } from './api'
 import { Icon } from './components/Icon'
@@ -103,7 +105,14 @@ function CommunityCounts({ summary }: { summary: Summary | null }) {
   return <><section aria-label="Community at a glance" className="stats-strip registry-stats">{metrics.map(metric => <div className="stat-item" key={metric.label}><span className="stat-label">{metric.label}<Icon name={metric.icon} /></span><strong>{metric.value ?? '—'}</strong><small>{metric.hint}</small></div>)}</section><div className="occupancy-caption"><span><i className="dot dot-green" />{summary?.community.owner_occupied ?? '—'} owner-occupied homes</span><span>{summary?.community.rented ?? '—'} rented homes</span><span>People are counted once per role; joint owners are included.</span></div></>
 }
 
-function Registry({ summary, user, refresh, initialWing, onOpen }: { summary: Summary | null; user: User; refresh: number; initialWing: string; onOpen: (id: string) => void }) {
+function Registry(props: { summary: Summary | null; user: User; refresh: number; initialWing: string; onOpen: (id: string) => void }) {
+ const permitted=canReadChecklists(props.user),[panel,setPanel]=useState(()=>new URLSearchParams(window.location.hash.split('?')[1]??'').get('panel')==='checklists')
+ useEffect(()=>{const change=()=>setPanel(new URLSearchParams(window.location.hash.split('?')[1]??'').get('panel')==='checklists');window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[])
+ const choose=(checklists:boolean)=>{setPanel(checklists);window.location.hash=checklists?'homes?panel=checklists':'homes'}
+ return <>{permitted&&<nav className="homes-views" aria-label="Home views"><button type="button" aria-current={!panel?'page':undefined} onClick={()=>choose(false)}>{props.user.can_read_registry?'Homes & people':'Your homes'}</button><button type="button" aria-current={panel?'page':undefined} onClick={()=>choose(true)}>Move & contact reviews<Icon name="arrow"/></button></nav>}{permitted&&panel?<MoveChecklists key={props.user.scope_key} user={props.user}/>:<RegistryRegister {...props}/>}</>
+}
+
+function RegistryRegister({ summary, user, refresh, initialWing, onOpen }: { summary: Summary | null; user: User; refresh: number; initialWing: string; onOpen: (id: string) => void }) {
   const [query, setQuery] = useState('')
   const [building, setBuilding] = useState(initialWing)
   const [status, setStatus] = useState('')
@@ -187,12 +196,12 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
   const [initialWing, setInitialWing] = useState('')
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(()=>currentView()==='homes'?new URLSearchParams(window.location.hash.split('?')[1]??'').get('home'):null)
   const [about, setAbout] = useState(false)
   const [refresh, setRefresh] = useState(0)
   useSocietyTools(user, setSelected)
   useEffect(() => {
-    const handler = () => { const next = currentView(); setView(next); if (next !== 'homes') setInitialWing(''); window.scrollTo({ top: 0, behavior: 'instant' }); setSelected(null); setAbout(false) }
+    const handler = () => { const next = currentView(); setView(next); if (next !== 'homes') setInitialWing(''); window.scrollTo({ top: 0, behavior: 'instant' }); setSelected(next==='homes'?new URLSearchParams(window.location.hash.split('?')[1]??'').get('home'):null); setAbout(false) }
     window.addEventListener('hashchange', handler)
     return () => window.removeEventListener('hashchange', handler)
   }, [])
@@ -216,7 +225,7 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
         <footer className="page-footer"><span><span className="footer-wordmark">society.</span> Made for everyday life.</span><button onClick={() => setAbout(true)}>About this preview<Icon name="arrow" /></button></footer>
       </main>
     </div>
-    {(selected || about) && <DetailDialog key={selected ?? 'about'} id={selected} about={about} user={user} onSaved={() => setRefresh(n => n + 1)} onClose={() => { setSelected(null); setAbout(false) }} />}
+    {(selected || about) && <DetailDialog key={selected ?? 'about'} id={selected} about={about} user={user} onSaved={() => setRefresh(n => n + 1)} onClose={() => { setSelected(null); setAbout(false); if(currentView()==='homes'){const params=new URLSearchParams(window.location.hash.split('?')[1]??'');if(params.has('home')){params.delete('home');window.history.replaceState(null,'','#homes'+(params.toString()?'?'+params:''))}} }} />}
   </div>
 }
 
