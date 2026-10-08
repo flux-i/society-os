@@ -8,8 +8,10 @@ import '@fontsource/instrument-serif/latin-400.css'
 import '@fontsource/instrument-serif/latin-400-italic.css'
 import './styles.css'
 import App from './App'
+import { startPublicShell } from './pwa'
+
+startPublicShell()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><App /></React.StrictMode>,
 )
-

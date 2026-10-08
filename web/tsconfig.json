@@ -8,10 +8,10 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "verbatimModuleSyntax": true
   },
   "include": ["src", "vite.config.ts", "playwright.config.ts", "tests"]
 }
-

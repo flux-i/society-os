@@ -96,6 +96,7 @@ test('native tenant statement delivery history discards held membership results 
   const reading=execute(tenant,'society_read_message',{message_id:id});await started
   messagePrivateFixture("db.execute(\"UPDATE flat_memberships SET end_date='2026-01-01' WHERE resident_id='demo-tenant-A-103'\")")
   release();await expect(reading).rejects.toThrow();await tenant.unroute('**/api/messages/'+id)
+  await expect.poll(()=>names(tenant)).toContain('society_read_message')
   const current=JSON.parse(await execute(tenant,'society_read_message',{message_id:id}));expect(current.counts.source_people).toBe(0);expect(current.counts.eligible_people).toBe(0);expect(JSON.stringify(current)).not.toContain(pub);expect(JSON.stringify(current)).not.toContain(file)
   expect((await tenant.request.get('/api/financial-statements/'+file+'/download')).status()).toBe(404)
  }finally {release();messagePrivateFixture("db.execute(\"UPDATE flat_memberships SET end_date=NULL WHERE resident_id='demo-tenant-A-103'\")");await context.close();await a.close()}

@@ -1,11 +1,14 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { MouseEvent, PointerEvent, ReactNode } from 'react'
 import { Icon } from './Icon'
+import { ConnectionNote } from './PWAStatus'
+import { usePortalConnection } from '../pwa'
 
 export function PortalDialog({ children, titleId, closeLabel, onClose, busy = false, className = '' }: {
   children: ReactNode; titleId: string; closeLabel: string; onClose: () => void; busy?: boolean; className?: string
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const connection = usePortalConnection()
   const opener = useRef<HTMLElement | null>(null)
   const pointerStartedOutside = useRef(false)
   useLayoutEffect(() => {
@@ -37,6 +40,7 @@ export function PortalDialog({ children, titleId, closeLabel, onClose, busy = fa
     onPointerDown={event => { pointerStartedOutside.current = outside(event) }}
     onClick={event => { if (!busy && pointerStartedOutside.current && outside(event)) dialog.current?.close() }}>
     <button className="dialog-close" autoFocus aria-label={closeLabel} disabled={busy} onClick={() => dialog.current?.close()}><Icon name="close" /></button>
-    {children}
+    <ConnectionNote/>
+    <fieldset className="dialog-network-fields" disabled={connection.connection !== 'online' || connection.pendingSignout || connection.applying}>{children}</fieldset>
   </dialog>
 }

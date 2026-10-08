@@ -7,6 +7,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.SOCIETY_BROWSER_URL ?? 'http://127.0.0.1:8080',
     channel: 'chrome',
+    serviceWorkers: 'block',
     launchOptions: { args: ['--enable-features=WebMCP,WebMCPTesting'] },
     screenshot: 'only-on-failure', trace: 'retain-on-failure',
   },

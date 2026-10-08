@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +27,8 @@ type Server struct {
 	Documents *documents.Store
 	Messages  *messaging.Engine
 }
+
+var publicBuildAsset = regexp.MustCompile(`^/assets/[A-Za-z0-9_.-]+-[A-Za-z0-9_-]{8}\.(js|css|woff2?)$`)
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -128,6 +131,16 @@ func (s *Server) Handler() http.Handler {
 			respond(w, http.StatusMethodNotAllowed, map[string]string{"error": "method_not_allowed"})
 			return
 		}
+		// Only existing, versioned public build files are immutable. HTML,
+		// worker/manifest files and every authenticated response stay no-store.
+		if r.URL.Path == "/manifest.webmanifest" {
+			w.Header().Set("Content-Type", "application/manifest+json; charset=utf-8")
+		}
+		if r.URL.RawQuery == "" && r.URL.RawPath == "" && publicBuildAsset.MatchString(r.URL.Path) {
+			if info, err := fs.Stat(s.Web, strings.TrimPrefix(r.URL.Path, "/")); err == nil && info.Mode().IsRegular() {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
+		}
 		files.ServeHTTP(w, r)
 	}))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -226,5 +239,8 @@ type responseWriter struct {
 
 func (w *responseWriter) WriteHeader(status int) {
 	w.status = status
+	if status >= 400 {
+		w.Header().Set("Cache-Control", "no-store")
+	}
 	w.ResponseWriter.WriteHeader(status)
 }

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { resolve, join, basename } from 'node:path'
 import { createServer } from 'node:net'
 import { createWhatsAppFixture } from './whatsapp-provider-fixture.mjs'
+import { createPwaFixture } from './pwa-fixture.mjs'
 
 // Each suite gets its own database, server and real login limiter. The complete
 // gate must not weaken production throttling to accommodate repeated QA logins.
@@ -39,11 +40,13 @@ const base = `http://127.0.0.1:${port}`
 const logs = openSync(join(root, 'server.log'), 'w', 0o600)
 let server
 let whatsappFixture
+let pwaFixture
 try {
   cpSync(resolve('../build/society-server'),binary)
   cpSync(resolve('../build/web'),webDir,{recursive:true})
   execFileSync(binary, ['seed-demo', '--demo', '--db', db], { stdio: 'ignore' })
   if(['whatsapp-provider.spec.ts','webmcp-whatsapp-provider.spec.ts'].includes(process.argv[2]))whatsappFixture=await createWhatsAppFixture(root,base)
+  if(['pwa.spec.ts','webmcp-pwa.spec.ts'].includes(process.argv[2]))pwaFixture=await createPwaFixture(base)
   server = spawn(binary, ['serve', '--demo', '--db', db, '--mfa-key-file', join(root, 'keys', 'mfa.key'), '--addr', `127.0.0.1:${port}`, '--web-dir', webDir,...(whatsappFixture?['--whatsapp-fixture-config',whatsappFixture.config]:[])], { stdio: ['ignore', logs, logs] })
   const deadline = Date.now() + 15000
   while (true) {
@@ -58,7 +61,7 @@ try {
     !argument.startsWith('-') && argument.endsWith('.spec.ts')
       ? '(?:^|[\\\\/])' + argument.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'
       : argument)
-  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_ARTIFACTS: artifacts,...(whatsappFixture?{SOCIETY_WHATSAPP_FIXTURE:whatsappFixture.origin}:{}) } })
+  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: pwaFixture?.origin ?? base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_WEB_DIR: webDir, SOCIETY_BROWSER_ARTIFACTS: artifacts,...(whatsappFixture?{SOCIETY_WHATSAPP_FIXTURE:whatsappFixture.origin}:{}) } })
   process.exitCode = await new Promise(resolve => runner.on('exit', code => resolve(code ?? 1)))
 } finally {
   if (server && server.exitCode === null) {
@@ -70,5 +73,6 @@ try {
   }
   closeSync(logs)
   if(whatsappFixture)await whatsappFixture.close()
+  if(pwaFixture)await pwaFixture.close()
   rmSync(root, { recursive: true, force: true })
 }

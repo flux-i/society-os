@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { publicShell } from './pwa-build.ts'
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), publicShell()],
   server: {
     host: '127.0.0.1',
     proxy: {
@@ -14,4 +15,3 @@ export default defineConfig({
   },
   build: { outDir: '../build/web', emptyOutDir: true },
 })
-

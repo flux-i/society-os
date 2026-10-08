@@ -1485,7 +1485,7 @@
 
 /* Reserve a non-scrolling row so dismissal never covers report content. */
 .conduct-dialog > .dialog-close { position:static; flex-shrink:0; align-self:flex-end; margin:12px 18px 8px 0; }
-.conduct-dialog > .dialog-scroll { padding-top:16px; }
+.conduct-dialog > .dialog-scroll, .conduct-dialog > .dialog-network-fields > .dialog-scroll { padding-top:16px; }
 .conduct-dialog .incident-dialog > h2 { margin-right:0; }
 
 /* Financial decisions retain the community's forest and ivory surface. */
@@ -1504,7 +1504,7 @@
 .fine-state-issued { background:#eadfcd; color:#73573b; }
 .fine-state-waived,.fine-state-declined,.fine-state-withdrawn { background:#efede6; color:#647268; }
 .fine-dialog > .dialog-close { position:static; flex-shrink:0; align-self:flex-end; margin:12px 18px 8px 0; }
-.fine-dialog > .dialog-scroll { padding-top:16px; }
+.fine-dialog > .dialog-scroll, .fine-dialog > .dialog-network-fields > .dialog-scroll { padding-top:16px; }
 .fine-detail > h2 { font:400 43px/1.1 var(--font-display); letter-spacing:-.5px; margin:14px 0; overflow-wrap:anywhere; }
 .fine-detail h2 em { color:#7b8954; }
 .fine-detail .preserve-lines { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.8; }
@@ -2015,7 +2015,7 @@
 .budget-dialog { width:min(760px,calc(100vw - 40px)); }
 .budget-detail-dialog { width:min(930px,calc(100vw - 40px)); }
 .budget-dialog > .dialog-close { position:static; flex-shrink:0; align-self:flex-end; margin:12px 18px 0 0; }
-.budget-dialog > .dialog-scroll { padding:14px 32px 32px; }
+.budget-dialog > .dialog-scroll, .budget-dialog > .dialog-network-fields > .dialog-scroll { padding:14px 32px 32px; }
 .budget-dialog .dialog-scroll > h2 { font:400 43px/1.12 var(--font-display); letter-spacing:-.7px; overflow-wrap:anywhere; margin:16px 0 20px; }
 .budget-dialog .dialog-description { font-size:13px; line-height:1.8; color:var(--color-muted); }
 .budget-dialog .form-actions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:24px; }
@@ -2113,7 +2113,7 @@
  .budget-card { padding:23px; }
  .budget-plan-original,.budget-expense-original { padding:20px; }
  .budget-dialog,.budget-detail-dialog { width:calc(100vw - 24px); }
- .budget-dialog > .dialog-scroll { padding:12px 20px 24px; }
+ .budget-dialog > .dialog-scroll, .budget-dialog > .dialog-network-fields > .dialog-scroll { padding:12px 20px 24px; }
  .budget-dialog .dialog-scroll > h2 { font-size:34px; }
  .budget-dialog .form-actions { flex-direction:column; align-items:stretch; }
  .budget-dialog .form-actions .button { justify-content:center; }
@@ -2153,7 +2153,7 @@
 .checklist-dialog { width:min(790px,calc(100vw - 40px)); }
 .checklist-detail-dialog { width:min(930px,calc(100vw - 40px)); }
 .checklist-dialog > .dialog-close { position:static; flex-shrink:0; align-self:flex-end; margin:12px 18px 0 0; }
-.checklist-dialog > .dialog-scroll { padding:14px 32px 32px; }
+.checklist-dialog > .dialog-scroll, .checklist-dialog > .dialog-network-fields > .dialog-scroll { padding:14px 32px 32px; }
 .checklist-dialog .dialog-scroll > h2 { font:400 43px/1.12 var(--font-display); letter-spacing:-.7px; overflow-wrap:anywhere; margin:16px 0 20px; }
 .checklist-dialog .dialog-description { font-size:13px; line-height:1.8; color:var(--color-muted); }
 .checklist-dialog fieldset { padding:0; margin:0; border:0; min-width:0; }
@@ -2237,7 +2237,7 @@
  .checklist-cards { grid-template-columns:minmax(0,1fr); }
  .checklist-card { padding:23px; }
  .checklist-dialog,.checklist-detail-dialog { width:calc(100vw - 24px); }
- .checklist-dialog > .dialog-scroll { padding:12px 20px 24px; }
+ .checklist-dialog > .dialog-scroll, .checklist-dialog > .dialog-network-fields > .dialog-scroll { padding:12px 20px 24px; }
  .checklist-dialog .dialog-scroll > h2 { font-size:34px; }
  .checklist-dialog input:not([type=checkbox]),.checklist-dialog textarea { font-size:16px; }
  .checklist-dialog .form-actions,.checklist-detail-actions { flex-direction:column; align-items:stretch; }
@@ -2264,3 +2264,34 @@
 
 /* Keep record titles clear of the Close control and its focus ring. */
 .record-entry-dialog .records-dialog-heading { padding-right:84px; }
+
+.dialog-network-fields { display: contents; border: 0; padding: 0; margin: 0; min-width: 0; }
+.dialog-connection-note { flex: 0 0 auto; margin: 20px 84px 8px 28px; padding: 14px 16px; border-radius: 14px; background: #eef0e5; color: var(--color-ink); font-size: 12px; line-height: 1.65; }
+.dialog-connection-note p { margin: 5px 0; }
+.dialog-connection-note .text-action { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; }
+.pwa-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 14px 24px; background: #e9eddf; color: var(--color-ink); border-bottom: 1px solid var(--color-line); }
+.pwa-strip-workspace { margin-left: 232px; }
+.pwa-strip > div:first-child { display: flex; align-items: center; gap: 12px; flex: 1 1 260px; }
+.pwa-strip-icon { flex-shrink: 0; }
+.pwa-strip strong { font-size: 13px; font-weight: 600; }
+.pwa-strip p { font-size: 12px; line-height: 1.7; margin: 3px 0 0; }
+.pwa-strip-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.pwa-strip .button { min-height: 44px; padding: 10px 16px; font-size: 12px; }
+.pwa-strip-error { flex-basis: 100%; }
+.pwa-install-help { margin: 24px 0; border-block: 1px solid var(--color-line); padding: 16px 0; }
+.pwa-install-help summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; font-size: 14px; color: var(--color-ink); }
+.pwa-install-help summary:focus-visible { outline: 2px solid #7d8c5f; outline-offset: -2px; border-radius: 4px; }
+.pwa-install-help p { font-size: 13px; line-height: 1.8; }
+.pwa-install-help .text-action { min-height: 44px; margin-right: 14px; display: inline-flex; align-items: center; gap: 8px; }
+.reconnect-screen { min-height: 75vh; max-width: 600px; margin: 0 auto; padding: 48px 28px; color: var(--color-ink); }
+.reconnect-screen .footer-wordmark { display: block; margin-bottom: 48px; }
+.reconnect-screen .about-mark { margin-bottom: 28px; }
+.reconnect-screen h1 { font: 400 clamp(42px, 7vw, 72px)/1.03 var(--font-display); letter-spacing: -.04em; margin: 20px 0 24px; }
+.reconnect-screen h1 em { color: #7d8c5f; }
+.reconnect-screen > p { color: var(--color-muted); font-size: 14px; line-height: 1.8; margin-bottom: 26px; }
+@media (min-width: 1600px) { .pwa-strip-workspace { margin-left: 250px; } }
+@media (max-width: 1150px) { .pwa-strip-workspace { margin-left: 204px; } }
+@media (max-width: 850px) { .pwa-strip-workspace { margin-left: 0; } }
+@media (max-width: 600px) { .pwa-strip { padding: 14px 18px; gap: 12px; } .reconnect-screen { padding: 32px 22px; } .dialog-connection-note { margin: 16px 72px 8px 18px; padding: 12px; } }
+
+.about-dialog > .dialog-close { position: static; flex-shrink: 0; align-self: flex-end; margin: 12px 18px 0 0; }

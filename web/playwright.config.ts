@@ -10,6 +10,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.SOCIETY_BROWSER_URL ?? 'http://127.0.0.1:8080',
     browserName: 'chromium',
+    serviceWorkers: 'block',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },

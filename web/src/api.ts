@@ -1,3 +1,5 @@
+import { beginPortalRequest, connectionLost, connectionVerified } from './pwa'
+
 export interface Building {
   id: string
   code: string
@@ -60,12 +62,27 @@ export const statuses: Record<Flat['status'], string> = {
 }
 
 export async function request<T>(path: string, signal?: AbortSignal, init?: RequestInit): Promise<T> {
+  const finish = beginPortalRequest(path, init?.method ?? 'GET')
+  try { return await fetchRequest<T>(path, signal, init) }
+  catch (err) {
+    if (!(err instanceof APIError) && !signal?.aborted && !(err instanceof DOMException && err.name === 'AbortError')) {
+      connectionLost()
+      // Recheck identity once after a network/body failure. Never replay writes.
+      if (path !== '/api/auth/me' && navigator.onLine) window.dispatchEvent(new Event('connection-retry'))
+      throw new Error('The connection was interrupted. Check the saved result before retrying a change.')
+    }
+    throw err
+  } finally { finish() }
+}
+
+async function fetchRequest<T>(path: string, signal?: AbortSignal, init?: RequestInit): Promise<T> {
   let response: Response
   try { response = await fetch(path, { ...init, signal, cache: 'no-store', credentials: 'same-origin' }) }
   catch (err) {
     if (signal?.aborted || (err instanceof DOMException && err.name === 'AbortError')) throw err
     throw new Error('The connection was interrupted. Please try again.')
   }
+  if (path === '/api/auth/me' && (response.ok || response.status === 401)) connectionVerified()
   if (!response.ok) {
     const body = await response.json().catch(() => ({})) as { error?: string; message?: string }
     if (response.status === 401 && !path.startsWith('/api/auth/')) window.dispatchEvent(new Event('session-expired'))

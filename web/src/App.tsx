@@ -1,3 +1,5 @@
+import { PWAStatus, InstallHelp } from './components/PWAStatus'
+import { clearLocalSignout, connectionLost, markLocalSignout, portalConnection, requestConnectionCheck, setConnectionError, usePortalConnection } from './pwa'
 import { useFragmentSync } from './navigation'
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { canReadChecklists } from './checklists'
@@ -184,8 +186,8 @@ function DetailDialog({ id, about, user, onSaved, onClose }: { id: string | null
     }
     return () => controller.abort()
   }, [id, retry])
-  return <PortalDialog titleId="detail-title" closeLabel="Close details" onClose={onClose}>
-    {about ? <div className="dialog-scroll about-content"><span className="about-mark"><Icon name="leaf" /></span><span className="eyebrow">WELCOME TO SOCIETY OS</span><h2 id="detail-title">A little less admin.<br /><em>A lot more living.</em></h2><p>This is a working local preview with fictional homes and people. Explore the neighbourhood, find a home and open its details.</p><p>Manual entries and receipts keep your supplied records together. Approved notices and service requests keep the community informed. The document library keeps approved versions and private originals together. Payments happen outside the portal.</p><button className="button button-dark" onClick={onClose}>Make yourself at home<Icon name="arrow" /></button></div> : error ? <div className="dialog-scroll empty-state" role="alert"><h2 id="detail-title">Home unavailable</h2><p>{error}</p><button className="button button-dark" onClick={() => setRetry(n => n + 1)}>Try again<Icon name="refresh" /></button></div> : !detail ? <div className="dialog-scroll detail-loading" role="status"><h2 id="detail-title">Opening this home…</h2><div className="skeleton home-skeleton" /></div> : <>
+  return <PortalDialog titleId="detail-title" closeLabel="Close details" className={about ? 'about-dialog' : ''} onClose={onClose}>
+    {about ? <div className="dialog-scroll about-content"><span className="about-mark"><Icon name="leaf" /></span><span className="eyebrow">WELCOME TO SOCIETY OS</span><h2 id="detail-title">A little less admin.<br /><em>A lot more living.</em></h2><p>This is a working local preview with fictional homes and people. Explore the neighbourhood, find a home and open its details.</p><p>Manual entries and receipts keep your supplied records together. Approved notices and service requests keep the community informed. The document library keeps approved versions and private originals together. Payments happen outside the portal.</p><InstallHelp/><button className="button button-dark" onClick={onClose}>Make yourself at home<Icon name="arrow" /></button></div> : error ? <div className="dialog-scroll empty-state" role="alert"><h2 id="detail-title">Home unavailable</h2><p>{error}</p><button className="button button-dark" onClick={() => setRetry(n => n + 1)}>Try again<Icon name="refresh" /></button></div> : !detail ? <div className="dialog-scroll detail-loading" role="status"><h2 id="detail-title">Opening this home…</h2><div className="skeleton home-skeleton" /></div> : <>
       <div className="dialog-heading"><div className={`detail-banner detail-banner-${detail.building_code.toLowerCase()}`}><span className="eyebrow">WING {detail.building_code} · FLOOR {detail.floor.toString().padStart(2, '0')}</span><h2 id="detail-title">Home <em>{detail.number}</em></h2><span className={`status status-${detail.status.toLowerCase()}`}><i />{statuses[detail.status]}</span><WingArt code={detail.building_code} /></div>
       {user.can_manage_registry && <div className="detail-tabs" aria-label="Home details">{(['people', 'manage', 'history'] as const).map(value => <button key={value} aria-pressed={tab === value} onClick={() => { setTab(value); setSuccess('') }}>{value === 'people' ? 'People' : value === 'manage' ? 'Manage home' : 'History'}</button>)}</div>}
       </div><div className="dialog-scroll detail-body">{success && <p className="form-success" role="status">{success}</p>}{tab === 'manage' && user.can_manage_registry ? <RegistryEditor key={detail.version} detail={detail} onReload={() => { setSuccess(''); setRetry(n => n + 1) }} onSaved={message => { setSuccess(message); setRetry(n => n + 1); onSaved() }} /> : tab === 'history' && user.can_manage_registry ? <RegistryHistory id={detail.id} version={detail.version} /> : <><span className="eyebrow">THE PEOPLE BEHIND THE DOOR</span><h3>People & relationships</h3><p className="detail-intro">{user.can_read_registry ? 'Current and past relationships for this home.' : 'Current relationships for your home.'}</p><div className="member-list">{detail.members.map((member, i) => <div key={member.membership_id} className="member-row"><span className={`avatar member-avatar member-tone-${i % 3}`}>{member.name.split(' ').map(word => word[0]).slice(-2).join('')}</span><div><strong>{member.name}</strong><span>{relationshipLabel(member.relationship)}{!member.active && ' · Former member'}{member.active && member.primary_contact && ' · Primary contact'}</span></div><span className="member-date">{member.end_date ? `Ended ${member.end_date}` : `Since ${member.start_date}`}</span></div>)}</div><div className="detail-footnote"><Icon name="leaf" /><span>This preview uses fictional people and relationships.</span></div></>}
@@ -236,46 +238,79 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [linkToken, setLinkToken] = useState(initialLink)
-  const screen = loading ? 'loading' : linkToken ? 'link' : !user ? 'login' : user.mfa_pending ? 'verification' : 'workspace'
-  useLayoutEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [screen])
+  const connection = usePortalConnection()
   const identity = useRef<User | null>(null)
+  const generation = useRef(0)
+  const revoking = useRef<Promise<void> | null>(null)
+  const screen = connection.pendingSignout ? 'signed-out' : loading ? 'loading' : linkToken ? 'link' : !user ? 'login' : user.mfa_pending ? 'verification' : 'workspace'
+  useLayoutEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [screen])
   const storeUser = (value: User | null) => {
+    if (value && portalConnection().pendingSignout) return
     const previous = identity.current
-    if (previous && value && userAccessScope(previous) !== userAccessScope(value)) {
-      // Detail links belong to the scope under which they were opened. Clear
-      // them before the new workspace mounts, so they cannot reopen old dialogs.
-      window.history.replaceState(null, '', '#' + currentView())
-    }
+    if (previous && value && userAccessScope(previous) !== userAccessScope(value)) window.history.replaceState(null, '', '#' + currentView())
     identity.current = value; setSession(value); setUser(value)
   }
+  const revokeSession = (known?: User | null) => {
+    if (revoking.current) return revoking.current
+    const work = async () => {
+      if (!navigator.onLine) { connectionLost(); throw new Error('Reconnect to finish closing the server session.') }
+      try {
+        const current = known ?? await request<User>('/api/auth/me')
+        setSession(current)
+        await mutate('/api/auth/logout', 'POST', {})
+      } catch (err) { if (!(err instanceof APIError && err.status === 401)) throw err }
+      finally { setSession(null) }
+      clearLocalSignout(); setConnectionError(''); setMessage('')
+    }
+    revoking.current = work().finally(() => { revoking.current = null })
+    return revoking.current
+  }
+  const refreshSession = async (signal?: AbortSignal) => {
+    const captured = generation.current
+    try {
+      if (portalConnection().pendingSignout) { await revokeSession(); return }
+      const value = await request<User>('/api/auth/me', signal)
+      if (!signal?.aborted && captured === generation.current && !portalConnection().pendingSignout) { storeUser(value); setMessage('') }
+    } catch (err) {
+      if (signal?.aborted) return
+      if (portalConnection().connection === 'checking') connectionLost()
+      if (err instanceof APIError && err.status === 401 && !portalConnection().pendingSignout) storeUser(null)
+      else { setConnectionError((err as Error).message); if (!identity.current) setMessage((err as Error).message) }
+    } finally { if (!signal?.aborted) setLoading(false) }
+  }
   const acceptUser = (value: User) => { storeUser(value); setMessage('') }
+  const logout = async () => {
+    const current = identity.current
+    markLocalSignout()
+    try { await revokeSession(current) } catch (err) { setConnectionError((err as Error).message) }
+  }
   useEffect(() => { const handler = () => { const token = takeLink(); if (token) setLinkToken(token) }; window.addEventListener('hashchange', handler); return () => window.removeEventListener('hashchange', handler) }, [])
   useEffect(() => {
     const controller = new AbortController()
-    request<User>('/api/auth/me', controller.signal).then(value => { storeUser(value) }).catch((err: Error) => { if (!controller.signal.aborted && !(err instanceof APIError && err.status === 401)) setMessage(err.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    const expire = () => { storeUser(null); setMessage('Your session ended. Sign in again to continue.') }
+    const localSignout = () => { generation.current++; storeUser(null); setMessage(''); setLoading(false) }
+    const expire = () => { generation.current++; storeUser(null); setMessage('Your session ended. Sign in again to continue.') }
+    const retry = () => { void refreshSession(controller.signal) }
+    window.addEventListener('local-signout', localSignout)
     window.addEventListener('session-expired', expire)
-    return () => { controller.abort(); window.removeEventListener('session-expired', expire) }
+    window.addEventListener('connection-retry', retry)
+    void refreshSession(controller.signal)
+    return () => { controller.abort(); window.removeEventListener('local-signout', localSignout); window.removeEventListener('session-expired', expire); window.removeEventListener('connection-retry', retry) }
   }, [])
   useEffect(() => {
     if (!user || user.mfa_pending) return
     const controller = new AbortController()
-    const check = () => request<User>('/api/auth/me', controller.signal).then(value => { storeUser(value) }).catch((err: Error) => {
-      if (!controller.signal.aborted && err instanceof APIError && err.status === 401) { storeUser(null); setMessage('Your session ended. Sign in again to continue.') }
-    })
+    const check = () => { void refreshSession(controller.signal) }
     const timer = window.setInterval(check, 60000)
-    const onVisible = () => { if (document.visibilityState === 'visible') void check() }
+    const onVisible = () => { if (document.visibilityState === 'visible') check() }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('session-recheck', check)
     return () => { controller.abort(); clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('session-recheck', check) }
   }, [user?.id, user?.mfa_pending])
-  const logout = async () => {
-    try { await mutate('/api/auth/logout', 'POST', {}) }
-    catch (err) { if (!(err instanceof APIError && err.status === 401)) { setMessage((err as Error).message); return } }
-    storeUser(null); setMessage(''); window.location.hash = 'overview'
-  }
-  if (loading) return <main className="session-loading" role="status"><span className="footer-wordmark">society.</span><p>Opening your workspace…</p></main>
-  if (linkToken) return <AccountLink key={linkToken} token={linkToken} onDone={() => { setLinkToken(''); if (user) void logout() }} />
-  if (user?.mfa_pending) return <MFAGate key={user.id} user={user} onVerified={acceptUser} onLogout={() => void logout()} />
-  return user ? <>{message && <div className="session-message" role="alert">{message}</div>}<Workspace key={userAccessScope(user)} user={user} onUser={acceptUser} onLogout={() => { setMessage(''); void logout() }} /></> : <Login message={message} onLogin={acceptUser} />
+  let content
+  if (connection.pendingSignout || (!user && connection.connection !== 'online' && !loading)) content = <main className="reconnect-screen"><span className="footer-wordmark">society.</span><span className="about-mark"><Icon name="leaf"/></span><span className="eyebrow">A LITTLE PAUSE</span><h1>{connection.pendingSignout ? <>Your workspace<br/><em>is closed.</em></> : <>We’ll be here<br/><em>when you reconnect.</em></>}</h1><p>{connection.pendingSignout ? 'Private screens and open work have been cleared. Reconnect to finish signing out of the server.' : 'A connection is needed to open your private workspace. Your records stay safely on the server.'}</p><button type="button" className="button button-dark" disabled={connection.connection === 'checking'} onClick={requestConnectionCheck}>Check connection<Icon name="refresh"/></button><InstallHelp/></main>
+  else if (loading) content = <main className="session-loading" role="status"><span className="footer-wordmark">society.</span><p>Opening your workspace…</p></main>
+  else if (linkToken) content = <AccountLink key={linkToken} token={linkToken} onDone={() => { setLinkToken(''); if (user) void logout() }} />
+  else if (user?.mfa_pending) content = <MFAGate key={user.id} user={user} onVerified={acceptUser} onLogout={() => void logout()} />
+  else content = user ? <>{message && <div className="session-message" role="alert">{message}</div>}<Workspace key={userAccessScope(user)} user={user} onUser={acceptUser} onLogout={() => { setMessage(''); void logout() }} /></> : <Login message={message} onLogin={acceptUser} />
+  return <><PWAStatus workspace={!!user && !user.mfa_pending} onSignOut={()=>void logout()}/>{content}</>
 }
