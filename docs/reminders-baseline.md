@@ -1,6 +1,6 @@
 # Private reminders and delivery exceptions — checkpoint evidence
 
-**Locally accepted: 0.23.0-dev/schema 22, 8 October 2026.** The [before-code contract](reminders-delivery-exceptions-workflow.md) defines current source authority, exact private eligibility, separate review and retained handoff outcomes. Required gates, actual visual inspection and matching recovery pass. Personal publication is pending. The preceding [0.22 acceptance](meetings-baseline.md), application and immutable archive remain intact. Cumulative closed findings are **92 unique groups: 90 product/UI and two operational**.
+**Locally accepted: 0.23.0-dev/schema 22, 8 October 2026.** The [before-code contract](reminders-delivery-exceptions-workflow.md) defines current source authority, exact private eligibility, separate review and retained handoff outcomes. Required gates, actual visual inspection and matching recovery pass. Personal [application `76ee265`](https://github.com/flux-i/society-os/commit/76ee26557673ad142028125b7bfbb97df5d80e8d) is published and verified. The preceding [0.22 acceptance](meetings-baseline.md), application and immutable archive remain intact. Cumulative closed findings are **92 unique groups: 90 product/UI and two operational**.
 
 ## Implemented outcome
 
@@ -61,3 +61,7 @@ Post-upgrade matching 0.23/schema 22: `var/snapshots/reminders-0.23-20261008`; *
 Pinned `var/preview-releases/0.23` serves http://127.0.0.1:8080 under detached PID **95642 when started**. Revalidate its exact command before process action. Readiness 200, 18 packaged/17 served hashes, all 86 persistent rows/column shapes/SQL objects/provenance, integrity/FK checks and both held keys verify after startup. Four temporary credential tables are purged on restore. The new reminder table remains empty in this developer preview; browser mutations use disposable synthetic databases.
 
 Continue with [budgets and recorded paid expenses](budgets-recorded-expenses-workflow.md), move/contact checklists, measured performance/PWA/migration and independent production preparation. Real identities/data, policy/custodians, provider credentials, host/network proof and human pilot acceptance remain separate inputs. This checkpoint does not complete the whole plan.
+
+## Personal publication
+
+Personal [application `76ee26557673ad142028125b7bfbb97df5d80e8d`](https://github.com/flux-i/society-os/commit/76ee26557673ad142028125b7bfbb97df5d80e8d) is published and verified at `2026-10-08T09:06:03.511836+00:00`: personal account/author, public repository, credential-free origin, clean tree and GitHub API main match. Immutable `reports/local/checkpoints/reminders-0.23-accepted-final` binds all **412 source files/975 hashes** to that exact application commit. A six-document metadata child records this proof without changing the tested application/runtime or final archive. The earlier 412-source/972-hash archive remains byte-unchanged and excluded after a recovery-description wording correction; it is not the accepted publication archive. Publication proofs remain private. The whole goal continues.
