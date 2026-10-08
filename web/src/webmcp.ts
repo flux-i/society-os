@@ -14,6 +14,8 @@ import type { StatementFile, StatementDetail, StatementPage } from './statements
 import type { FinanceExport, ExportPage } from './finance-exports'
 import type { CommunityPage, CommunityDetail, CommunityResource } from './community'
 import type { MeetingPage, MeetingDetail, MeetingResource } from './meetings'
+import { canReadBudgets } from './budgets'
+import type { BudgetPage, BudgetDetail, BudgetComparison, PaidExpensePage, PaidExpenseDetail } from './budgets'
 
 type Tool = {
   name: string
@@ -77,6 +79,33 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       if(JSON.stringify(select(first))!==JSON.stringify(select(fresh)))throw new Error('The meeting publication changed. Read its current version again.')
       return fresh
     }
+    if(canReadBudgets(user)) {
+      const requireBudgetReader=(me:User)=>{if(!canReadBudgets(me))throw new Error('Current explicit Treasury or auditor access is required.')}
+      const identity=(value:unknown)=>{if(typeof value!=='string'||!value||value.length>100)throw new Error('A permitted record identity is required.');return value}
+      const readCurrentBudget=async<T extends{current_key:string},>(path:string,signal:AbortSignal)=>{const first=await request<T>(path,signal),fresh=await request<T>(path,signal);if(first.current_key!==fresh.current_key)throw new Error('The budget or paid-record source changed. Read its current version again.');return fresh}
+      const budgetMetadata=(x:BudgetDetail|BudgetPage['items'][number])=>({id:x.id,version:x.version,state:x.state,decision:x.decision,proposal_version:x.snapshot.version,approved_version:x.approved?.version??0,plan_version:x.approved?.plan_version??0})
+      const expenseMetadata=(x:PaidExpenseDetail|PaidExpensePage['items'][number])=>({id:x.id,budget_id:x.budget_id,version:x.version,state:x.state,decision:x.decision,proposal_version:x.snapshot.version,approved_version:x.approved?.version??0,original_budget_version:x.snapshot.budget_version,previous_version:x.snapshot.previous_version})
+      const states=['','OPEN','CLOSED','UNAPPROVED','PENDING'],expenseStates=['','PENDING','CONFIRMED','VOID','UNCONFIRMED'],budgetSearch={type:'string',maxLength:100,description:'An explicitly supplied search term within the current private finance scope.'}
+      add('society_find_budgets','Read at most twelve currently permitted private budget status records and independent full counts. Titles, periods, references, reasons and financial amounts are excluded. This cannot prepare, approve, close or change a human form.',{query:budgetSearch,state:{type:'string',enum:states},page},[],async(input,signal,me)=>{
+        requireBudgetReader(me);const state=input.state??'';if(typeof state!=='string'||!states.includes(state))throw new Error('Choose a supported budget status.')
+        const data=await readCurrentBudget<BudgetPage>('/api/budgets?'+new URLSearchParams({q:queryText(input.query),state,page:String(pageNumber(input.page))}),signal)
+        return {items:data.items.map(budgetMetadata),total:data.total,page:data.page,page_size:data.page_size,counts:data.counts}
+      })
+      add('society_read_budget','Read one private budget’s current status, immutable version counts and non-monetary comparison counts. Figures, titles, dates, references, reasons and current source hashes are excluded. Held results are discarded after plan, collection or paid-record changes. This never prepares, reviews or posts anything.',{budget_id:{type:'string',minLength:1,maxLength:100}},['budget_id'],async(input,signal,me)=>{
+        requireBudgetReader(me);const id=identity(input.budget_id),path='/api/budgets/'+encodeURIComponent(id),first=await request<BudgetDetail>(path,signal),comparison=await request<BudgetComparison>(path+'/comparison?version='+first.version,signal),fresh=await request<BudgetDetail>(path,signal),currentComparison=await request<BudgetComparison>(path+'/comparison?version='+fresh.version,signal)
+        if(first.current_key!==fresh.current_key||comparison.current_key!==currentComparison.current_key)throw new Error('The approved plan or its current comparison changed. Read it again.')
+        return {...budgetMetadata(fresh),events:fresh.event_total,comparison_available:currentComparison.available,received_records:currentComparison.available?currentComparison.receipt_count:null,paid_records:currentComparison.available?currentComparison.expense_count:null,pending_expense_proposals:currentComparison.available?currentComparison.pending_expenses:null}
+      })
+      add('society_find_paid_expenses','Read at most twelve private paid-record status snapshots within one permitted budget. Payees, categories, payment references, dates, reasons, source notes and amounts are excluded. Full status counts are independent of the display page. This cannot confirm, correct or void a record.',{budget_id:{type:'string',minLength:1,maxLength:100},query:budgetSearch,state:{type:'string',enum:expenseStates},page},['budget_id'],async(input,signal,me)=>{
+        requireBudgetReader(me);const state=input.state??'';if(typeof state!=='string'||!expenseStates.includes(state))throw new Error('Choose a supported paid-record status.')
+        const data=await readCurrentBudget<PaidExpensePage>('/api/paid-expenses?'+new URLSearchParams({budget_id:identity(input.budget_id),q:queryText(input.query),state,page:String(pageNumber(input.page))}),signal)
+        return {items:data.items.map(expenseMetadata),total:data.total,page:data.page,page_size:data.page_size,counts:data.counts}
+      })
+      add('society_read_paid_expense','Read one currently permitted paid-record status and retained decision count. Original figures, payees, dates, categories, references, source notes, reasons and private hashes are excluded. This cannot confirm, correct, void or replace a record or alter an active human form.',{expense_id:{type:'string',minLength:1,maxLength:100}},['expense_id'],async(input,signal,me)=>{
+        requireBudgetReader(me);const data=await readCurrentBudget<PaidExpenseDetail>('/api/paid-expenses/'+encodeURIComponent(identity(input.expense_id)),signal)
+        return {...expenseMetadata(data),events:data.event_total}
+      })
+    }
     if (user.can_export_finance) {
       const exportMetadata = (item: FinanceExport) => ({ id: item.id, report: item.report, scope: item.scope, date_basis: item.date_basis, from: item.from, to: item.to, generated_at: item.generated_at, rows: item.rows, bytes: item.bytes, homes_count: item.homes.length })
       add('society_find_finance_exports', 'Read one page of this actor’s currently permitted immutable export status metadata. CSV bytes, financial amounts, descriptions, references and individual homes are excluded. This cannot preview, create or download an export or alter an open human form.', { page }, [], async (input, signal, me) => {
@@ -106,12 +135,12 @@ export function useSocietyTools(user: User, openHome: (id: string) => void) {
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = ['overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_review_requests||user.can_manage_records?['delivery-exceptions']:[]), ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = [...(canReadBudgets(user)?['budgets']:[]), 'overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_review_requests||user.can_manage_records?['delivery-exceptions']:[]), ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen==='delivery-exceptions'&&!me.can_review_requests&&!me.can_manage_records) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen==='budgets'&&!canReadBudgets(me)) || (screen==='delivery-exceptions'&&!me.can_review_requests&&!me.can_manage_records) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
-      window.location.hash = screen==='meetings'?'community?panel=meetings':screen==='delivery-exceptions'?'messages?panel=exceptions':screen
+      window.location.hash = screen==='budgets'?'statements?panel=budgets':screen==='meetings'?'community?panel=meetings':screen==='delivery-exceptions'?'messages?panel=exceptions':screen
       return { screen }
     }, false)
     const sections = ['meetings', 'community', 'reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', 'statements', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]

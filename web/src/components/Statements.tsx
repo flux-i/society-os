@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { User } from '../api'
+import { canReadBudgets } from '../budgets'
+import { Budgets } from './Budgets'
 import { statementKinds, statementState, useStatementLoad } from '../statements'
 import type { StatementFile, StatementPage, StatementSummary } from '../statements'
 import { displayDate } from '../maintenance'
@@ -13,6 +15,12 @@ import { Icon } from './Icon'
 const hashStatement=()=>new URLSearchParams(window.location.hash.split('?')[1]??'').get('statement')
 function StatementArt(){return <svg className="statement-art" viewBox="0 0 250 205" fill="none" aria-hidden="true"><ellipse cx="126" cy="178" rx="107" ry="13" fill="#e2e7d7"/><rect x="83" y="27" width="111" height="145" rx="9" transform="rotate(9 83 27)" fill="#d0dac1"/><rect x="48" y="21" width="117" height="151" rx="9" transform="rotate(-7 48 21)" fill="#fffef8" stroke="#b9c6a7" strokeWidth="2"/><path d="M65 48h60M61 66h78M57 109h83M55 127h83" stroke="#c3cbb5" strokeWidth="3" strokeLinecap="round"/><path d="M56 146h25m14 0h43" stroke="#8a9d70" strokeWidth="3" strokeLinecap="round"/><circle cx="166" cy="132" r="32" fill="#edf0dd" stroke="#b6c5a2" strokeWidth="2"/><path d="m151 132 11 11 22-25" stroke="#71835a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/><path d="M188 179v-35m0 16-12-11m12 2 11-14" stroke="#7a8c61" strokeWidth="2" strokeLinecap="round"/><ellipse cx="194" cy="129" rx="11" ry="16" transform="rotate(29 194 129)" fill="#b6c59b"/></svg>}
 export function Statements({user}:{user:User}) {
+ const allowed=canReadBudgets(user),[panel,setPanel]=useState(()=>new URLSearchParams(window.location.hash.split('?')[1]??'').get('panel')==='budgets'?'budgets':'statements')
+ useEffect(()=>{const change=()=>setPanel(new URLSearchParams(window.location.hash.split('?')[1]??'').get('panel')==='budgets'?'budgets':'statements');window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change)},[])
+ const choose=(next:string)=>{setPanel(next);window.history.replaceState(null,'',next==='budgets'?'#statements?panel=budgets':'#statements')}
+ return <>{allowed&&<nav className="financial-views" aria-label="Financial views"><button type="button" aria-current={panel!=='budgets'?'page':undefined} onClick={()=>choose('statements')}>Prepared statements</button><button type="button" aria-current={panel==='budgets'?'page':undefined} onClick={()=>choose('budgets')}>Budget & expenses<Icon name="arrow"/></button></nav>}{allowed&&panel==='budgets'?<Budgets user={user}/>:<StatementRegister user={user}/>}</>
+}
+function StatementRegister({user}:{user:User}) {
  const [selected,setSelected]=useState<string|null>(hashStatement),[upload,setUpload]=useState<StatementFile|'new'|null>(null),[publication,setPublication]=useState<StatementFile|null>(null),[query,setQuery]=useState(''),[kind,setKind]=useState(''),[state,setState]=useState(''),[page,setPage]=useState(1),[revision,setRevision]=useState(0)
  const load=useStatementLoad<StatementPage>('/api/financial-statements?'+new URLSearchParams({q:query,kind,state,page:String(page),refresh:String(revision)})),summary=useStatementLoad<StatementSummary>('/api/overview/statements?refresh='+revision),visible=!load.loading&&!load.error?load.data:null,counts=!summary.loading&&!summary.error?summary.data?.counts:null,staff=user.can_manage_records
  const open=(id:string)=>{setUpload(null);setPublication(null);setSelected(id);window.history.replaceState(null,'','#statements?statement='+encodeURIComponent(id))},close=()=>{setUpload(null);setPublication(null);setSelected(null);window.history.replaceState(null,'','#statements')},refresh=()=>setRevision(v=>v+1)

@@ -73,9 +73,7 @@ func TestSchemaTwentyTwoRemindersPreserve85PriorRows84DefinitionsAllTriggersAndH
 	if e = s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations ORDER BY version)").Scan(&provenance); e != nil {
 		t.Fatal(e)
 	}
-	if e = s.Migrate(ctx); e != nil {
-		t.Fatal(e)
-	}
+	applyHistoricalReminderMigration(t, s)
 	if after := statementMessageRows(t, s, tables); !reflect.DeepEqual(before, after) {
 		t.Fatal("prior persistent rows changed")
 	}
@@ -99,9 +97,7 @@ func TestSchemaTwentyTwoRemindersPreserve85PriorRows84DefinitionsAllTriggersAndH
 	}
 	maintenanceCount(t, s, "SELECT COUNT(*) FROM message_reminder_recipients", 0)
 	maintenanceCount(t, s, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes')", 86)
-	if e = s.VerifySchema(ctx); e != nil {
-		t.Fatal(e)
-	}
+
 	connections := []*sql.Conn{}
 	for i := 0; i < 4; i++ {
 		conn, e := s.DB.Conn(ctx)
@@ -125,5 +121,11 @@ func TestSchemaTwentyTwoRemindersPreserve85PriorRows84DefinitionsAllTriggersAndH
 	}
 	if x := meetingDetail(t, s, owner, meeting, false); !x.Acknowledgement.Acknowledged {
 		t.Fatal("personal original lost", x)
+	}
+	if e = s.Migrate(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if e = s.VerifySchema(ctx); e != nil {
+		t.Fatal(e)
 	}
 }
