@@ -20,6 +20,13 @@ func issueReceipt(ctx context.Context, tx *sql.Tx, p Principal, e Entry, now tim
 		return err
 	}
 	snapshot := ReceiptSnapshot{Number: fmt.Sprintf("SOS-%s-%06d", year, seq), Home: e.Home, Payer: e.Payer, AmountPaise: e.AmountPaise, Date: e.Date, Description: e.Description, Method: e.Method, Reference: e.Reference, SourceNote: e.SourceNote, Operator: p.Name, IssuedAt: now.Unix()}
+	workspace, err := workspaceInfo(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if workspace.Mode != "DEMO" {
+		snapshot.Issuer = &ReceiptIssuer{FormatVersion: 1, Name: workspace.Name, Mode: workspace.Mode}
+	}
 	blob, err := json.Marshal(snapshot)
 	if err != nil {
 		return err

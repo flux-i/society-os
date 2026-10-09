@@ -55,17 +55,25 @@ type EntryAction struct {
 	Reason       string `json:"reason"`
 }
 type ReceiptSnapshot struct {
-	Number      string `json:"number"`
-	Home        string `json:"home"`
-	Payer       string `json:"payer"`
-	AmountPaise int64  `json:"amount_paise"`
-	Date        string `json:"date"`
-	Description string `json:"description"`
-	Method      string `json:"method"`
-	Reference   string `json:"reference"`
-	SourceNote  string `json:"source_note"`
-	Operator    string `json:"operator"`
-	IssuedAt    int64  `json:"issued_at"`
+	Issuer      *ReceiptIssuer `json:"issuer,omitempty"`
+	Number      string         `json:"number"`
+	Home        string         `json:"home"`
+	Payer       string         `json:"payer"`
+	AmountPaise int64          `json:"amount_paise"`
+	Date        string         `json:"date"`
+	Description string         `json:"description"`
+	Method      string         `json:"method"`
+	Reference   string         `json:"reference"`
+	SourceNote  string         `json:"source_note"`
+	Operator    string         `json:"operator"`
+	IssuedAt    int64          `json:"issued_at"`
+}
+
+// Frozen on confirmation; absent on legacy/demo receipts to preserve their format.
+type ReceiptIssuer struct {
+	FormatVersion int    `json:"format_version"`
+	Name          string `json:"name"`
+	Mode          string `json:"mode"`
 }
 type Entry struct {
 	ID             string `json:"id"`

@@ -13,7 +13,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/signintech/gopdf"
 	"society.local/portal/internal/database"
@@ -118,6 +120,9 @@ func (s *Store) Put(bytes []byte) (string, error) {
 }
 
 func Render(r database.ReceiptSnapshot) ([]byte, error) {
+	if r.Issuer != nil && (r.Issuer.FormatVersion != 1 || utf8.RuneCountInString(r.Issuer.Name) < 2 || utf8.RuneCountInString(r.Issuer.Name) > 120 || strings.ContainsAny(r.Issuer.Name, "\r\n\t") || (r.Issuer.Mode != "FICTIONAL_REHEARSAL" && r.Issuer.Mode != "LOCAL_WORKSPACE")) {
+		return nil, errors.New("unsupported receipt issuer snapshot")
+	}
 	var pdf gopdf.GoPdf
 	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA4})
 	if err := pdf.AddTTFFontData("DM", receiptFont); err != nil {
@@ -145,8 +150,42 @@ func Render(r database.ReceiptSnapshot) ([]byte, error) {
 		pdf.SetXY(x, y)
 		renderErr = pdf.CellWithOption(&gopdf.Rect{W: 510, H: size + 7}, value, gopdf.CellOption{})
 	}
-	text(40, 40, 29, "society.")
-	text(40, 89, 10, "FICTIONAL COMMUNITY  /  LOCAL PREVIEW")
+	var issuerLines []string
+	var issuerSize float64
+	if r.Issuer == nil {
+		text(40, 40, 29, "society.")
+		text(40, 89, 10, "FICTIONAL COMMUNITY  /  LOCAL PREVIEW")
+	} else {
+		// Wrap the frozen name within the reserved header, including maximum-length words.
+		var lines []string
+		var size float64
+		for _, candidate := range []float64{22, 18, 14, 12} {
+			if err := pdf.SetFont("DM", "", candidate); err != nil {
+				return nil, err
+			}
+			var err error
+			lines, err = pdf.SplitTextWithOption(r.Issuer.Name, 510, &gopdf.BreakOption{Mode: gopdf.BreakModeIndicatorSensitive, BreakIndicator: ' '})
+			if err != nil {
+				return nil, err
+			}
+			if float64(len(lines))*(candidate+6) <= 66 {
+				size = candidate
+				break
+			}
+		}
+		if size == 0 {
+			return nil, errors.New("receipt issuer does not fit the supported header")
+		}
+		issuerLines, issuerSize = lines, size
+		for i, line := range lines {
+			text(40, 30+float64(i)*(size+6), size, line)
+		}
+		marker := "LOCAL COMMUNITY WORKSPACE"
+		if r.Issuer.Mode == "FICTIONAL_REHEARSAL" {
+			marker = "FICTIONAL REHEARSAL  /  SUPPLIED SAMPLE REGISTER"
+		}
+		text(40, 99, 9, marker)
+	}
 	text(40, 124, 24, "Receipt of money received")
 	text(55, 196, 10, "AMOUNT ALREADY RECEIVED")
 	text(55, 224, 34, fmt.Sprintf("₹%d.%02d", r.AmountPaise/100, r.AmountPaise%100))
@@ -184,8 +223,15 @@ func Render(r database.ReceiptSnapshot) ([]byte, error) {
 				renderErr = err
 				return
 			}
-			text(40, 40, 29, "society.")
-			text(40, 90, 14, r.Number+" · details continued")
+			if r.Issuer == nil {
+				text(40, 40, 29, "society.")
+				text(40, 90, 14, r.Number+" · details continued")
+			} else {
+				for i, line := range issuerLines {
+					text(40, 30+float64(i)*(issuerSize+6), issuerSize, line)
+				}
+				text(40, 110, 14, r.Number+" · details continued")
+			}
 			y = 150
 		}
 		text(40, y, 10, label)

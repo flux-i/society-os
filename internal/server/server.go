@@ -122,6 +122,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/flats/{id}/members", s.protected(s.addMember))
 	mux.HandleFunc("POST /api/flats/{id}/members/{membership}/end", s.protected(s.endMember))
 	mux.HandleFunc("GET /api/flats/{id}/activity", s.protected(s.activity))
+	mux.HandleFunc("GET /api/flats/{id}/finance-visibility", s.protected(s.householdFinance))
+	mux.HandleFunc("POST /api/flats/{id}/finance-visibility", s.protected(s.changeHouseholdFinance))
+	mux.HandleFunc("GET /api/flats/{id}/finance-visibility/operations/{key}", s.protected(s.householdFinanceAction))
 	mux.HandleFunc("GET /api/people", s.protected(s.people))
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {

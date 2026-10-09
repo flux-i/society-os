@@ -1,0 +1,332 @@
+{
+  "format_version": 1,
+  "society_key": "rehearsal-society",
+  "source_key": "verified-household-rehearsal-october-2026",
+  "buildings": [
+    {
+      "source_id": "wing-a",
+      "code": "A",
+      "name": "Wing A"
+    }
+  ],
+  "homes": [
+    {
+      "source_id": "a-101",
+      "building": "wing-a",
+      "number": "101",
+      "floor": 1,
+      "occupancy": "OWNER_OCCUPIED"
+    },
+    {
+      "source_id": "a-102",
+      "building": "wing-a",
+      "number": "102",
+      "floor": 1,
+      "occupancy": "OWNER_OCCUPIED"
+    },
+    {
+      "source_id": "a-103",
+      "building": "wing-a",
+      "number": "103",
+      "floor": 1,
+      "occupancy": "RENTED"
+    },
+    {
+      "source_id": "a-104",
+      "building": "wing-a",
+      "number": "104",
+      "floor": 1,
+      "occupancy": "OWNER_OCCUPIED"
+    },
+    {
+      "source_id": "a-201",
+      "building": "wing-a",
+      "number": "201",
+      "floor": 2,
+      "occupancy": "OWNER_OCCUPIED"
+    },
+    {
+      "source_id": "a-202",
+      "building": "wing-a",
+      "number": "202",
+      "floor": 2,
+      "occupancy": "RENTED"
+    },
+    {
+      "source_id": "a-203",
+      "building": "wing-a",
+      "number": "203",
+      "floor": 2,
+      "occupancy": "OWNER_OCCUPIED"
+    },
+    {
+      "source_id": "a-204",
+      "building": "wing-a",
+      "number": "204",
+      "floor": 2,
+      "occupancy": "VACANT"
+    },
+    {
+      "source_id": "a-301",
+      "building": "wing-a",
+      "number": "301",
+      "floor": 3,
+      "occupancy": "RENTED"
+    },
+    {
+      "source_id": "a-302",
+      "building": "wing-a",
+      "number": "302",
+      "floor": 3,
+      "occupancy": "OWNER_OCCUPIED"
+    },
+    {
+      "source_id": "a-303",
+      "building": "wing-a",
+      "number": "303",
+      "floor": 3,
+      "occupancy": "OWNER_OCCUPIED"
+    },
+    {
+      "source_id": "a-304",
+      "building": "wing-a",
+      "number": "304",
+      "floor": 3,
+      "occupancy": "RENTED"
+    }
+  ],
+  "people": [
+    {
+      "source_id": "owner-a-101",
+      "name": "Sample Owner A 101"
+    },
+    {
+      "source_id": "owner-a-103",
+      "name": "Sample Owner A 103"
+    },
+    {
+      "source_id": "tenant-a-103",
+      "name": "Sample Tenant A 103"
+    },
+    {
+      "source_id": "owner-a-104",
+      "name": "Sample Owner A 104"
+    },
+    {
+      "source_id": "owner-a-201",
+      "name": "Sample Owner A 201"
+    },
+    {
+      "source_id": "owner-a-202",
+      "name": "Sample Owner A 202"
+    },
+    {
+      "source_id": "tenant-a-202",
+      "name": "Sample Tenant A 202"
+    },
+    {
+      "source_id": "owner-a-203",
+      "name": "Sample Owner A 203"
+    },
+    {
+      "source_id": "owner-a-204",
+      "name": "Sample Owner A 204"
+    },
+    {
+      "source_id": "owner-a-301",
+      "name": "Sample Owner A 301"
+    },
+    {
+      "source_id": "tenant-a-301",
+      "name": "Sample Tenant A 301"
+    },
+    {
+      "source_id": "owner-a-302",
+      "name": "Sample Owner A 302"
+    },
+    {
+      "source_id": "owner-a-303",
+      "name": "Sample Owner A 303"
+    },
+    {
+      "source_id": "owner-a-304",
+      "name": "Sample Owner A 304"
+    },
+    {
+      "source_id": "tenant-a-304",
+      "name": "Sample Tenant A 304"
+    },
+    {
+      "source_id": "joint-owner-a-101",
+      "name": "Sample Joint Owner A 101"
+    },
+    {
+      "source_id": "former-tenant-a-103",
+      "name": "Sample Former Tenant A 103"
+    }
+  ],
+  "relationships": [
+    {
+      "source_id": "ownership-a-101",
+      "home": "a-101",
+      "person": "owner-a-101",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "ownership-a-102",
+      "home": "a-102",
+      "person": "owner-a-101",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "ownership-a-103",
+      "home": "a-103",
+      "person": "owner-a-103",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "tenancy-a-103",
+      "home": "a-103",
+      "person": "tenant-a-103",
+      "relationship": "TENANT",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": false
+    },
+    {
+      "source_id": "ownership-a-104",
+      "home": "a-104",
+      "person": "owner-a-104",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "ownership-a-201",
+      "home": "a-201",
+      "person": "owner-a-201",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "ownership-a-202",
+      "home": "a-202",
+      "person": "owner-a-202",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "tenancy-a-202",
+      "home": "a-202",
+      "person": "tenant-a-202",
+      "relationship": "TENANT",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": false
+    },
+    {
+      "source_id": "ownership-a-203",
+      "home": "a-203",
+      "person": "owner-a-203",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "ownership-a-204",
+      "home": "a-204",
+      "person": "owner-a-204",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "ownership-a-301",
+      "home": "a-301",
+      "person": "owner-a-301",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "tenancy-a-301",
+      "home": "a-301",
+      "person": "tenant-a-301",
+      "relationship": "TENANT",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": false
+    },
+    {
+      "source_id": "ownership-a-302",
+      "home": "a-302",
+      "person": "owner-a-302",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "ownership-a-303",
+      "home": "a-303",
+      "person": "owner-a-303",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "ownership-a-304",
+      "home": "a-304",
+      "person": "owner-a-304",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": true
+    },
+    {
+      "source_id": "tenancy-a-304",
+      "home": "a-304",
+      "person": "tenant-a-304",
+      "relationship": "TENANT",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": false
+    },
+    {
+      "source_id": "joint-ownership-a-101",
+      "home": "a-101",
+      "person": "joint-owner-a-101",
+      "relationship": "OWNER",
+      "start_date": "2020-01-01",
+      "end_date": "",
+      "primary_contact": false
+    },
+    {
+      "source_id": "former-tenancy-a-103",
+      "home": "a-103",
+      "person": "former-tenant-a-103",
+      "relationship": "TENANT",
+      "start_date": "2018-01-01",
+      "end_date": "2020-01-01",
+      "primary_contact": false
+    }
+  ]
+}

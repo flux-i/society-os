@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-func TestSchemaTwentyFivePreservesAll96PriorPersistentTablesDefinitionsProvenanceAndOriginalMoney(t *testing.T) {
+func TestSchemaTwentySixPreservesAll99PriorPersistentTablesDefinitionsProvenanceAndOriginalMoney(t *testing.T) {
 	s, a, b := communitySchemaNineteen(t)
-	for _, version := range []int{20, 21, 22, 23, 24} {
+	for _, version := range []int{20, 21, 22, 23, 24, 25} {
 		applyHistoricalCommunityMigration(t, s, version)
 	}
 	ctx := context.Background()
@@ -28,7 +28,7 @@ func TestSchemaTwentyFivePreservesAll96PriorPersistentTablesDefinitionsProvenanc
 	}
 	plan := budgetPropose(t, s, a, "", budgetProposal())
 	budgetApprove(t, s, b, plan)
-	expense := expensePropose(t, s, a, "", expenseProposal(plan, "32.51", "PRIVATE-WORKSPACE-MIGRATION-25"))
+	expense := expensePropose(t, s, a, "", expenseProposal(plan, "32.51", "PRIVATE-FINANCE-MIGRATION-26"))
 	priorPlan := budgetDetail(t, s, a, plan)
 	priorExpense := expenseDetail(t, s, a, expense)
 	objects := map[string]string{}
@@ -49,8 +49,8 @@ func TestSchemaTwentyFivePreservesAll96PriorPersistentTablesDefinitionsProvenanc
 	}
 	err = rows.Err()
 	rows.Close()
-	if err != nil || len(tables) != 96 {
-		t.Fatal("genuine schema24 inventory", len(tables), err)
+	if err != nil || len(tables) != 99 {
+		t.Fatal("genuine schema25 inventory", len(tables), err)
 	}
 	before := statementMessageRows(t, s, tables)
 	var provenance string
@@ -71,7 +71,7 @@ func TestSchemaTwentyFivePreservesAll96PriorPersistentTablesDefinitionsProvenanc
 		}
 	}
 	var retained string
-	if err = s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations WHERE version<=24 ORDER BY version)").Scan(&retained); err != nil || retained != provenance {
+	if err = s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations WHERE version<=25 ORDER BY version)").Scan(&retained); err != nil || retained != provenance {
 		t.Fatal("prior provenance changed", err)
 	}
 	maintenanceCount(t, s, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes')", 100)

@@ -29,7 +29,7 @@ const root = mkdtempSync(join(tmpdir(), 'society-browser-'))
 const artifacts = resolve('../reports/local/browser-runs', basename(root))
 mkdirSync(artifacts, { recursive: true, mode: 0o700 })
 const db = join(root, 'society.db')
-const workspaceSuite=['registry-import.spec.ts','webmcp-registry-import.spec.ts'].includes(process.argv[2])
+const workspaceSuite=['registry-import.spec.ts','webmcp-registry-import.spec.ts','rehearsal.spec.ts','webmcp-rehearsal.spec.ts'].includes(process.argv[2])
 const mfaKey=join(root,'keys','mfa.key'),messageKey=join(root,'keys','messages.key')
 // Retain the tested runtime pair for this run. A later build must not remove
 // files that the QA server is serving or replace its binary between restarts.

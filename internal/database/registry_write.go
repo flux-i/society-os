@@ -198,10 +198,10 @@ func (s *Store) AddMembership(ctx context.Context, token, flatID string, change 
 		}
 	}
 	id := "membership-" + randomToken()
-	if _, err := tx.ExecContext(ctx, `INSERT INTO flat_memberships VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`, id, flatID, residentID, change.Relationship, change.StartDate, change.PrimaryContact, change.Relationship == "OWNER"); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO flat_memberships VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`, id, flatID, residentID, change.Relationship, change.StartDate, change.PrimaryContact, false); err != nil {
 		return err
 	}
-	if err := appendAudit(ctx, tx, p.ID, flatID, "MEMBERSHIP_ADDED", change.Reason, map[string]any{"version": change.Version}, map[string]any{"membership_id": id, "resident_id": residentID, "name": change.Name, "relationship": change.Relationship, "start_date": change.StartDate, "primary_contact": change.PrimaryContact, "version": change.Version + 1}); err != nil {
+	if err := appendAudit(ctx, tx, p.ID, flatID, "MEMBERSHIP_ADDED", change.Reason, map[string]any{"version": change.Version}, map[string]any{"membership_id": id, "resident_id": residentID, "name": change.Name, "relationship": change.Relationship, "start_date": change.StartDate, "primary_contact": change.PrimaryContact, "can_view_finances": false, "version": change.Version + 1}); err != nil {
 		return err
 	}
 	return tx.Commit()

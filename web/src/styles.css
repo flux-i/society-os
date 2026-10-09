@@ -792,6 +792,8 @@
   .access-search { display: flex; align-items: center; gap: 12px; padding: 0 15px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-surface); max-width: 450px; margin-bottom: 24px; }
   .access-search input { width: 100%; min-width: 0; border: 0; background: transparent; min-height: 48px; font-size: 13px; }
   .access-search svg { color: var(--color-muted); }
+  .access-search:focus-within { border-color: #849576; box-shadow: 0 0 0 2px #173c3210; }
+  .access-search input:focus-visible { outline: none; }
   .account-list { border-top: 1px solid var(--color-line); }
   .account-row { display: flex; align-items: center; gap: 17px; padding: 24px 0; border-bottom: 1px solid var(--color-line); }
   .account-avatar { width: 48px; height: 48px; background: #e7ecdf; color: var(--color-forest); flex-shrink: 0; font-size: 13px; }
@@ -2392,3 +2394,26 @@
 .import-dialog .import-dialog-body { padding-top:14px; }
 @media(max-width:600px) { .import-dialog .import-dialog-body { padding-top:12px; } }
 .import-members .avatar { width:36px; height:36px; background:#e9eddf; border-radius:10px; display:grid; place-items:center; flex-shrink:0; font-size:11px; color:#677b54; }
+
+/* Household financial visibility uses the same restrained home controls. */
+.household-finance-search { margin: 22px 0 12px; min-width: 0; }
+.household-finance-people { display: grid; gap: 12px; }
+.household-finance-person { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; align-items: start; border: 1px solid var(--color-line); border-radius: 12px; padding: 17px; background: var(--color-surface); }
+.household-finance-person strong { font-size: 13px; overflow-wrap: anywhere; }
+.household-finance-person > div > span, .household-finance-person small { display: block; font-size: 11px; color: var(--color-muted); line-height: 1.7; margin-top: 4px; }
+.household-finance-person .text-link { justify-self: start; grid-column: 1 / -1; min-height: 44px; }
+.household-finance-review { border-top: 1px solid var(--color-line); margin-top: 26px; padding-top: 26px; }
+.household-finance h4 { font-family: var(--font-display); font-size: 29px; line-height: 1.2; font-weight: 400; margin: 10px 0; overflow-wrap: anywhere; }
+.household-finance-review > p, .household-finance-reauth > p { color: var(--color-muted); font-size: 12px; line-height: 1.8; margin-bottom: 22px; }
+.household-finance-fields { display: flex; flex-direction: column; gap: 18px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.household-finance-fields > label { display: flex; flex-direction: column; gap: 8px; font-size: 12px; font-weight: 500; }
+.household-finance-fields > .checkbox-label { flex-direction: row; align-items: start; gap: 10px; font-weight: 400; min-height: 44px; line-height: 1.7; }
+.household-finance-fields > .checkbox-label input { width: 18px; height: 18px; min-height: 18px; flex: 0 0 18px; margin-top: 2px; accent-color: var(--color-forest); }
+.household-finance .portal-form > .button { align-self: start; }
+.household-finance-reauth { margin-top: 26px; border-top: 1px solid var(--color-line); padding-top: 20px; }
+@media (max-width: 600px) {
+  .detail-tabs { flex-wrap: wrap; }
+  .household-finance-person { padding: 14px; gap: 9px; }
+  .household-finance .portal-form > .button { width: 100%; }
+  .household-finance-person > .status { font-size: 9px; padding: 6px 8px; }
+}
