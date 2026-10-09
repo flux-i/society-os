@@ -103,7 +103,7 @@ func TestSchemaTwentyFourChecklistsPreserve93PriorTablesDefinitionsProvenanceAnd
 	if e = s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations WHERE version<=23 ORDER BY version)").Scan(&retained); e != nil || retained != provenance {
 		t.Fatal("provenance changed", e)
 	}
-	maintenanceCount(t, s, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes')", 96)
+	maintenanceCount(t, s, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes')", 99)
 	if e = s.VerifySchema(ctx); e != nil {
 		t.Fatal(e)
 	}

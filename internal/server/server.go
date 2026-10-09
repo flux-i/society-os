@@ -29,12 +29,14 @@ type Server struct {
 }
 
 var publicBuildAsset = regexp.MustCompile(`^/assets/[A-Za-z0-9_.-]+-[A-Za-z0-9_-]{8}\.(js|css|woff2?)$`)
+var buildingCode = regexp.MustCompile(`^[A-Z0-9][A-Z0-9-]{0,11}$`)
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	guard := newLoginGuard()
 	s.accountRoutes(mux, guard)
 	s.accountAdministrationRoutes(mux)
+	s.registryImportRoutes(mux)
 	s.recordRoutes(mux)
 	s.financeExportRoutes(mux)
 	s.budgetRoutes(mux)
@@ -88,7 +90,12 @@ func (s *Server) Handler() http.Handler {
 			s.failure(w, r)
 			return
 		}
-		respond(w, http.StatusOK, map[string]any{"application_version": s.Version, "schema_version": database.SchemaVersion, "engine": engine, "mode": "synthetic-preview"})
+		info, err := s.Store.WorkspaceInfo(r.Context())
+		if err != nil {
+			s.failure(w, r)
+			return
+		}
+		respond(w, http.StatusOK, map[string]any{"application_version": s.Version, "schema_version": database.SchemaVersion, "engine": engine, "mode": info.Mode})
 	}))
 	mux.HandleFunc("GET /api/registry/summary", s.protected(func(w http.ResponseWriter, r *http.Request) {
 		summary, err := s.Store.SummaryFor(r.Context(), sessionToken(r))
@@ -203,7 +210,7 @@ func (s *Server) failure(w http.ResponseWriter, r *http.Request) {
 func (s *Server) flats(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filter := database.FlatFilter{Query: strings.TrimSpace(q.Get("q")), Building: q.Get("building"), Status: q.Get("status"), Page: 1, PageSize: 12}
-	if len(filter.Query) > 100 || (filter.Building != "" && filter.Building != "A" && filter.Building != "B" && filter.Building != "C") ||
+	if len(filter.Query) > 100 || (filter.Building != "" && !buildingCode.MatchString(filter.Building)) ||
 		(filter.Status != "" && filter.Status != "OWNER_OCCUPIED" && filter.Status != "RENTED" && filter.Status != "VACANT") {
 		respond(w, http.StatusBadRequest, map[string]string{"error": "invalid_filter"})
 		return

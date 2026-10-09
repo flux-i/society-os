@@ -370,7 +370,7 @@ func (s *Store) AccountsFor(ctx context.Context, token, query string, page, page
 
 // The offline, local-only lost-factor path records both named custodians. It never returns a secret.
 func (s *Store) OfflineMFARecovery(ctx context.Context, email, one, two, reason string) error {
-	if err := s.RequireDemo(ctx); err != nil {
+	if err := s.RequireRecoverableWorkspace(ctx); err != nil {
 		return err
 	}
 	if !validText(one, 2, 100) || !validText(two, 2, 100) || strings.EqualFold(one, two) || !validText(reason, 10, 300) {

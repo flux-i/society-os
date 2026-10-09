@@ -95,6 +95,8 @@ type Principal struct {
 	MFAEnrolled         bool     `json:"mfa_enrolled"`
 	MFAPending          bool     `json:"mfa_pending"`
 	IsDemo              bool     `json:"is_demo"`
+	WorkspaceMode       string   `json:"workspace_mode"`
+	WorkspaceName       string   `json:"workspace_name"`
 	Fresh               bool     `json:"fresh_authentication"`
 	passwordAt          int64
 	factorAt            int64
@@ -119,6 +121,12 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 	if err != nil {
 		return p, err
 	}
+	workspace, err := workspaceInfo(ctx, q)
+	if err != nil {
+		return p, err
+	}
+	p.WorkspaceMode = workspace.Mode
+	p.WorkspaceName = workspace.Name
 	p.Roles = []string{}
 	rows, err := q.QueryContext(ctx, `SELECT DISTINCT role FROM role_grants WHERE user_id = ?
         AND valid_from <= ? AND valid_until > ? AND revoked_at IS NULL ORDER BY role`, p.ID, now.Unix(), now.Unix())

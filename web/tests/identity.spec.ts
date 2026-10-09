@@ -169,3 +169,75 @@ test('phone invitation and account security fit and the dialog returns keyboard 
   await capture(page, 'security-phone')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
+
+test('entered credentials survive delayed workspace discovery and a failed configuration retry', async ({ page, browser }) => {
+  await login(page)
+  const email = 'personal-entry@browser.test', password = 'A personally entered password!'
+  const url = await invite(page, 'Demo Owner B-103', email)
+  const context = await browser.newContext({ serviceWorkers: 'block' })
+  const recipient = await context.newPage()
+  let releaseError!: () => void, releaseSuccess!: () => void
+  const errorGate = new Promise<void>(resolve => { releaseError = resolve })
+  const successGate = new Promise<void>(resolve => { releaseSuccess = resolve })
+  let reads = 0
+  await recipient.route('**/api/workspace', async route => {
+    reads++
+    if (reads === 1) {
+      await errorGate
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Workspace discovery is temporarily unavailable.' }) })
+    } else if (reads === 2) {
+      await successGate
+      await route.continue()
+    } else await route.continue()
+  })
+  const snapshot = async (name: string) => {
+    if (!process.env.SOCIETY_BOOTSTRAP_LOGIN_SCREENSHOTS) return
+    await recipient.emulateMedia({ reducedMotion: 'reduce' })
+    await recipient.evaluate(() => document.fonts.ready)
+    const folder = resolve(process.env.SOCIETY_BOOTSTRAP_LOGIN_SCREENSHOTS)
+    mkdirSync(folder, { recursive: true, mode: 0o700 })
+    const path = resolve(folder, name + '.png')
+    await recipient.screenshot({ path, fullPage: true })
+    chmodSync(path, 0o600)
+  }
+  try {
+    await savePassword(recipient, url, password)
+    await expect(recipient.getByText('Checking your workspace…', { exact: true })).toBeVisible()
+    await expect(recipient.getByRole('button', { name: 'Sign in', exact: true })).toBeDisabled()
+    await recipient.getByLabel('Email address', { exact: true }).fill(email)
+    await recipient.getByLabel('Password', { exact: true }).fill(password)
+    await snapshot('entered-credentials-pending-desktop')
+    releaseError()
+    await expect(recipient.getByRole('button', { name: 'Try workspace again', exact: true })).toBeVisible()
+    await expect(recipient.getByLabel('Email address', { exact: true })).toHaveValue(email)
+    await expect(recipient.getByLabel('Password', { exact: true })).toHaveValue(password)
+    await snapshot('entered-credentials-read-error-desktop')
+    await recipient.getByRole('button', { name: 'Try workspace again', exact: true }).click()
+    await expect(recipient.getByRole('button', { name: 'Sign in', exact: true })).toBeDisabled()
+    await recipient.setViewportSize({ width: 320, height: 740 })
+    releaseSuccess()
+    await expect(recipient.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled()
+    await expect(recipient.getByLabel('Email address', { exact: true })).toHaveValue(email)
+    await expect(recipient.getByLabel('Password', { exact: true })).toHaveValue(password)
+    expect(await recipient.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await snapshot('entered-credentials-retained-phone320')
+    await recipient.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(recipient.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible()
+    await recipient.getByRole('button', { name: 'Menu', exact: true }).click()
+    await navigate(recipient, 'Your homes')
+    await expect(recipient.getByRole('button', { name: 'View home B-103', exact: true })).toBeVisible()
+    const current = await (await recipient.request.get(new URL('/api/auth/me', url).toString())).json()
+    expect(current.name).toBe('Demo Owner B-103')
+    expect(current.is_demo).toBe(false)
+    expect(current.can_manage_accounts).toBe(false)
+    expect(current.can_manage_records).toBe(false)
+    expect((await recipient.request.get(new URL('/api/admin/accounts', url).toString())).status()).toBe(403)
+    await recipient.getByRole('button', { name: 'Sign out', exact: true }).click()
+    await expect(recipient.getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled()
+    await expect(recipient.getByLabel('Email address', { exact: true })).toHaveValue('admin@demo.society')
+    await expect(recipient.getByLabel('Password', { exact: true })).toHaveValue('Community-preview-2026!')
+  } finally {
+    releaseError(); releaseSuccess()
+    await context.close()
+  }
+})

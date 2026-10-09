@@ -6,10 +6,12 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -18,7 +20,10 @@ import (
 	"time"
 )
 
-type Box struct{ aead cipher.AEAD }
+type Box struct {
+	aead        cipher.AEAD
+	fingerprint string
+}
 
 func NewBox(key []byte) (*Box, error) {
 	if len(key) != 32 {
@@ -32,8 +37,11 @@ func NewBox(key []byte) (*Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Box{aead}, nil
+	sum := sha256.Sum256(key)
+	return &Box{aead: aead, fingerprint: hex.EncodeToString(sum[:])}, nil
 }
+
+func (b *Box) Fingerprint() string { return b.fingerprint }
 func (b *Box) Seal(user string, secret []byte) []byte {
 	nonce := make([]byte, b.aead.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {

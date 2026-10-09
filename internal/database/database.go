@@ -25,7 +25,7 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-const SchemaVersion = 24
+const SchemaVersion = 25
 
 type Store struct {
 	DB           *sql.DB
@@ -305,12 +305,25 @@ func (s *Store) Ready(ctx context.Context) error {
 }
 
 func (s *Store) RequireDemo(ctx context.Context) error {
-	var kind string
-	if err := s.DB.QueryRowContext(ctx, "SELECT value FROM app_metadata WHERE key = 'data_kind'").Scan(&kind); err != nil {
+	var kind, fixture string
+	if err := s.DB.QueryRowContext(ctx, "SELECT (SELECT value FROM app_metadata WHERE key='data_kind'),(SELECT value FROM app_metadata WHERE key='fixture_version')").Scan(&kind, &fixture); err != nil {
 		return errors.New("explicitly seeded synthetic database required")
 	}
-	if kind != "synthetic" {
+	if kind != "synthetic" || fixture != FixtureVersion {
 		return errors.New("this foundation server accepts synthetic data only")
+	}
+	var workspace bool
+	var exists bool
+	if err := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='workspace_setup')").Scan(&exists); err != nil {
+		return err
+	}
+	if exists {
+		if err := s.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM workspace_setup)").Scan(&workspace); err != nil {
+			return err
+		}
+	}
+	if workspace {
+		return errors.New("demo operations are unavailable in a configured workspace")
 	}
 	return nil
 }

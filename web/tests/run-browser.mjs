@@ -1,6 +1,6 @@
 // A fresh fictional database keeps browser mutations out of the user's preview.
 import { spawn, execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, openSync, closeSync, rmSync, readdirSync, cpSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, openSync, closeSync, rmSync, readdirSync, cpSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve, join, basename } from 'node:path'
 import { createServer } from 'node:net'
@@ -29,6 +29,8 @@ const root = mkdtempSync(join(tmpdir(), 'society-browser-'))
 const artifacts = resolve('../reports/local/browser-runs', basename(root))
 mkdirSync(artifacts, { recursive: true, mode: 0o700 })
 const db = join(root, 'society.db')
+const workspaceSuite=['registry-import.spec.ts','webmcp-registry-import.spec.ts'].includes(process.argv[2])
+const mfaKey=join(root,'keys','mfa.key'),messageKey=join(root,'keys','messages.key')
 // Retain the tested runtime pair for this run. A later build must not remove
 // files that the QA server is serving or replace its binary between restarts.
 const binary = join(root, 'society-server'),webDir = join(root,'web')
@@ -44,10 +46,15 @@ let pwaFixture
 try {
   cpSync(resolve('../build/society-server'),binary)
   cpSync(resolve('../build/web'),webDir,{recursive:true})
-  execFileSync(binary, ['seed-demo', '--demo', '--db', db], { stdio: 'ignore' })
+  if(workspaceSuite){
+    const setup=join(root,'setup.json'),password=join(root,'initial-password.txt')
+    writeFileSync(setup,JSON.stringify({format_version:1,society_key:'rehearsal-society',society_name:'The Neighbourhood Rehearsal',mode:'FICTIONAL_REHEARSAL',bootstrap_id:'browser-setup-october-2026',administrator_name:'Sample Registry Custodian',administrator_email:'registry@example.test',identity_verified:true,verification_note:'Fictional custodian identity verified for isolated browser rehearsal',term_days:90}),{mode:0o600})
+    writeFileSync(password,'Fictional-setup-password-2026!\n',{mode:0o600})
+    execFileSync(binary,['bootstrap','--db',db,'--setup-file',setup,'--password-file',password,'--mfa-key-file',mfaKey,'--message-key-file',messageKey],{stdio:'ignore'})
+  }else execFileSync(binary, ['seed-demo', '--demo', '--db', db], { stdio: 'ignore' })
   if(['whatsapp-provider.spec.ts','webmcp-whatsapp-provider.spec.ts'].includes(process.argv[2]))whatsappFixture=await createWhatsAppFixture(root,base)
   if(['pwa.spec.ts','webmcp-pwa.spec.ts'].includes(process.argv[2]))pwaFixture=await createPwaFixture(base)
-  server = spawn(binary, ['serve', '--demo', '--db', db, '--mfa-key-file', join(root, 'keys', 'mfa.key'), '--addr', `127.0.0.1:${port}`, '--web-dir', webDir,...(whatsappFixture?['--whatsapp-fixture-config',whatsappFixture.config]:[])], { stdio: ['ignore', logs, logs] })
+  server = spawn(binary, ['serve', workspaceSuite?'--workspace':'--demo', '--db', db, '--mfa-key-file',mfaKey,'--message-key-file',messageKey, '--addr', `127.0.0.1:${port}`, '--web-dir', webDir,...(whatsappFixture?['--whatsapp-fixture-config',whatsappFixture.config]:[])], { stdio: ['ignore', logs, logs] })
   const deadline = Date.now() + 15000
   while (true) {
     try { const response = await fetch(`${base}/ready`); if (response.ok) break } catch { /* local startup */ }

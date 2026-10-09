@@ -17,6 +17,8 @@ import { canReadBudgets } from './budgets'
 import type { BudgetPage, BudgetDetail, BudgetComparison, PaidExpensePage, PaidExpenseDetail } from './budgets'
 import { canReadChecklists } from './checklists'
 import type { ChecklistPage, ChecklistDetail, ChecklistRecord } from './checklists'
+import { canImportRegistry } from './registry-import'
+import type { ImportStatus } from './registry-import'
 
 type Tool = {
   name: string
@@ -79,6 +81,14 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
       if(JSON.stringify(select(first))!==JSON.stringify(select(fresh)))throw new Error('The meeting publication changed. Read its current version again.')
       return fresh
     }
+    if(canImportRegistry(user)) {
+      add('society_read_registry_import','Read current initial-register availability and retained counts only. Names, source identities, file bytes, verification notes, credentials and private fingerprints are excluded. This cannot bootstrap, validate, import or change a human review.',{},[],async(_input,signal,me)=>{
+        if(!canImportRegistry(me))throw new Error('Current workspace registry authority is required.')
+        const first=await request<ImportStatus>('/api/registry/import',signal),fresh=await request<ImportStatus>('/api/registry/import',signal)
+        if(JSON.stringify(first)!==JSON.stringify(fresh))throw new Error('The registry changed. Read the current import status again.')
+        return {initial_import_available:fresh.initial_import_available,registry_counts:fresh.registry_counts,applied:fresh.applied?{id:fresh.applied.id,counts:fresh.applied.counts,created_at:fresh.applied.created_at}:null}
+      })
+    }
     if(canReadChecklists(user)) {
       const requireReader=(me:User)=>{if(!canReadChecklists(me))throw new Error('Current checklist access is required.')}
       const states=['','CHECKING','READY','INFO','PENDING','COMPLETED','CLOSED']
@@ -135,10 +145,10 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
       })
     }
     add('society_find_homes', 'Search the current account’s permitted homes. Returns one page; resident access follows current memberships.', {
-      query: search, wing: { type: 'string', enum: ['', 'A', 'B', 'C'] }, occupancy: { type: 'string', enum: ['', 'OWNER_OCCUPIED', 'RENTED', 'VACANT'] }, page,
+      query: search, wing: { type: 'string', maxLength:12,description:'An explicitly supplied building code from the current registry, or an empty string for all permitted homes.' }, occupancy: { type: 'string', enum: ['', 'OWNER_OCCUPIED', 'RENTED', 'VACANT'] }, page,
     }, [], async (input, signal) => {
       const wing = input.wing ?? ''; const occupancy = input.occupancy ?? ''
-      if (!['', 'A', 'B', 'C'].includes(String(wing)) || !['', 'OWNER_OCCUPIED', 'RENTED', 'VACANT'].includes(String(occupancy))) throw new Error('Choose a supported wing and occupancy.')
+      if (typeof wing!=='string'||(wing!==''&&!/^[A-Z0-9][A-Z0-9-]{0,11}$/.test(wing)) || !['', 'OWNER_OCCUPIED', 'RENTED', 'VACANT'].includes(String(occupancy))) throw new Error('Choose a supported wing and occupancy.')
       return request('/api/flats?' + new URLSearchParams({ q: queryText(input.query), building: String(wing), status: String(occupancy), page: String(pageNumber(input.page)), page_size: '12' }), signal)
     })
     add('society_open_home', 'Open an authorised home’s visible details for human review. This changes only the screen, and never edits the registry.', {
@@ -151,12 +161,13 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = [...(canReadChecklists(user)?['checklists']:[]), ...(canReadBudgets(user)?['budgets']:[]), 'overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_review_requests||user.can_manage_records?['delivery-exceptions']:[]), ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = [...(canImportRegistry(user)?['registry-import']:[]), ...(canReadChecklists(user)?['checklists']:[]), ...(canReadBudgets(user)?['budgets']:[]), 'overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_review_requests||user.can_manage_records?['delivery-exceptions']:[]), ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen==='checklists'&&!canReadChecklists(me)) || (screen==='budgets'&&!canReadBudgets(me)) || (screen==='delivery-exceptions'&&!me.can_review_requests&&!me.can_manage_records) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen==='registry-import'&&!canImportRegistry(me)) || (screen==='checklists'&&!canReadChecklists(me)) || (screen==='budgets'&&!canReadBudgets(me)) || (screen==='delivery-exceptions'&&!me.can_review_requests&&!me.can_manage_records) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
-      window.location.hash = screen==='checklists'?'homes?panel=checklists':screen==='budgets'?'statements?panel=budgets':screen==='meetings'?'community?panel=meetings':screen==='delivery-exceptions'?'messages?panel=exceptions':screen
+      if(document.querySelector('form[data-protect-navigation="true"]'))throw new Error('Finish or clear the current register review before navigating.')
+      window.location.hash = screen==='registry-import'?'homes?panel=imports':screen==='checklists'?'homes?panel=checklists':screen==='budgets'?'statements?panel=budgets':screen==='meetings'?'community?panel=meetings':screen==='delivery-exceptions'?'messages?panel=exceptions':screen
       return { screen }
     }, false)
     const sections = ['meetings', 'community', 'reviews', 'service', 'notices', 'documents', 'upkeep', 'incidents', 'fines', 'messages', 'statements', ...(user.can_read_records ? ['finance', 'maintenance', 'collections'] : [])]

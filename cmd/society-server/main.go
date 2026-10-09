@@ -6,10 +6,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,7 +24,7 @@ import (
 	"society.local/portal/internal/server"
 )
 
-var version = "0.27.0-dev"
+var version = "0.28.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -35,12 +38,15 @@ func main() {
 
 func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if len(args) == 0 {
-		return errors.New("usage: society-server <serve|migrate|seed-demo|inspect|snapshot|restore-check|recover-mfa|version> [flags]")
+		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-mfa|version> [flags]")
 	}
 	command := args[0]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	dbPath := flags.String("db", "var/demo/society.db", "local SQLite path")
 	demo := flags.Bool("demo", false, "explicitly allow a synthetic local preview")
+	workspace := flags.Bool("workspace", false, "serve an explicitly bootstrapped local workspace; no demo accounts")
+	setupFile := flags.String("setup-file", "", "private version-1 workspace setup JSON")
+	passwordFile := flags.String("password-file", "", "private initial administrator password file; never a command-line password")
 	address := flags.String("addr", "127.0.0.1:8080", "loopback listen address")
 	webDir := flags.String("web-dir", "build/web", "built frontend directory")
 	output := flags.String("out", "", "new snapshot bundle or restored database path")
@@ -58,6 +64,54 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if flags.NArg() != 0 {
 		return errors.New("unexpected positional arguments")
 	}
+	explicit := map[string]bool{}
+	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
+	if *demo && *workspace {
+		return errors.New("choose --demo or --workspace")
+	}
+	if command == "bootstrap" || *workspace {
+		for _, name := range []string{"db", "mfa-key-file", "message-key-file"} {
+			if !explicit[name] {
+				return fmt.Errorf("workspace operations require an explicit --%s", name)
+			}
+		}
+		if *dbPath == "" || *keyPath == "" || *messageKeyPath == "" {
+			return errors.New("workspace database and private key paths must not be empty")
+		}
+		paths := map[string]bool{}
+		for _, path := range []string{*dbPath, *keyPath, *messageKeyPath} {
+			abs, err := filepath.Abs(path)
+			if err != nil {
+				return err
+			}
+			if paths[abs] {
+				return errors.New("workspace database and key paths must be separate")
+			}
+			paths[abs] = true
+		}
+	}
+	var setup database.WorkspaceSetup
+	var initialPassword string
+	if command == "bootstrap" {
+		if *demo || *setupFile == "" || *passwordFile == "" {
+			return errors.New("bootstrap requires --setup-file and --password-file, and refuses --demo")
+		}
+		body, err := readPrivateFile(*setupFile, 16384)
+		if err != nil {
+			return err
+		}
+		setup, err = database.ParseWorkspaceSetup(body)
+		if err != nil {
+			return err
+		}
+		secret, err := readPrivateFile(*passwordFile, 258)
+		if err != nil {
+			return err
+		}
+		initialPassword = string(secret)
+		initialPassword = strings.TrimSuffix(initialPassword, "\n")
+		initialPassword = strings.TrimSuffix(initialPassword, "\r")
+	}
 	if command == "version" {
 		return printJSON(map[string]string{"version": version})
 	}
@@ -73,12 +127,15 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return printJSON(map[string]any{"status": "restored_and_verified", "elapsed_ms": float64(time.Since(start).Microseconds()) / 1000, "manifest": manifest})
 	}
 	switch command {
-	case "serve", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa":
+	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa":
 	default:
 		return errors.New("unknown command")
 	}
-	if (command == "serve" || command == "seed-demo" || command == "recover-mfa") && !*demo {
-		return errors.New("--demo is required; production deployment is not enabled")
+	if (command == "serve" || command == "seed-demo" || command == "recover-mfa") && !*demo && !*workspace {
+		return errors.New("an explicit --demo or configured --workspace is required; public production serving is not enabled")
+	}
+	if command == "seed-demo" && *workspace {
+		return errors.New("demo seeding is unavailable in a workspace")
 	}
 	if command == "serve" {
 		if err := server.ValidateAddress(*address); err != nil {
@@ -89,7 +146,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		}
 	}
 	// Inspect/snapshot must not silently create a missing source database.
-	if command == "inspect" || command == "snapshot" || command == "recover-mfa" {
+	if command == "inspect" || command == "snapshot" || command == "recover-mfa" || (command == "serve" && *workspace) {
 		if _, err := os.Stat(*dbPath); err != nil {
 			return err
 		}
@@ -99,12 +156,37 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return err
 	}
 	defer store.Close()
-	if command == "migrate" || command == "seed-demo" || command == "serve" {
+	if command == "bootstrap" {
+		if err = store.CheckBootstrapTarget(ctx); err != nil {
+			return err
+		}
+	}
+	if command == "migrate" || command == "bootstrap" || command == "seed-demo" || command == "serve" {
 		if err := store.Migrate(ctx); err != nil {
 			return err
 		}
 	}
 	switch command {
+	case "bootstrap":
+		// A committed setup binds both keys. Never create a missing replacement on
+		// retry, even before the first administrator has enrolled an authenticator.
+		var configured bool
+		if err = store.DB.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM workspace_setup)").Scan(&configured); err != nil {
+			return err
+		}
+		box, err := security.LoadKey(*keyPath, !configured)
+		if err != nil {
+			return err
+		}
+		messageKey, err := messaging.LoadKey(*messageKeyPath, !configured)
+		if err != nil {
+			return err
+		}
+		info, err := store.BootstrapWorkspace(ctx, setup, initialPassword, box.Fingerprint(), database.InputDigest(messageKey))
+		if err != nil {
+			return err
+		}
+		return printJSON(map[string]any{"status": "workspace_configured", "workspace": info, "next": "Sign in with the supplied administrator credentials and complete authenticator enrollment. Registry access does not grant finance access."})
 	case "recover-mfa":
 		if err := store.VerifySchema(ctx); err != nil {
 			return err
@@ -153,20 +235,26 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		}
 		return printJSON(manifest)
 	case "serve":
-		if err := store.RequireDemo(ctx); err != nil {
-			return err
-		}
-		if err := store.SeedDemoAccounts(ctx); err != nil {
-			return err
-		}
-		if err := store.SeedDemoTreasury(ctx); err != nil {
-			return err
+		if *workspace {
+			if err = store.RequireWorkspace(ctx); err != nil {
+				return err
+			}
+		} else {
+			if err := store.RequireDemo(ctx); err != nil {
+				return err
+			}
+			if err := store.SeedDemoAccounts(ctx); err != nil {
+				return err
+			}
+			if err := store.SeedDemoTreasury(ctx); err != nil {
+				return err
+			}
 		}
 		var factors int
 		if err := store.DB.QueryRowContext(ctx, "SELECT (SELECT COUNT(*) FROM mfa_factors)+(SELECT COUNT(*) FROM mfa_pending)").Scan(&factors); err != nil {
 			return err
 		}
-		box, err := security.LoadKey(*keyPath, factors == 0)
+		box, err := security.LoadKey(*keyPath, factors == 0 && !*workspace)
 		if err != nil {
 			return err
 		}
@@ -181,9 +269,14 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		if *messageKeyPath == "" {
 			*messageKeyPath = messaging.DefaultKeyPath(*dbPath)
 		}
-		signingKey, err := messaging.LoadKey(*messageKeyPath, messages == 0 && bound == 0)
+		signingKey, err := messaging.LoadKey(*messageKeyPath, messages == 0 && bound == 0 && !*workspace)
 		if err != nil {
 			return err
+		}
+		if *workspace {
+			if err = store.VerifyWorkspaceKeys(ctx, box.Fingerprint(), database.InputDigest(signingKey)); err != nil {
+				return err
+			}
 		}
 		messageEngine, err := messaging.New(store, signingKey)
 		if err != nil {
@@ -234,7 +327,11 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		httpServer := &http.Server{Addr: *address, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
 		errCh := make(chan error, 1)
 		go func() { errCh <- httpServer.ListenAndServe() }()
-		logger.Info("local_preview_started", "address", *address, "version", version, "schema_version", database.SchemaVersion, "data_kind", "synthetic")
+		info, err := store.WorkspaceInfo(ctx)
+		if err != nil {
+			return err
+		}
+		logger.Info("local_workspace_started", "address", *address, "version", version, "schema_version", database.SchemaVersion, "mode", info.Mode)
 		select {
 		case err := <-errCh:
 			if errors.Is(err, http.ErrServerClosed) {
@@ -257,4 +354,31 @@ func printJSON(value any) error {
 		return fmt.Errorf("write result: %w", err)
 	}
 	return nil
+}
+
+func readPrivateFile(path string, limit int64) ([]byte, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, errors.New("the specified private input file is unavailable")
+	}
+	if !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 || info.Size() > limit {
+		return nil, errors.New("input must be a bounded regular private file (mode 0600)")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	opened, err := f.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		return nil, errors.New("private input changed while opening")
+	}
+	body, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > limit {
+		return nil, errors.New("private input exceeds its size limit")
+	}
+	return body, nil
 }

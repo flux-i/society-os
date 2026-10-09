@@ -86,8 +86,8 @@ func inspect(ctx context.Context, path string) (Manifest, error) {
 	if err := db.QueryRowContext(ctx, "SELECT value FROM app_metadata WHERE key = 'data_kind'").Scan(&result.DataKind); err != nil {
 		return Manifest{}, err
 	}
-	if result.DataKind != "synthetic" {
-		return Manifest{}, errors.New("local recovery milestone accepts synthetic data only")
+	if err := (&database.Store{DB: db}).RequireRecoverableWorkspace(ctx); err != nil {
+		return Manifest{}, err
 	}
 	if err := db.QueryRowContext(ctx, "SELECT value FROM app_metadata WHERE key = 'fixture_version'").Scan(&result.FixtureVersion); err != nil {
 		return Manifest{}, err
@@ -97,7 +97,7 @@ func inspect(ctx context.Context, path string) (Manifest, error) {
 }
 
 func Snapshot(ctx context.Context, store *database.Store, bundle, applicationVersion string) (Manifest, error) {
-	if err := store.RequireDemo(ctx); err != nil {
+	if err := store.RequireRecoverableWorkspace(ctx); err != nil {
 		return Manifest{}, err
 	}
 	abs, err := filepath.Abs(bundle)
