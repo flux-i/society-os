@@ -1,6 +1,6 @@
 # Household operational rehearsal — accepted local baseline
 
-Go/React **0.29.0-dev**, schema **26**, accepted locally on 9 October 2026. Personal publication is **APPLICATION_COMMIT_PENDING**. The complete implementation goal remains active; the next independent checkpoint is [encrypted off-site backup preparation](offsite-backup-workflow.md).
+Go/React **0.29.0-dev**, schema **26**, accepted locally on 9 October 2026. Personal publication is **[application 6ad98a0d](https://github.com/flux-i/society-os/commit/6ad98a0dda1c510bf60e2535bd184d836cdd9ec8) (verified 2026-10-09T08:44:02.844176+00:00); the immutable `rehearsal-0.29-accepted` archive binds all 521 source files and verifies 925 hashes**. The complete implementation goal remains active; the next independent checkpoint is [encrypted off-site backup preparation](offsite-backup-workflow.md).
 
 ## Verified outcome
 
