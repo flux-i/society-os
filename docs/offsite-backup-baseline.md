@@ -1,6 +1,6 @@
 # Encrypted off-site backups — accepted local baseline
 
-Go/React **0.30.0-dev**, schema **27**, accepted locally on 12 October 2026 under the [before-code contract](offsite-backup-workflow.md). Personal publication is pending; the matched private archive is prepared next. The complete implementation goal remains active; continue the [custodied restore and reconciliation contract](restore-reconciliation-workflow.md).
+Go/React **0.30.0-dev**, schema **27**, accepted locally on 12 October 2026 under the [before-code contract](offsite-backup-workflow.md). Personal publication is **[application 421c6d8c](https://github.com/flux-i/society-os/commit/421c6d8c5099f2edbac64d7c3df5e707416dbecb)**, verified 2026-10-12T09:00:14.468711+00:00; the immutable `offsite-0.30-accepted` archive binds all **554 source files / 1,344 verified hashes**, with fifteen prior accepted archives unchanged. The complete implementation goal remains active; continue the [custodied restore and reconciliation contract](restore-reconciliation-workflow.md).
 
 ## Verified outcome
 

@@ -1,6 +1,6 @@
 # Encrypted off-site backups — verified local workflow
 
-**Local verification, 12 October 2026:** The [accepted baseline](offsite-backup-baseline.md) records 308 Go declarations, 253 ordinary cases, 83 actual native cases, 56 direct original reviews and matching 103-table recovery. Personal publication is pending; the matched private archive is prepared next.
+**Local verification, 12 October 2026:** The [accepted baseline](offsite-backup-baseline.md) records 308 Go declarations, 253 ordinary cases, 83 actual native cases, 56 direct original reviews and matching 103-table recovery. Personal publication is **[application 421c6d8c](https://github.com/flux-i/society-os/commit/421c6d8c5099f2edbac64d7c3df5e707416dbecb)**, verified 2026-10-12T09:00:14.468711+00:00; the immutable `offsite-0.30-accepted` archive binds all **554 source files / 1,344 verified hashes**, with fifteen prior accepted archives unchanged.
 
 Recorded 9 October 2026 while the household rehearsal's final gates run. Implement after that checkpoint is accepted and published. The existing instruction to complete the plan autonomously authorizes this independent preparation; real credentials, custodians, host tests and policy acceptance remain separate activation requirements.
 
@@ -34,9 +34,9 @@ Prepare fixture configuration, scheduler/restart handling and deployment guidanc
 - [x] Render the approved operator interface's actual loading/error/retry/pending/stale states and any authorized risk-decision form on desktop, tablet, 375 px, 320 px and 320×440; inspect menus, focus, keyboard, scrolling, dismissal and settled originals.
 - [x] Add and execute actual native protection-status reads, current-authority/held-result checks and human-form preservation with no mutation or credential exposure.
 - [x] Run backend formatting/vet/race, TypeScript/build and ordinary/native regressions against the same frozen inputs; verify encrypted populated recovery, prior migration preservation and separate held keys.
-- [ ] Document finite results and limits, archive the matching release/evidence, verify personal publication and continue the next independent production workflow.
+- [x] Document finite results and limits, archive the matching release/evidence, verify personal publication and continue the next independent production workflow.
 
-The first eight items passed local verification on 12 October 2026; see the [accepted baseline](offsite-backup-baseline.md). Personal publication is pending; the matched private archive is prepared next. The final publication/continuation item remains pending until its evidence is recorded. These preparations do not establish a live off-site recovery point, accepted production policy, verified representatives or actual-host operation.
+The first eight items passed local verification on 12 October 2026; see the [accepted baseline](offsite-backup-baseline.md). Personal publication is **[application 421c6d8c](https://github.com/flux-i/society-os/commit/421c6d8c5099f2edbac64d7c3df5e707416dbecb)**, verified 2026-10-12T09:00:14.468711+00:00; the immutable `offsite-0.30-accepted` archive binds all **554 source files / 1,344 verified hashes**, with fifteen prior accepted archives unchanged. The final archive/publication item is verified; continue the separately reviewable reconciliation workflow. These preparations do not establish a live off-site recovery point, accepted production policy, verified representatives or actual-host operation.
 
 ## Implementation decisions after household publication
 
