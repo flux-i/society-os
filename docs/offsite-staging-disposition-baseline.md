@@ -1,6 +1,6 @@
 # Custodied retained-copy archival baseline — 0.31
 
-**Locally accepted:** 2026-10-12T11:04:48.146142+00:00, Go/React **0.31.0-dev/schema 28**. The [before-code contract](offsite-staging-disposition-workflow.md) is complete for this bounded workflow. Immutable evidence archival and verified personal publication remain pending. The broader [restore/reconciliation contract](restore-reconciliation-workflow.md) continues with restored-journal quarantine, current authority/external-job review and fresh recovery numbering.
+**Locally accepted:** 2026-10-12T11:04:48.146142+00:00, Go/React **0.31.0-dev/schema 28**. The [before-code contract](offsite-staging-disposition-workflow.md) is complete for this bounded workflow. Personal application [754ebb01](https://github.com/flux-i/society-os/commit/754ebb01490f38002704c9718268b020ecabe947) was verified on 2026-10-12T11:17:52.849312+00:00. Its immutable private evidence archive binds **565 source files / 862 verified hashes**, including all 77 reviewed originals and matching recovery. All sixteen preceding archives / 12,157 hashes remain unchanged. The documentation child is pending; the whole goal continues. The broader [restore/reconciliation contract](restore-reconciliation-workflow.md) continues with restored-journal quarantine, current authority/external-job review and fresh recovery numbering.
 
 ## Implemented behavior
 
