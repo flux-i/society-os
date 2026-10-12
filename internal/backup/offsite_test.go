@@ -232,7 +232,7 @@ func TestOffsiteLostReplyNeverResendsAndRequiresIndependentVersionDecrypt(t *tes
 		t.Fatal("failed independent check changed the saved result")
 	}
 	info, manifest, err := ReconcileOffsite(ctx, s, reader, id, objects[0].Version, filepath.Join(root, "verified-custody"), "Independent fictional custodian decrypted and verified the exact original", []age.Identity{identities[1]})
-	if err != nil || info.JobID != id || info.CapturedAt != j.CapturedAt || manifest.SchemaVersion != 27 {
+	if err != nil || info.JobID != id || info.CapturedAt != j.CapturedAt || manifest.SchemaVersion != 28 {
 		t.Fatal("independent reconciliation", info, err)
 	}
 	current, _ := s.OffsiteJobForCustody(ctx, id)

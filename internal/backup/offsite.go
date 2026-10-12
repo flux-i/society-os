@@ -112,8 +112,9 @@ func (w *OffsiteWorker) jobDirectory(id string) (string, error) {
 }
 
 // A durable acknowledgement can survive a crash before the final file cleanup.
-// Remove only directories whose immutable saved job is already VERIFIED; unknown
-// and unconfirmed originals remain available for independent investigation.
+// Remove only directories whose saved job is VERIFIED or whose exact original
+// has a committed independent custody disposition. Unknown and uncertain copies
+// remain available for investigation.
 func (w *OffsiteWorker) cleanAcknowledgedStaging(ctx context.Context) error {
 	if err := privateDirectory(w.Directory); err != nil {
 		return err
@@ -133,7 +134,11 @@ func (w *OffsiteWorker) cleanAcknowledgedStaging(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if j.State == "VERIFIED" {
+		_, custodyErr := w.Store.OffsiteCustodyFor(ctx, j.ID)
+		if custodyErr != nil && !errors.Is(custodyErr, sql.ErrNoRows) {
+			return custodyErr
+		}
+		if j.State == "VERIFIED" || custodyErr == nil {
 			if err := os.RemoveAll(filepath.Join(w.Directory, item.Name())); err != nil {
 				return err
 			}

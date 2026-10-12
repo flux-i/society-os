@@ -76,7 +76,7 @@ test('access reads recover from failure and empty search; real reauthentication 
   await page.route(read,async route=>{await heldRead;await route.fulfill({status:503,contentType:'application/json',body:'{}'})})
   await navigate(page,'Homes & people');await page.getByRole('button',{name:'View home A-101',exact:true}).click();await page.getByRole('button',{name:'Financial access',exact:true}).click()
   await expect(page.getByText('Opening current financial access…',{exact:true})).toBeVisible();await capture(page,'access-loading-desktop');releaseRead()
-  await expect(page.getByRole('alert')).toBeVisible();await capture(page,'access-read-error-desktop');await page.unroute(read);await page.getByRole('button',{name:'Try financial access again',exact:true}).click()
+  await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible();await capture(page,'access-read-error-desktop');await page.unroute(read);await page.getByRole('button',{name:'Try financial access again',exact:true}).click()
   await expect(page.locator('.household-finance-person')).toHaveCount(2)
   await page.getByRole('searchbox',{name:'Search financial access',exact:true}).fill('No current supplied person')
   await expect(page.getByRole('heading',{name:'No current people match.'})).toBeVisible();await capture(page,'access-empty-search-desktop');await page.getByRole('button',{name:'Clear financial search',exact:true}).click()
@@ -99,7 +99,7 @@ test('access reads recover from failure and empty search; real reauthentication 
   await expect(page.getByRole('button',{name:'Recording this decision…',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Close details',exact:true})).toBeDisabled()
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeVisible();await expect(page.getByRole('button',{name:'People',exact:true})).toBeDisabled();await capture(page,'access-pending-desktop')
   await expect.poll(()=>readDB('SELECT COUNT(*) FROM household_finance_actions')[0][0]).toBe(1);release()
-  await expect(page.getByRole('alert')).toContainText('connection was interrupted');await page.unroute(write)
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('connection was interrupted');await page.unroute(write)
   expect(requests[1]).toEqual(requests[0]);expect(calls).toBe(2)
   await page.getByRole('button',{name:'Check saved access decision',exact:true}).click()
   await expect(page.getByRole('status').filter({hasText:'is recorded. Current household access is refreshed below.'})).toBeVisible()
@@ -204,7 +204,7 @@ test('populated configured snapshot and restore preserve source, private origina
   const folder=artifactFolder();mkdirSync(folder,{recursive:true,mode:0o700});const runtime=dirname(db),binary=join(runtime,'society-server'),snapshot=join(folder,'snapshot'),restored=join(folder,'restored','society.db')
   for(const name of ['mfa.key','messages.key']){const source=join(runtime,'keys',name==='messages.key'?'messages.key':'mfa.key');copyFileSync(source,join(folder,name))}
   const result=JSON.parse(execFileSync(binary,['snapshot','--db',db,'--out',snapshot],{encoding:'utf8'}))
-  expect(result.schema_version).toBe(27)
+  expect(result.schema_version).toBe(28)
   execFileSync(binary,['restore-check','--snapshot',snapshot,'--out',restored],{encoding:'utf8'})
   const verify=`import sqlite3,json,sys,hashlib
 def state(path):
@@ -220,7 +220,7 @@ assert b.execute("SELECT SUM(CASE WHEN kind='RECEIVED' THEN -amount_paise ELSE a
 assert b.execute('SELECT COUNT(*) FROM receipts').fetchone()[0]==1
 assert b.execute("SELECT COUNT(*) FROM flat_memberships WHERE flat_id=(SELECT entity_id FROM registry_import_entities WHERE entity_kind='HOME' AND source_id='a-101') AND can_view_finances=1").fetchone()[0]==0
 print(json.dumps({'persistent_tables':len(ar)-1,'all_rows_and_definitions_preserved':True,'integrity_and_foreign_keys':True,'bearer_sessions_purged':True,'balance_paise':150001,'original_receipts':1}))`
-  const proof=JSON.parse(execFileSync('python3',['-c',verify,db,restored],{encoding:'utf8'}));expect(proof.persistent_tables).toBe(103)
+  const proof=JSON.parse(execFileSync('python3',['-c',verify,db,restored],{encoding:'utf8'}));expect(proof.persistent_tables).toBe(104)
   expect(readDB('SELECT snapshot_json FROM receipts WHERE id=?',[receiptID])[0][0]).toBe(originalSnapshot)
   const issuer=JSON.parse(originalSnapshot).issuer;expect(issuer.name).toBe('The Neighbourhood Rehearsal')
   const hash=(path:string)=>createHash('sha256').update(readFileSync(path)).digest('hex')

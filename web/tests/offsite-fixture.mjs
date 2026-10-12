@@ -25,14 +25,14 @@ function validSignature(request, body, expectedID, secret) {
   return keyed(key, toSign).toString('hex') === fields.Signature
 }
 
-export async function createOffsiteFixture(root, binary) {
+export async function createOffsiteFixture(root, binary, initialMode = 'LOST_REPLY') {
   const directory = join(root, 'offsite-fixture')
   mkdirSync(directory, { mode: 0o700 })
   const writerSecret = randomBytes(32).toString('hex'), readerSecret = randomBytes(32).toString('hex')
   const identities = [join(directory, 'custodian-one.key'), join(directory, 'custodian-two.key')]
   const recipients = identities.map(path => JSON.parse(execFileSync(binary, ['offsite-keygen', '--out', path], { encoding: 'utf8' })).public_recipient)
   const objects = new Map()
-  let mode = 'LOST_REPLY', puts = 0, gets = 0
+  let mode = initialMode, puts = 0, gets = 0
   const server = createServer(async (request, response) => {
     try {
       let size = 0

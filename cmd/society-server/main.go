@@ -26,7 +26,7 @@ import (
 	"society.local/portal/internal/server"
 )
 
-var version = "0.30.0-dev"
+var version = "0.31.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -40,7 +40,7 @@ func main() {
 
 func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if len(args) == 0 {
-		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-mfa|offsite-keygen|offsite-decrypt|offsite-reconcile|version> [flags]")
+		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-mfa|offsite-keygen|offsite-decrypt|offsite-reconcile|offsite-archive|version> [flags]")
 	}
 	command := args[0]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -63,6 +63,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	identitiesFile := flags.String("custody-identities-file", "", "offline private decryption identities; never used by serve")
 	backupID := flags.String("backup-id", "", "retained uncertain backup identity for offline reconciliation")
 	objectVersion := flags.String("object-version", "", "exact supplied non-null S3 object version")
+	resumeArchive := flags.Bool("resume-archive", false, "deliberately verify a completed custody archive and return or record its original disposition")
 	userEmail := flags.String("user", "", "account email for offline MFA recovery")
 	custodianOne := flags.String("custodian-one", "", "first verified recovery custodian")
 	custodianTwo := flags.String("custodian-two", "", "second verified recovery custodian")
@@ -169,6 +170,9 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if command == "offsite-reconcile" && (!explicit["db"] || *offsiteConfig == "" || *identitiesFile == "" || *backupID == "" || *objectVersion == "" || *output == "" || len(*recoveryReason) < 10 || len(*recoveryReason) > 300) {
 		return errors.New("offline reconciliation requires explicit --db, --offsite-config-file, --custody-identities-file, --backup-id, --object-version, --reason and a new --out directory")
 	}
+	if command == "offsite-archive" && (!explicit["db"] || *identitiesFile == "" || *backupID == "" || *output == "" || (!*resumeArchive && *encryptedFile == "") || len(*recoveryReason) < 10 || len(*recoveryReason) > 300 || *offsiteConfig != "" || *objectVersion != "" || *offsiteFixture) {
+		return errors.New("offline archival requires explicit --db, --custody-identities-file, --backup-id, --reason and --out; provide --encrypted-file for a new copy or deliberate --resume-archive")
+	}
 	if command == "restore-check" {
 		if *snapshot == "" || *output == "" {
 			return errors.New("restore-check requires --snapshot and --out")
@@ -181,7 +185,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return printJSON(map[string]any{"status": "restored_and_verified", "elapsed_ms": float64(time.Since(start).Microseconds()) / 1000, "manifest": manifest})
 	}
 	switch command {
-	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa", "offsite-reconcile":
+	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa", "offsite-reconcile", "offsite-archive":
 	default:
 		return errors.New("unknown command")
 	}
@@ -200,7 +204,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		}
 	}
 	// Inspect/snapshot must not silently create a missing source database.
-	if command == "inspect" || command == "snapshot" || command == "recover-mfa" || command == "offsite-reconcile" || (command == "serve" && *workspace) {
+	if command == "inspect" || command == "snapshot" || command == "recover-mfa" || command == "offsite-reconcile" || command == "offsite-archive" || (command == "serve" && *workspace) {
 		if _, err := os.Stat(*dbPath); err != nil {
 			return err
 		}
@@ -270,6 +274,19 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 			return err
 		}
 		return printJSON(map[string]any{"status": "exact_version_decrypted_verified_and_reconciled", "archive": info, "manifest": manifest})
+	case "offsite-archive":
+		if err := store.VerifySchema(ctx); err != nil {
+			return err
+		}
+		identities, err := backup.LoadCustodyIdentities(*identitiesFile)
+		if err != nil {
+			return err
+		}
+		disposition, err := backup.ArchiveOffsiteCandidate(ctx, store, *backupID, *encryptedFile, *output, *recoveryReason, identities, *resumeArchive)
+		if err != nil {
+			return err
+		}
+		return printJSON(map[string]any{"status": "independently_archived_and_disposed", "disposition": disposition})
 	case "migrate":
 		return printJSON(map[string]any{"schema_version": database.SchemaVersion, "status": "current"})
 	case "seed-demo":

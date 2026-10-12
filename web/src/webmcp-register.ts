@@ -88,7 +88,7 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
         if(!canReadBackups(me))throw new Error('Current account administrator or Treasury authority is required.')
         const first=await request<BackupStatus>('/api/backups',signal),fresh=await request<BackupStatus>('/api/backups',signal)
         if(first.status_key!==fresh.status_key)throw new Error('Recovery protection changed. Read its current status again.')
-        return {configured:fresh.configured,mode:fresh.mode,phase:fresh.phase,finance_paused:fresh.finance_paused,as_of:fresh.as_of,capture_at:fresh.capture_at,acknowledged_at:fresh.acknowledged_at,age_seconds:fresh.age_seconds,staging_full:fresh.staging_full,counts:fresh.counts}
+        return {configured:fresh.configured,mode:fresh.mode,phase:fresh.phase,finance_paused:fresh.finance_paused,as_of:fresh.as_of,capture_at:fresh.capture_at,acknowledged_at:fresh.acknowledged_at,age_seconds:fresh.age_seconds,staging_full:fresh.staging_full,archived_count:fresh.archived_count,counts:fresh.counts}
       })
     }
     if(canImportRegistry(user)) {

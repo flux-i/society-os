@@ -4,14 +4,15 @@ import type { User } from './api'
 
 export const canReadBackups = (user: User) => user.can_manage_accounts || user.can_manage_records
 export type BackupPhase = 'NOT_CONFIGURED' | 'HEALTHY' | 'WARNING' | 'PAUSED' | 'CLOCK_ERROR'
-export type BackupAttempt = { id: string; state: string; captured_at: number; acknowledged_at: number; attempts: number; error_code: string }
+export type BackupAttempt = { id: string; state: string; captured_at: number; acknowledged_at: number; attempts: number; error_code: string; archived_at: number }
 export type BackupStatus = {
   configured: boolean; mode: string; phase: BackupPhase; finance_paused: boolean; as_of: number
   capture_at: number; acknowledged_at: number; age_seconds: number | null; next_capture_at: number
-  staging_full: boolean; counts: Record<string, number>; items: BackupAttempt[]
+  staging_full: boolean; archived_count: number; counts: Record<string, number>; items: BackupAttempt[]
   page: number; page_size: number; total: number; status_key: string
 }
 export type BackupDetail = BackupAttempt & {
+  custody_note?: string
   events: { action: string; actor_kind: string; note: string; occurred_at: number }[]
   page: number; page_size: number; event_total: number
 }

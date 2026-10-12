@@ -2519,3 +2519,15 @@
  .backup-detail-facts > div { flex-direction:column; gap:8px; }
  .backup-detail-facts dd { text-align:left; }
 }
+
+.backup-custody-summary { display:grid; grid-template-columns:28px minmax(0,1fr); gap:12px; padding:18px; margin:22px 0; background:#edf0e5; border:1px solid #d7decb; border-radius:14px; }
+.backup-custody-summary > svg { width:26px; height:26px; color:#647a55; }
+.backup-custody-summary > div { min-width:0; }
+.backup-custody-summary h3 { margin:10px 0 12px; font-family:'Instrument Serif',Georgia,serif; font-size:28px; font-weight:400; }
+.backup-custody-summary p { font-size:13px; line-height:1.7; margin:0 0 12px; }
+.backup-custody-note { overflow-wrap:anywhere; color:#6d796a; }
+.backup-custody-summary small { font-size:11px; color:#74806d; }
+@media (max-width:375px) {
+ .backup-custody-summary { grid-template-columns:minmax(0,1fr); gap:8px; }
+ .backup-custody-summary h3 { font-size:25px; }
+}

@@ -65,3 +65,36 @@ func TestOffsiteCustodyCommandRetainsPrivateIdentityButNeverServesOrPrintsIt(t *
 		t.Fatal("Custody command unexpectedly opened a live database", err)
 	}
 }
+
+func TestOffsiteArchiveFlagsDenyIncompleteOrProviderCoupledRequestsBeforeOpeningData(t *testing.T) {
+	root := t.TempDir()
+	db, identity, output := filepath.Join(root, "absent-source.db"), filepath.Join(root, "absent-private.key"), filepath.Join(root, "must-not-create")
+	valid := []string{"offsite-archive", "--db", db, "--custody-identities-file", identity, "--backup-id", strings.Repeat("C", 43), "--out", output, "--reason", "Independent verification of the unchanged retained original", "--encrypted-file", filepath.Join(root, "absent.age")}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	for _, required := range []string{"db", "custody-identities-file", "backup-id", "out", "reason", "encrypted-file"} {
+		t.Run("missing-"+required, func(t *testing.T) {
+			var args []string
+			for i := 0; i < len(valid); i++ {
+				if valid[i] == "--"+required {
+					i++
+					continue
+				}
+				args = append(args, valid[i])
+			}
+			if err := run(context.Background(), args, logger); err == nil || !strings.Contains(err.Error(), "offline archival requires") {
+				t.Fatal("Incomplete command crossed the pre-I/O boundary", err)
+			}
+		})
+	}
+	for _, extra := range [][]string{{"--offsite-config-file", filepath.Join(root, "absent-provider.json")}, {"--object-version", "unsupported-version"}, {"--offsite-fixture"}} {
+		args := append(append([]string(nil), valid...), extra...)
+		if err := run(context.Background(), args, logger); err == nil || !strings.Contains(err.Error(), "offline archival requires") {
+			t.Fatal("Custody command accepted upload/reconciliation configuration", err)
+		}
+	}
+	for _, path := range []string{db, identity, output} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatal("Rejected command created or opened data", path, err)
+		}
+	}
+}

@@ -57,7 +57,7 @@ try {
   }else execFileSync(binary, ['seed-demo', '--demo', '--db', db], { stdio: 'ignore' })
   if(['whatsapp-provider.spec.ts','webmcp-whatsapp-provider.spec.ts'].includes(process.argv[2]))whatsappFixture=await createWhatsAppFixture(root,base)
   if(['pwa.spec.ts','webmcp-pwa.spec.ts'].includes(process.argv[2]))pwaFixture=await createPwaFixture(base)
-  if(['offsite.spec.ts','webmcp-offsite.spec.ts'].includes(process.argv[2]))offsiteFixture=await createOffsiteFixture(root,binary)
+  if(['offsite.spec.ts','webmcp-offsite.spec.ts','custody.spec.ts','webmcp-custody.spec.ts'].includes(process.argv[2]))offsiteFixture=await createOffsiteFixture(root,binary,['custody.spec.ts','webmcp-custody.spec.ts'].includes(process.argv[2])?'DENIED':'LOST_REPLY')
   server = spawn(binary, ['serve', workspaceSuite?'--workspace':'--demo', '--db', db, '--mfa-key-file',mfaKey,'--message-key-file',messageKey, '--addr', `127.0.0.1:${port}`, '--web-dir', webDir,...(whatsappFixture?['--whatsapp-fixture-config',whatsappFixture.config]:[]),...(offsiteFixture?['--offsite-config-file',offsiteFixture.config,'--offsite-fixture']:[])], { stdio: ['ignore', logs, logs] })
   const deadline = Date.now() + 15000
   while (true) {
@@ -72,7 +72,7 @@ try {
     !argument.startsWith('-') && argument.endsWith('.spec.ts')
       ? '(?:^|[\\\\/])' + argument.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'
       : argument)
-  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: pwaFixture?.origin ?? base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_WEB_DIR: webDir, SOCIETY_BROWSER_ARTIFACTS: artifacts,...(whatsappFixture?{SOCIETY_WHATSAPP_FIXTURE:whatsappFixture.origin}:{}),...(offsiteFixture?{SOCIETY_OFFSITE_FIXTURE:offsiteFixture.origin,SOCIETY_OFFSITE_READER:offsiteFixture.reader,SOCIETY_OFFSITE_IDENTITY:offsiteFixture.identities[0],SOCIETY_BROWSER_BINARY:binary}:{}) } })
+  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: pwaFixture?.origin ?? base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_WEB_DIR: webDir, SOCIETY_BROWSER_ARTIFACTS: artifacts,...(whatsappFixture?{SOCIETY_WHATSAPP_FIXTURE:whatsappFixture.origin}:{}),...(offsiteFixture?{SOCIETY_OFFSITE_FIXTURE:offsiteFixture.origin,SOCIETY_OFFSITE_READER:offsiteFixture.reader,SOCIETY_OFFSITE_IDENTITY:offsiteFixture.identities[0],SOCIETY_OFFSITE_SECOND_IDENTITY:offsiteFixture.identities[1],SOCIETY_BROWSER_BINARY:binary}:{}) } })
   process.exitCode = await new Promise(resolve => runner.on('exit', code => resolve(code ?? 1)))
 } finally {
   if (server && server.exitCode === null) {

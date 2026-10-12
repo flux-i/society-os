@@ -172,7 +172,7 @@ func (s *Store) ClaimOffsite(ctx context.Context, configHash, prefix string, now
 	} else if errors.Is(err, sql.ErrNoRows) {
 		var latest int64
 		var active, slots int
-		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(captured_at),0),COALESCE(SUM(state IN('CAPTURING','SEALED','UPLOADING') AND lease_until>?),0),COALESCE(SUM(state!='VERIFIED' AND encrypted_bytes>0),0) FROM offsite_backup_jobs`, now.Unix()).Scan(&latest, &active, &slots); err != nil {
+		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(captured_at),0),COALESCE(SUM(state IN('CAPTURING','SEALED','UPLOADING') AND lease_until>?),0),COALESCE(SUM(state!='VERIFIED' AND encrypted_bytes>0 AND NOT EXISTS(SELECT 1 FROM offsite_custody_dispositions d WHERE d.job_id=offsite_backup_jobs.id)),0) FROM offsite_backup_jobs`, now.Unix()).Scan(&latest, &active, &slots); err != nil {
 			return OffsiteJob{}, err
 		}
 		if active > 0 || (latest > 0 && now.Unix()-latest < int64(OffsiteInterval/time.Second)) {
@@ -322,6 +322,7 @@ type OffsiteHistory struct {
 	AcknowledgedAt int64  `json:"acknowledged_at"`
 	Attempts       int    `json:"attempts"`
 	ErrorCode      string `json:"error_code"`
+	ArchivedAt     int64  `json:"archived_at"`
 }
 type OffsiteStatus struct {
 	Configured     bool             `json:"configured"`
@@ -334,6 +335,7 @@ type OffsiteStatus struct {
 	AgeSeconds     *int64           `json:"age_seconds"`
 	NextCaptureAt  int64            `json:"next_capture_at"`
 	StagingFull    bool             `json:"staging_full"`
+	ArchivedCount  int              `json:"archived_count"`
 	Counts         map[string]int   `json:"counts"`
 	Items          []OffsiteHistory `json:"items"`
 	Page           int              `json:"page"`
@@ -351,10 +353,11 @@ type OffsiteEvent struct {
 
 type OffsiteDetail struct {
 	OffsiteHistory
-	Events     []OffsiteEvent `json:"events"`
-	Page       int            `json:"page"`
-	PageSize   int            `json:"page_size"`
-	EventTotal int            `json:"event_total"`
+	CustodyNote string         `json:"custody_note,omitempty"`
+	Events      []OffsiteEvent `json:"events"`
+	Page        int            `json:"page"`
+	PageSize    int            `json:"page_size"`
+	EventTotal  int            `json:"event_total"`
 }
 
 func (s *Store) OffsiteDetailFor(ctx context.Context, token, id string, page int) (OffsiteDetail, error) {
@@ -374,7 +377,7 @@ func (s *Store) OffsiteDetailFor(ctx context.Context, token, id string, page int
 	if !p.CanManageAccounts && !p.CanManageRecords {
 		return out, ErrForbidden
 	}
-	if err = tx.QueryRowContext(ctx, "SELECT id,state,captured_at,acknowledged_at,attempts,error_code FROM offsite_backup_jobs WHERE id=?", id).Scan(&out.ID, &out.State, &out.CapturedAt, &out.AcknowledgedAt, &out.Attempts, &out.ErrorCode); err != nil {
+	if err = tx.QueryRowContext(ctx, "SELECT id,state,captured_at,acknowledged_at,attempts,error_code,COALESCE((SELECT archived_at FROM offsite_custody_dispositions WHERE job_id=offsite_backup_jobs.id),0),COALESCE((SELECT note FROM offsite_custody_dispositions WHERE job_id=offsite_backup_jobs.id),'') FROM offsite_backup_jobs WHERE id=?", id).Scan(&out.ID, &out.State, &out.CapturedAt, &out.AcknowledgedAt, &out.Attempts, &out.ErrorCode, &out.ArchivedAt, &out.CustodyNote); err != nil {
 		return out, err
 	}
 	if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM offsite_backup_events WHERE job_id=?", id).Scan(&out.EventTotal); err != nil {
@@ -444,7 +447,10 @@ func (s *Store) OffsiteStatusFor(ctx context.Context, token, state string, page 
 	}
 	var latest, slots int64
 	var physicalFull bool
-	if err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(captured_at),0),COALESCE(SUM(state!='VERIFIED' AND encrypted_bytes>0),0),COALESCE((SELECT error_code='STAGING_FULL' FROM offsite_backup_jobs ORDER BY captured_at DESC,id DESC LIMIT 1),0) FROM offsite_backup_jobs").Scan(&latest, &slots, &physicalFull); err != nil {
+	if err = tx.QueryRowContext(ctx, "SELECT COALESCE(MAX(captured_at),0),COALESCE(SUM(state!='VERIFIED' AND encrypted_bytes>0 AND NOT EXISTS(SELECT 1 FROM offsite_custody_dispositions d WHERE d.job_id=offsite_backup_jobs.id)),0),COALESCE((SELECT error_code='STAGING_FULL' FROM offsite_backup_jobs ORDER BY captured_at DESC,id DESC LIMIT 1),0) FROM offsite_backup_jobs").Scan(&latest, &slots, &physicalFull); err != nil {
+		return out, err
+	}
+	if err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM offsite_custody_dispositions").Scan(&out.ArchivedCount); err != nil {
 		return out, err
 	}
 	if latest > 0 {
@@ -479,13 +485,13 @@ func (s *Store) OffsiteStatusFor(ctx context.Context, token, state string, page 
 	}
 	out.Page = clampMaintenancePage(page, out.Total, out.PageSize)
 	args = append(args, out.PageSize, (out.Page-1)*out.PageSize)
-	rows, err = tx.QueryContext(ctx, "SELECT id,state,captured_at,acknowledged_at,attempts,error_code FROM offsite_backup_jobs WHERE "+where+" ORDER BY captured_at DESC,id DESC LIMIT ? OFFSET ?", args...)
+	rows, err = tx.QueryContext(ctx, "SELECT id,state,captured_at,acknowledged_at,attempts,error_code,COALESCE((SELECT archived_at FROM offsite_custody_dispositions WHERE job_id=offsite_backup_jobs.id),0) FROM offsite_backup_jobs WHERE "+where+" ORDER BY captured_at DESC,id DESC LIMIT ? OFFSET ?", args...)
 	if err != nil {
 		return out, err
 	}
 	for rows.Next() {
 		var item OffsiteHistory
-		if err = rows.Scan(&item.ID, &item.State, &item.CapturedAt, &item.AcknowledgedAt, &item.Attempts, &item.ErrorCode); err != nil {
+		if err = rows.Scan(&item.ID, &item.State, &item.CapturedAt, &item.AcknowledgedAt, &item.Attempts, &item.ErrorCode, &item.ArchivedAt); err != nil {
 			rows.Close()
 			return out, err
 		}
@@ -496,7 +502,7 @@ func (s *Store) OffsiteStatusFor(ctx context.Context, token, state string, page 
 	if err != nil {
 		return out, err
 	}
-	key, _ := json.Marshal([]any{out.Configured, out.Mode, out.Phase, out.FinancePaused, out.CaptureAt, out.AcknowledgedAt, out.NextCaptureAt, out.StagingFull, out.Counts})
+	key, _ := json.Marshal([]any{out.Configured, out.Mode, out.Phase, out.FinancePaused, out.CaptureAt, out.AcknowledgedAt, out.NextCaptureAt, out.StagingFull, out.Counts, out.ArchivedCount})
 	out.StatusKey = TokenHash(string(key))
 	return out, tx.Commit()
 }
