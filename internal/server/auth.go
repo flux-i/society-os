@@ -195,6 +195,8 @@ func (s *Server) resultError(w http.ResponseWriter, r *http.Request, err error) 
 		respond(w, 401, map[string]string{"error": "sign_in_required"})
 	case errors.Is(err, database.ErrForbidden):
 		respond(w, 403, map[string]string{"error": "permission_required"})
+	case database.IsBackupProtectionError(err):
+		respond(w, 409, map[string]string{"error": "backup_protection_required", "message": "New financial changes are paused until a current recovery copy is verified. Your draft and previously saved acknowledgements remain available."})
 	case errors.Is(err, database.ErrConflict):
 		respond(w, 409, map[string]string{"error": "record_changed"})
 	case errors.Is(err, database.ErrInvalid):

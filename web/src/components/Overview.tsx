@@ -1,3 +1,4 @@
+import { BackupProtectionNotice } from './BackupProtectionNotice'
 import { useEffect, useRef, useState } from 'react'
 import { request } from '../api'
 import type { User } from '../api'
@@ -129,6 +130,7 @@ export function Overview({ user }: { user: User }) {
     const anchor = (event.target as Element).closest('a[href]')
     if (anchor) window.history.replaceState({ ...window.history.state, overviewActor: user.id, overviewFocus: anchor.getAttribute('href') }, '', window.location.href)
   }}>
+    <BackupProtectionNotice user={user}/>
     <section className="overview-heading" aria-labelledby="overview-title"><div><span className="eyebrow">THE DAY AHEAD</span><h1 id="overview-title">Good things, <em>in order.</em></h1><p>{user.can_read_registry ? 'The decisions, details and everyday things that need attention.' : 'Your requests, community updates and the details that need you.'}</p><div className="overview-freshness"><span role="status">{busy ? 'Updating your overview…' : complete ? 'Checked at ' + new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata' }).format(new Date(updated * 1000)) : 'Some sections need a retry'}</span><button ref={refreshButton} className="text-link" disabled={busy} onClick={event => { refreshFocus.current = document.activeElement === event.currentTarget; setRefresh(value => value + 1) }} aria-label="Refresh overview">Refresh<Icon name="refresh" /></button></div></div><CalendarArt /></section>
     <section className="overview-metrics" aria-label="What is changing">
       <Metric source={reviews} label={user.can_review_requests ? 'For your decision' : 'Changes to make'} value={r && (user.can_review_requests ? r.needs_your_decision : r.changes_requested)} hint={r ? r.awaiting_others + ' of your requests await a reviewer' : ''} icon="check" tone="overview-sage" />

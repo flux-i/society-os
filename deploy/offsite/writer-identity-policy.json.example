@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CreateOnlyWithinBoundRecoveryPrefix",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::__BUCKET__/__BACKUP_PREFIX__/*",
+      "Condition": { "StringEquals": { "s3:if-none-match": "*" } }
+    },
+    {
+      "Sid": "NeverWriteOutsideTheRecoveryPrefix",
+      "Effect": "Deny",
+      "Action": "s3:PutObject",
+      "NotResource": "arn:aws:s3:::__BUCKET__/__BACKUP_PREFIX__/*"
+    },
+    {
+      "Sid": "WriterCannotReadDeleteOrAdministerRecoveryStorage",
+      "Effect": "Deny",
+      "NotAction": "s3:PutObject",
+      "Resource": ["arn:aws:s3:::__BUCKET__", "arn:aws:s3:::__BUCKET__/*"]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RequirePrivateTransport",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": ["arn:aws:s3:::__BUCKET__", "arn:aws:s3:::__BUCKET__/*"],
+      "Condition": { "Bool": { "aws:SecureTransport": "false", "aws:PrincipalIsAWSService": "false" } }
+    },
+    {
+      "Sid": "RequireConditionalObjectCreation",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::__BUCKET__/__BACKUP_PREFIX__/*",
+      "Condition": { "Null": { "s3:if-none-match": "true" }, "Bool": { "s3:ObjectCreationOperation": "true" } }
+    },
+    {
+      "Sid": "RequireAbsentKeyRatherThanReplacement",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::__BUCKET__/__BACKUP_PREFIX__/*",
+      "Condition": { "StringNotEquals": { "s3:if-none-match": "*" }, "Bool": { "s3:ObjectCreationOperation": "true" } }
+    },
+    {
+      "Sid": "RuntimeWriterCannotRemoveObjectsOrChangeBucketControls",
+      "Effect": "Deny",
+      "Principal": { "AWS": "arn:aws:iam::__ACCOUNT_ID__:role/__WRITER_ROLE__" },
+      "NotAction": "s3:PutObject",
+      "Resource": ["arn:aws:s3:::__BUCKET__", "arn:aws:s3:::__BUCKET__/*"]
+    }
+  ]
+}

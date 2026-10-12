@@ -74,7 +74,7 @@ func TestSchemaTwentySixPreservesAll99PriorPersistentTablesDefinitionsProvenance
 	if err = s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations WHERE version<=25 ORDER BY version)").Scan(&retained); err != nil || retained != provenance {
 		t.Fatal("prior provenance changed", err)
 	}
-	maintenanceCount(t, s, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes')", 100)
+	maintenanceCount(t, s, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes')", 103)
 	if err = s.VerifySchema(ctx); err != nil {
 		t.Fatal(err)
 	}

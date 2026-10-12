@@ -6,6 +6,7 @@ import { resolve, join, basename } from 'node:path'
 import { createServer } from 'node:net'
 import { createWhatsAppFixture } from './whatsapp-provider-fixture.mjs'
 import { createPwaFixture } from './pwa-fixture.mjs'
+import { createOffsiteFixture } from './offsite-fixture.mjs'
 
 // Each suite gets its own database, server and real login limiter. The complete
 // gate must not weaken production throttling to accommodate repeated QA logins.
@@ -29,7 +30,8 @@ const root = mkdtempSync(join(tmpdir(), 'society-browser-'))
 const artifacts = resolve('../reports/local/browser-runs', basename(root))
 mkdirSync(artifacts, { recursive: true, mode: 0o700 })
 const db = join(root, 'society.db')
-const workspaceSuite=['registry-import.spec.ts','webmcp-registry-import.spec.ts','rehearsal.spec.ts','webmcp-rehearsal.spec.ts'].includes(process.argv[2])
+const localProtectionSuite=['backups-unconfigured-local.spec.ts','webmcp-offsite-local.spec.ts'].includes(process.argv[2])
+const workspaceSuite=localProtectionSuite||['registry-import.spec.ts','webmcp-registry-import.spec.ts','rehearsal.spec.ts','webmcp-rehearsal.spec.ts'].includes(process.argv[2])
 const mfaKey=join(root,'keys','mfa.key'),messageKey=join(root,'keys','messages.key')
 // Retain the tested runtime pair for this run. A later build must not remove
 // files that the QA server is serving or replace its binary between restarts.
@@ -43,18 +45,20 @@ const logs = openSync(join(root, 'server.log'), 'w', 0o600)
 let server
 let whatsappFixture
 let pwaFixture
+let offsiteFixture
 try {
   cpSync(resolve('../build/society-server'),binary)
   cpSync(resolve('../build/web'),webDir,{recursive:true})
   if(workspaceSuite){
     const setup=join(root,'setup.json'),password=join(root,'initial-password.txt')
-    writeFileSync(setup,JSON.stringify({format_version:1,society_key:'rehearsal-society',society_name:'The Neighbourhood Rehearsal',mode:'FICTIONAL_REHEARSAL',bootstrap_id:'browser-setup-october-2026',administrator_name:'Sample Registry Custodian',administrator_email:'registry@example.test',identity_verified:true,verification_note:'Fictional custodian identity verified for isolated browser rehearsal',term_days:90}),{mode:0o600})
+    writeFileSync(setup,JSON.stringify({format_version:1,society_key:'rehearsal-society',society_name:'The Neighbourhood Rehearsal',mode:localProtectionSuite?'LOCAL_WORKSPACE':'FICTIONAL_REHEARSAL',bootstrap_id:'browser-setup-october-2026',administrator_name:'Sample Registry Custodian',administrator_email:'registry@example.test',identity_verified:true,verification_note:'Fictional custodian identity verified for isolated browser rehearsal',term_days:90}),{mode:0o600})
     writeFileSync(password,'Fictional-setup-password-2026!\n',{mode:0o600})
     execFileSync(binary,['bootstrap','--db',db,'--setup-file',setup,'--password-file',password,'--mfa-key-file',mfaKey,'--message-key-file',messageKey],{stdio:'ignore'})
   }else execFileSync(binary, ['seed-demo', '--demo', '--db', db], { stdio: 'ignore' })
   if(['whatsapp-provider.spec.ts','webmcp-whatsapp-provider.spec.ts'].includes(process.argv[2]))whatsappFixture=await createWhatsAppFixture(root,base)
   if(['pwa.spec.ts','webmcp-pwa.spec.ts'].includes(process.argv[2]))pwaFixture=await createPwaFixture(base)
-  server = spawn(binary, ['serve', workspaceSuite?'--workspace':'--demo', '--db', db, '--mfa-key-file',mfaKey,'--message-key-file',messageKey, '--addr', `127.0.0.1:${port}`, '--web-dir', webDir,...(whatsappFixture?['--whatsapp-fixture-config',whatsappFixture.config]:[])], { stdio: ['ignore', logs, logs] })
+  if(['offsite.spec.ts','webmcp-offsite.spec.ts'].includes(process.argv[2]))offsiteFixture=await createOffsiteFixture(root,binary)
+  server = spawn(binary, ['serve', workspaceSuite?'--workspace':'--demo', '--db', db, '--mfa-key-file',mfaKey,'--message-key-file',messageKey, '--addr', `127.0.0.1:${port}`, '--web-dir', webDir,...(whatsappFixture?['--whatsapp-fixture-config',whatsappFixture.config]:[]),...(offsiteFixture?['--offsite-config-file',offsiteFixture.config,'--offsite-fixture']:[])], { stdio: ['ignore', logs, logs] })
   const deadline = Date.now() + 15000
   while (true) {
     try { const response = await fetch(`${base}/ready`); if (response.ok) break } catch { /* local startup */ }
@@ -68,7 +72,7 @@ try {
     !argument.startsWith('-') && argument.endsWith('.spec.ts')
       ? '(?:^|[\\\\/])' + argument.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'
       : argument)
-  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: pwaFixture?.origin ?? base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_WEB_DIR: webDir, SOCIETY_BROWSER_ARTIFACTS: artifacts,...(whatsappFixture?{SOCIETY_WHATSAPP_FIXTURE:whatsappFixture.origin}:{}) } })
+  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: pwaFixture?.origin ?? base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_WEB_DIR: webDir, SOCIETY_BROWSER_ARTIFACTS: artifacts,...(whatsappFixture?{SOCIETY_WHATSAPP_FIXTURE:whatsappFixture.origin}:{}),...(offsiteFixture?{SOCIETY_OFFSITE_FIXTURE:offsiteFixture.origin,SOCIETY_OFFSITE_READER:offsiteFixture.reader,SOCIETY_OFFSITE_IDENTITY:offsiteFixture.identities[0],SOCIETY_BROWSER_BINARY:binary}:{}) } })
   process.exitCode = await new Promise(resolve => runner.on('exit', code => resolve(code ?? 1)))
 } finally {
   if (server && server.exitCode === null) {
@@ -81,5 +85,6 @@ try {
   closeSync(logs)
   if(whatsappFixture)await whatsappFixture.close()
   if(pwaFixture)await pwaFixture.close()
+  if(offsiteFixture)await offsiteFixture.close()
   rmSync(root, { recursive: true, force: true })
 }

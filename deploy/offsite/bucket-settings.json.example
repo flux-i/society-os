@@ -1,0 +1,10 @@
+{
+  "versioning": { "Status": "Enabled" },
+  "public_access_block": {
+    "BlockPublicAcls": true,
+    "IgnorePublicAcls": true,
+    "BlockPublicPolicy": true,
+    "RestrictPublicBuckets": true
+  },
+  "ownership_controls": { "Rules": [{ "ObjectOwnership": "BucketOwnerEnforced" }] }
+}

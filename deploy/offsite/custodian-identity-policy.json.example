@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IndependentlyReadAnExplicitRecoveryVersion",
+      "Effect": "Allow",
+      "Action": "s3:GetObjectVersion",
+      "Resource": "arn:aws:s3:::__BUCKET__/__BACKUP_PREFIX__/*"
+    },
+    {
+      "Sid": "CustodyReaderCannotWriteDeleteOrAdministerRecoveryStorage",
+      "Effect": "Deny",
+      "NotAction": "s3:GetObjectVersion",
+      "Resource": ["arn:aws:s3:::__BUCKET__", "arn:aws:s3:::__BUCKET__/*"]
+    }
+  ]
+}

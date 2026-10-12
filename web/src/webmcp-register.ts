@@ -19,6 +19,8 @@ import { canReadChecklists } from './checklists'
 import type { ChecklistPage, ChecklistDetail, ChecklistRecord } from './checklists'
 import { canImportRegistry } from './registry-import'
 import type { ImportStatus } from './registry-import'
+import { canReadBackups } from './backups'
+import type { BackupStatus } from './backups'
 
 type Tool = {
   name: string
@@ -80,6 +82,14 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
       const fresh=await request<T>(path,signal)
       if(JSON.stringify(select(first))!==JSON.stringify(select(fresh)))throw new Error('The meeting publication changed. Read its current version again.')
       return fresh
+    }
+    if(canReadBackups(user)) {
+      add('society_read_recovery_protection','Read current operator-only recovery protection, snapshot age and full attempt counts. Storage paths, object identities, versions, credentials, private keys, encrypted checksums and custody notes are excluded. Held results are discarded when protection changes. This cannot configure, upload, reconcile or override a pause, or change an active human form.',{},[],async(_input,signal,me)=>{
+        if(!canReadBackups(me))throw new Error('Current account administrator or Treasury authority is required.')
+        const first=await request<BackupStatus>('/api/backups',signal),fresh=await request<BackupStatus>('/api/backups',signal)
+        if(first.status_key!==fresh.status_key)throw new Error('Recovery protection changed. Read its current status again.')
+        return {configured:fresh.configured,mode:fresh.mode,phase:fresh.phase,finance_paused:fresh.finance_paused,as_of:fresh.as_of,capture_at:fresh.capture_at,acknowledged_at:fresh.acknowledged_at,age_seconds:fresh.age_seconds,staging_full:fresh.staging_full,counts:fresh.counts}
+      })
     }
     if(canImportRegistry(user)) {
       add('society_read_registry_import','Read current initial-register availability and retained counts only. Names, source identities, file bytes, verification notes, credentials and private fingerprints are excluded. This cannot bootstrap, validate, import or change a human review.',{},[],async(_input,signal,me)=>{
@@ -161,10 +171,10 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
       openHome(home.id)
       return { opened: home.id, next_step: 'Review the visible details. Changes require the ordinary form and confirmation.' }
     }, false)
-    const views = [...(canImportRegistry(user)?['registry-import']:[]), ...(canReadChecklists(user)?['checklists']:[]), ...(canReadBudgets(user)?['budgets']:[]), 'overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_review_requests||user.can_manage_records?['delivery-exceptions']:[]), ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
+    const views = [...(canReadBackups(user)?['backups']:[]), ...(canImportRegistry(user)?['registry-import']:[]), ...(canReadChecklists(user)?['checklists']:[]), ...(canReadBudgets(user)?['budgets']:[]), 'overview', 'homes', 'security', 'reviews', 'community', 'meetings', 'help', 'documents', 'upkeep', 'conduct', 'fines', 'messages', 'statements', ...(user.can_review_requests||user.can_manage_records?['delivery-exceptions']:[]), ...(user.can_read_contacts ? ['contacts'] : []), ...(user.can_manage_accounts ? ['access'] : []), ...(user.can_read_records ? ['entries', 'receipts', 'maintenance', 'collections'] : [])]
     add('society_open_workspace', 'Open an available workspace screen. No data is submitted. Close any review dialog first to preserve unsaved work.', { screen: { type: 'string', enum: views } }, ['screen'], async (input, _signal, me) => {
       const screen = String(input.screen)
-      if (!views.includes(screen) || (screen==='registry-import'&&!canImportRegistry(me)) || (screen==='checklists'&&!canReadChecklists(me)) || (screen==='budgets'&&!canReadBudgets(me)) || (screen==='delivery-exceptions'&&!me.can_review_requests&&!me.can_manage_records) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
+      if (!views.includes(screen) || (screen==='backups'&&!canReadBackups(me)) || (screen==='registry-import'&&!canImportRegistry(me)) || (screen==='checklists'&&!canReadChecklists(me)) || (screen==='budgets'&&!canReadBudgets(me)) || (screen==='delivery-exceptions'&&!me.can_review_requests&&!me.can_manage_records) || (screen === 'contacts' && !me.can_read_contacts) || (screen === 'access' && !me.can_manage_accounts) || (['entries', 'receipts', 'maintenance', 'collections'].includes(screen) && !me.can_read_records)) throw new Error('This screen requires current permission.')
       if (document.querySelector('dialog[open]')) throw new Error('Close the current dialog before navigating.')
       if(document.querySelector('form[data-protect-navigation="true"]'))throw new Error('Finish or clear the current register review before navigating.')
       window.location.hash = screen==='registry-import'?'homes?panel=imports':screen==='checklists'?'homes?panel=checklists':screen==='budgets'?'statements?panel=budgets':screen==='meetings'?'community?panel=meetings':screen==='delivery-exceptions'?'messages?panel=exceptions':screen

@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "storage": {
+    "mode": "S3",
+    "region": "ap-south-1",
+    "bucket": "REPLACE-WITH-SOCIETY-BUCKET",
+    "prefix": "backups/routine",
+    "access_key_id": "REPLACE_WITH_SCOPED_WRITER_ACCESS_KEY",
+    "secret_access_key": "REPLACE_WITH_SCOPED_WRITER_SECRET",
+    "session_token": "REPLACE_WITH_SESSION_TOKEN_OR_REMOVE_FIELD"
+  },
+  "public_recipients": [
+    "REPLACE_WITH_FIRST_PUBLIC_AGE_RECIPIENT",
+    "REPLACE_WITH_SECOND_PUBLIC_AGE_RECIPIENT"
+  ]
+}

@@ -16,6 +16,8 @@ import (
 	"syscall"
 	"time"
 
+	"filippo.io/age"
+
 	"society.local/portal/internal/backup"
 	"society.local/portal/internal/database"
 	"society.local/portal/internal/documents"
@@ -24,7 +26,7 @@ import (
 	"society.local/portal/internal/server"
 )
 
-var version = "0.29.0-dev"
+var version = "0.30.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -38,7 +40,7 @@ func main() {
 
 func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if len(args) == 0 {
-		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-mfa|version> [flags]")
+		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-mfa|offsite-keygen|offsite-decrypt|offsite-reconcile|version> [flags]")
 	}
 	command := args[0]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -54,6 +56,13 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	keyPath := flags.String("mfa-key-file", "var/keys/mfa.key", "private MFA encryption key held separately from snapshots")
 	messageKeyPath := flags.String("message-key-file", "", "separate private simulation signing key; defaults to keys/messages.key beside the database")
 	whatsappFixturePath := flags.String("whatsapp-fixture-config", "", "separately held private official-protocol loopback fixture configuration; no external sends")
+	offsiteConfig := flags.String("offsite-config-file", "", "explicit separately held private off-site configuration; destination and public custody recipients remain bound")
+	offsiteFixture := flags.Bool("offsite-fixture", false, "explicitly allow numeric-loopback private-storage fixtures only")
+	encryptedFile := flags.String("encrypted-file", "", "private encrypted recovery archive")
+	expectedChecksum := flags.String("expected-sha256", "", "independently retained encrypted object checksum")
+	identitiesFile := flags.String("custody-identities-file", "", "offline private decryption identities; never used by serve")
+	backupID := flags.String("backup-id", "", "retained uncertain backup identity for offline reconciliation")
+	objectVersion := flags.String("object-version", "", "exact supplied non-null S3 object version")
 	userEmail := flags.String("user", "", "account email for offline MFA recovery")
 	custodianOne := flags.String("custodian-one", "", "first verified recovery custodian")
 	custodianTwo := flags.String("custodian-two", "", "second verified recovery custodian")
@@ -115,6 +124,51 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if command == "version" {
 		return printJSON(map[string]string{"version": version})
 	}
+	if command == "offsite-keygen" {
+		if *output == "" || *offsiteConfig != "" || *identitiesFile != "" {
+			return errors.New("offsite-keygen requires a new private --out identity file")
+		}
+		identity, err := age.GenerateX25519Identity()
+		if err != nil {
+			return err
+		}
+		if err = os.MkdirAll(filepath.Dir(*output), 0700); err != nil {
+			return err
+		}
+		f, err := os.OpenFile(*output, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		if err != nil {
+			return errors.New("custody identity destination must be new")
+		}
+		_, writeErr := f.WriteString(identity.String() + "\n")
+		if writeErr == nil {
+			writeErr = f.Sync()
+		}
+		closeErr := f.Close()
+		if writeErr != nil || closeErr != nil {
+			return errors.New("private custody identity could not be retained")
+		}
+		return printJSON(map[string]string{"public_recipient": identity.Recipient().String()})
+	}
+	if command == "offsite-decrypt" {
+		if *encryptedFile == "" || *expectedChecksum == "" || *identitiesFile == "" || *output == "" {
+			return errors.New("offsite-decrypt requires --encrypted-file, --expected-sha256, --custody-identities-file and a new --out bundle")
+		}
+		identities, err := backup.LoadCustodyIdentities(*identitiesFile)
+		if err != nil {
+			return err
+		}
+		info, manifest, err := backup.DecryptArchive(ctx, *encryptedFile, *expectedChecksum, *output, identities)
+		if err != nil {
+			return err
+		}
+		return printJSON(map[string]any{"status": "decrypted_and_verified", "archive": info, "manifest": manifest})
+	}
+	if command == "serve" && *identitiesFile != "" {
+		return errors.New("the server refuses private decryption custody identities")
+	}
+	if command == "offsite-reconcile" && (!explicit["db"] || *offsiteConfig == "" || *identitiesFile == "" || *backupID == "" || *objectVersion == "" || *output == "" || len(*recoveryReason) < 10 || len(*recoveryReason) > 300) {
+		return errors.New("offline reconciliation requires explicit --db, --offsite-config-file, --custody-identities-file, --backup-id, --object-version, --reason and a new --out directory")
+	}
 	if command == "restore-check" {
 		if *snapshot == "" || *output == "" {
 			return errors.New("restore-check requires --snapshot and --out")
@@ -127,7 +181,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return printJSON(map[string]any{"status": "restored_and_verified", "elapsed_ms": float64(time.Since(start).Microseconds()) / 1000, "manifest": manifest})
 	}
 	switch command {
-	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa":
+	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa", "offsite-reconcile":
 	default:
 		return errors.New("unknown command")
 	}
@@ -146,7 +200,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		}
 	}
 	// Inspect/snapshot must not silently create a missing source database.
-	if command == "inspect" || command == "snapshot" || command == "recover-mfa" || (command == "serve" && *workspace) {
+	if command == "inspect" || command == "snapshot" || command == "recover-mfa" || command == "offsite-reconcile" || (command == "serve" && *workspace) {
 		if _, err := os.Stat(*dbPath); err != nil {
 			return err
 		}
@@ -195,6 +249,27 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 			return err
 		}
 		return printJSON(map[string]string{"status": "MFA enrollment required; sessions and account links revoked"})
+	case "offsite-reconcile":
+		if err := store.VerifySchema(ctx); err != nil {
+			return err
+		}
+		_, reader, _, hash, err := backup.LoadOffsiteConfig(*offsiteConfig, *offsiteFixture)
+		if err != nil {
+			return err
+		}
+		j, err := store.OffsiteJobForCustody(ctx, *backupID)
+		if err != nil || j.ConfigHash != hash {
+			return errors.New("custody retrieval configuration differs from the retained destination binding")
+		}
+		identities, err := backup.LoadCustodyIdentities(*identitiesFile)
+		if err != nil {
+			return err
+		}
+		info, manifest, err := backup.ReconcileOffsite(ctx, store, reader, *backupID, *objectVersion, *output, *recoveryReason, identities)
+		if err != nil {
+			return err
+		}
+		return printJSON(map[string]any{"status": "exact_version_decrypted_verified_and_reconciled", "archive": info, "manifest": manifest})
 	case "migrate":
 		return printJSON(map[string]any{"schema_version": database.SchemaVersion, "status": "current"})
 	case "seed-demo":
@@ -304,6 +379,25 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		if err = store.RecoverMessageClaims(ctx); err != nil {
 			return err
 		}
+		var offsiteWorker *backup.OffsiteWorker
+		if *offsiteConfig != "" {
+			config, client, recipients, hash, err := backup.LoadOffsiteConfig(*offsiteConfig, *offsiteFixture)
+			if err != nil {
+				return err
+			}
+			if err = store.BindOffsitePolicy(ctx, hash, config.Storage.Mode, time.Now()); err != nil {
+				return err
+			}
+			offsiteWorker = &backup.OffsiteWorker{Store: store, Client: client, Recipients: recipients, ConfigHash: hash, Prefix: config.Storage.Prefix, Directory: backup.DefaultOffsitePath(*dbPath), Version: version}
+		} else {
+			bound, err := store.OffsiteConfigured(ctx)
+			if err != nil {
+				return err
+			}
+			if bound {
+				return errors.New("off-site protection is already bound; restart requires its matching private configuration")
+			}
+		}
 		documentStore, err := documents.Open(documents.DefaultPath(*dbPath))
 		if err != nil {
 			return err
@@ -323,6 +417,11 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 			documents.RunStatementValidation(workerCtx, store, logger)
 		}()
 		defer func() { stopWorker(); <-workerDone; <-validationDone; <-statementValidationDone }()
+		if offsiteWorker != nil {
+			offsiteDone := make(chan struct{})
+			go func() { defer close(offsiteDone); offsiteWorker.Run(workerCtx, logger) }()
+			defer func() { stopWorker(); <-offsiteDone }()
+		}
 		app := &server.Server{Documents: documentStore, Messages: messageEngine, Store: store, Logger: logger, Version: version, Web: os.DirFS(*webDir)}
 		httpServer := &http.Server{Addr: *address, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
 		errCh := make(chan error, 1)

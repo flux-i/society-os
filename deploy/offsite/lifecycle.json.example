@@ -1,0 +1,32 @@
+{
+  "Rules": [
+    {
+      "ID": "ProposedRoutineRecoveryRetention",
+      "Status": "Disabled",
+      "Filter": { "Prefix": "backups/routine/" },
+      "Expiration": { "Days": 7 },
+      "NoncurrentVersionExpiration": { "NoncurrentDays": 7 }
+    },
+    {
+      "ID": "ProposedDailyRecoveryRetention",
+      "Status": "Disabled",
+      "Filter": { "Prefix": "backups/daily/" },
+      "Expiration": { "Days": 35 },
+      "NoncurrentVersionExpiration": { "NoncurrentDays": 7 }
+    },
+    {
+      "ID": "ProposedMonthlyRecoveryRetention",
+      "Status": "Disabled",
+      "Filter": { "Prefix": "backups/monthly/" },
+      "Expiration": { "Days": 366 },
+      "NoncurrentVersionExpiration": { "NoncurrentDays": 7 }
+    },
+    {
+      "ID": "ProposedReleaseRecoveryRetention",
+      "Status": "Disabled",
+      "Filter": { "Prefix": "backups/releases/" },
+      "Expiration": { "Days": 90 },
+      "NoncurrentVersionExpiration": { "NoncurrentDays": 7 }
+    }
+  ]
+}

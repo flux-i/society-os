@@ -18,6 +18,11 @@ func workspaceSetup() WorkspaceSetup {
 }
 func workspaceFixture(t *testing.T) (*Store, string) {
 	t.Helper()
+	return workspaceFixtureMode(t, "FICTIONAL_REHEARSAL")
+}
+
+func workspaceFixtureMode(t *testing.T, mode string) (*Store, string) {
+	t.Helper()
 	ctx := context.Background()
 	s, err := Open(ctx, filepath.Join(t.TempDir(), "workspace.db"))
 	if err != nil {
@@ -28,7 +33,9 @@ func workspaceFixture(t *testing.T) (*Store, string) {
 		t.Fatal(err)
 	}
 	s.MFA, _ = security.NewBox(make([]byte, 32))
-	if _, err = s.BootstrapWorkspace(ctx, workspaceSetup(), workspacePassword, s.MFA.Fingerprint(), InputDigest([]byte("different fictional private signing key"))); err != nil {
+	setupInput := workspaceSetup()
+	setupInput.Mode = mode
+	if _, err = s.BootstrapWorkspace(ctx, setupInput, workspacePassword, s.MFA.Fingerprint(), InputDigest([]byte("different fictional private signing key"))); err != nil {
 		t.Fatal(err)
 	}
 	token, p := loginTest(t, s, "registry@example.test", workspacePassword)
