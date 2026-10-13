@@ -1,6 +1,6 @@
 # Restored-journal quarantine — 0.32 verification record
 
-**Locally accepted:** 2026-10-13T05:39:04.166289+00:00, Go/React **0.32.0-dev / schema 29**, under the [saved before-code contract](restored-quarantine-workflow.md). Complete current checks, inspected originals, retained-data upgrade and matching quarantined recovery pass. Immutable evidence archival and personal publication follow. The closed ledger is **123 groups: 121 product/UI and two operational**, with REC-01 closed once. The broader goal and parent reconciliation remain active.
+**Locally accepted:** 2026-10-13T05:39:04.166289+00:00, Go/React **0.32.0-dev / schema 29**, under the [saved before-code contract](restored-quarantine-workflow.md). Complete current checks, inspected originals, retained-data upgrade and matching quarantined recovery pass. Immutable evidence archival and personal application publication are verified as recorded below. The closed ledger is **123 groups: 121 product/UI and two operational**, with REC-01 closed once. The broader goal and parent reconciliation remain active.
 
 ## Implemented outcome
 
@@ -45,4 +45,8 @@ Actual login, refresh, error/retry, pending/sign-out, direct private-link denial
 
 The retained preview was stopped as requested on 13 October: precisely identified PID 80867 exited after SIGTERM and port 8080 is clear. All temporary servers/runners from the completed browser/native runs are closed. Paired `var/preview-releases/0.32` retains all 49 verified runtime files without activation or key/data copies. The permanent preview stays off. Existing-data startup and served hashes for this stopped pair are not claimed; actual UI/server behavior uses disposable paired synthetic hosts.
 
-The bounded workflow is locally accepted; freeze its private evidence and verify personal publication before implementing the next parent [current-authority/external-job/numbering reconciliation](restore-reconciliation-workflow.md) workflow. Real custodians, adopted policy, independent post-checkpoint facts, actual Windows/HTTPS/live storage and production release require separate evidence. The whole goal remains active.
+The bounded workflow is locally accepted and personally published; finish the documentation child, then implement the next parent [current-authority/external-job/numbering reconciliation](restore-reconciliation-workflow.md) workflow. Real custodians, adopted policy, independent post-checkpoint facts, actual Windows/HTTPS/live storage and production release require separate evidence. The whole goal remains active.
+
+## Personal publication
+
+Personal application [9aa7d3d4](https://github.com/flux-i/society-os/commit/9aa7d3d4e8a5e7e5ba63cf4c371a722e258ac13e) was published and verified at 2026-10-13T05:44:34.563428+00:00 under the personal account/author, with GitHub API main equal to local HEAD and a clean worktree. The immutable private archive binds **579 source files / 995 verified hashes** to that application commit, including all **96 inspected originals and seven matching recovery bundles**. All **17 preceding archives / 13,019 hashes** remain unchanged. The documentation child is being finalized; the archive stays bound to the application commit. The whole goal remains active.
