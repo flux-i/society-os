@@ -57,7 +57,7 @@ try {
   }else execFileSync(binary, ['seed-demo', '--demo', '--db', db], { stdio: 'ignore' })
   if(['whatsapp-provider.spec.ts','webmcp-whatsapp-provider.spec.ts'].includes(process.argv[2]))whatsappFixture=await createWhatsAppFixture(root,base)
   if(['pwa.spec.ts','webmcp-pwa.spec.ts'].includes(process.argv[2]))pwaFixture=await createPwaFixture(base)
-  if(['offsite.spec.ts','webmcp-offsite.spec.ts','custody.spec.ts','webmcp-custody.spec.ts'].includes(process.argv[2]))offsiteFixture=await createOffsiteFixture(root,binary,['custody.spec.ts','webmcp-custody.spec.ts'].includes(process.argv[2])?'DENIED':'LOST_REPLY')
+  if(['offsite.spec.ts','webmcp-offsite.spec.ts','custody.spec.ts','webmcp-custody.spec.ts','recovery.spec.ts','webmcp-recovery.spec.ts'].includes(process.argv[2]))offsiteFixture=await createOffsiteFixture(root,binary,['custody.spec.ts','webmcp-custody.spec.ts'].includes(process.argv[2])?'DENIED':'LOST_REPLY')
   server = spawn(binary, ['serve', workspaceSuite?'--workspace':'--demo', '--db', db, '--mfa-key-file',mfaKey,'--message-key-file',messageKey, '--addr', `127.0.0.1:${port}`, '--web-dir', webDir,...(whatsappFixture?['--whatsapp-fixture-config',whatsappFixture.config]:[]),...(offsiteFixture?['--offsite-config-file',offsiteFixture.config,'--offsite-fixture']:[])], { stdio: ['ignore', logs, logs] })
   const deadline = Date.now() + 15000
   while (true) {
@@ -83,6 +83,7 @@ try {
     clearTimeout(timer)
   }
   closeSync(logs)
+  cpSync(join(root, 'server.log'), join(artifacts, 'server.log'))
   if(whatsappFixture)await whatsappFixture.close()
   if(pwaFixture)await pwaFixture.close()
   if(offsiteFixture)await offsiteFixture.close()

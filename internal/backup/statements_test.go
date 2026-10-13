@@ -153,7 +153,7 @@ func TestStatementRecoveryPreservesPublicationOriginalsUnknownMessageProofUnfini
 		t.Fatal(err)
 	}
 	path := filepath.Join(root, "restored", "society.db")
-	if _, err = Restore(ctx, bundle, path); err != nil {
+	if _, err = restoreCheckpointComparison(t, ctx, bundle, path); err != nil {
 		t.Fatal(err)
 	}
 	restored, err := database.Open(ctx, path)

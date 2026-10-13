@@ -193,7 +193,7 @@ func TestMoveChecklistRecoveryPreservesPendingCorrectionOriginalBudgetReceiptRem
 	_, e = Snapshot(ctx, s, bundle, "0.25.0-dev")
 	check(e)
 	target := filepath.Join(root, "restored-budgets", "society.db")
-	_, e = Restore(ctx, bundle, target)
+	_, e = restoreCheckpointComparison(t, ctx, bundle, target)
 	check(e)
 	r, e := database.Open(ctx, target)
 	check(e)

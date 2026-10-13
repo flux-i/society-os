@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-func TestSchemaTwentyEightPreservesAll103PriorTablesProvenanceSQLBlobsAndOriginalReceipt(t *testing.T) {
+func TestSchemaTwentyNinePreservesAll104PriorTablesProvenanceSQLBlobsAndOriginalReceipt(t *testing.T) {
 	s, token, _ := communitySchemaNineteen(t)
-	for _, version := range []int{20, 21, 22, 23, 24, 25, 26, 27} {
+	for _, version := range []int{20, 21, 22, 23, 24, 25, 26, 27, 28} {
 		applyHistoricalCommunityMigration(t, s, version)
 	}
 	ctx := context.Background()
@@ -38,8 +38,8 @@ func TestSchemaTwentyEightPreservesAll103PriorTablesProvenanceSQLBlobsAndOrigina
 		t.Fatal(err)
 	}
 	rows.Close()
-	if len(tables) != 103 {
-		t.Fatal("Expected the actual preceding schema27 inventory", len(tables))
+	if len(tables) != 104 {
+		t.Fatal("Expected the actual preceding schema28 inventory", len(tables))
 	}
 	before := statementMessageRows(t, s, tables)
 	var privateBlobCount int
@@ -54,21 +54,22 @@ func TestSchemaTwentyEightPreservesAll103PriorTablesProvenanceSQLBlobsAndOrigina
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(before, statementMessageRows(t, s, tables)) {
-		t.Fatal("Custody migration changed prior persistent rows or BLOBs")
+		t.Fatal("Recovery migration changed prior persistent rows or BLOBs")
 	}
 	for key, expected := range objects {
 		kind, name, _ := strings.Cut(key, ":")
 		var actual string
 		if err := s.DB.QueryRow("SELECT sql FROM sqlite_schema WHERE type=? AND name=?", kind, name).Scan(&actual); err != nil || actual != expected {
-			t.Fatal("Custody migration changed an existing SQL object", key, err)
+			t.Fatal("Recovery migration changed an existing SQL object", key, err)
 		}
 	}
 	var retained string
-	if err := s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations WHERE version<=27 ORDER BY version)").Scan(&retained); err != nil || retained != provenance {
+	if err := s.DB.QueryRow("SELECT json_group_array(json_array(version,checksum,applied_at)) FROM (SELECT * FROM schema_migrations WHERE version<=28 ORDER BY version)").Scan(&retained); err != nil || retained != provenance {
 		t.Fatal("Previous migration provenance changed", err)
 	}
-	maintenanceCount(t, s, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes')", 104)
-	maintenanceCount(t, s, "SELECT COUNT(*) FROM offsite_custody_dispositions", 0)
+	maintenanceCount(t, s, "SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN('schema_migrations','sessions','account_tokens','mfa_pending','mfa_recovery_codes')", 106)
+	maintenanceCount(t, s, "SELECT COUNT(*) FROM recovery_epochs", 0)
+	maintenanceCount(t, s, "SELECT COUNT(*) FROM recovery_external_jobs", 0)
 	maintenanceCount(t, s, "SELECT COUNT(*) FROM receipts", 1)
 	afterMoney, err := s.EntryFor(ctx, token, entry)
 	if err != nil || !reflect.DeepEqual(beforeMoney, afterMoney) {

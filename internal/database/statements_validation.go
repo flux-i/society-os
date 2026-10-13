@@ -25,6 +25,9 @@ func (s *Store) ClaimStatementCheck(ctx context.Context, now time.Time) (Stateme
 	if _, err = tx.ExecContext(ctx, `UPDATE app_metadata SET value=value WHERE key='fixture_version'`); err != nil {
 		return job, err
 	}
+	if err = requireNoRecovery(ctx, tx); err != nil {
+		return job, err
+	}
 	x, err := scanStatement(tx.QueryRowContext(ctx, statementFileSelect+` WHERE x.state='PENDING' AND ((x.validation='PENDING' AND (x.uploaded_at>0 OR x.expires_at<=?)) OR (x.validation='VALIDATING' AND x.lease_until<=?)) ORDER BY x.created_at,x.id LIMIT 1`, now.Unix(), now.Unix()))
 	if err != nil {
 		return job, err

@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+/* A recovered workspace keeps the approved palette and withholds old authority. */
+.recovery-screen { max-width: 1200px; margin: 0 auto; padding: 38px 56px 32px; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 56px 72px; min-height: 100dvh; align-content: center; outline: none; }
+.recovery-top { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-bottom: 25px; border-bottom: 1px solid var(--color-line); }
+.recovery-top .footer-wordmark { font-size: 30px; }
+.recovery-status { display: inline-flex; align-items: center; gap: 8px; color: var(--color-muted); font-size: 12px; }
+.recovery-intro { min-width: 0; align-self: center; }
+.recovery-intro .about-mark { margin-bottom: 27px; }
+.recovery-intro .eyebrow { display: block; }
+.recovery-intro h1 { font: 400 clamp(48px,5.6vw,74px)/1.04 var(--font-display); letter-spacing: -1.6px; margin: 20px 0 28px; }
+.recovery-intro h1 em { color: #7f8f58; font-weight: 400; }
+.recovery-intro > p { max-width: 380px; color: var(--color-muted); font-size: 15px; line-height: 1.85; }
+.recovery-pause { min-width: 0; padding: 30px; border: 1px solid var(--color-line); border-radius: 20px; background: #fffdf7; }
+.recovery-boundaries { display: grid; gap: 23px; margin: 25px 0; }
+.recovery-boundaries article { display: flex; align-items: start; gap: 14px; }
+.recovery-boundaries article > svg { flex: 0 0 21px; width: 21px; height: 24px; color: #75865d; margin-top: 2px; }
+.recovery-boundaries article > div { min-width: 0; }
+.recovery-boundaries h2 { font: 400 24px/1.2 var(--font-display); margin: 0 0 8px; }
+.recovery-boundaries p,.recovery-guidance { color: var(--color-muted); font-size: 12px; line-height: 1.85; margin: 0; }
+.recovery-guidance { padding-top: 20px; border-top: 1px solid var(--color-line); }
+.recovery-feedback { color: var(--color-muted); font-size: 11px; line-height: 1.7; margin: 18px 0; min-height: 38px; }
+.recovery-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.recovery-actions .button { min-height: 48px; }
+.recovery-footnote { grid-column: 1/-1; display: flex; gap: 9px; align-items: center; color: var(--color-muted); font-size: 11px; }
+.recovery-footnote svg { width: 17px; height: 19px; flex: 0 0 auto; }
+@media (max-width: 900px) { .recovery-screen { padding: 30px; gap: 35px; } .recovery-pause { padding: 24px; } .recovery-intro h1 { font-size: 56px; } }
+@media (max-width: 600px) { .recovery-screen { grid-template-columns: minmax(0,1fr); padding: 23px 22px; gap: 30px; align-content: start; } .recovery-top { padding-bottom: 18px; } .recovery-top .footer-wordmark { font-size: 26px; } .recovery-status { font-size: 10px; } .recovery-intro .about-mark { margin-bottom: 18px; } .recovery-intro h1 { font-size: 52px; margin: 17px 0 20px; } .recovery-intro > p { font-size: 13px; } .recovery-pause { padding: 22px; } .recovery-actions { flex-direction: column; } .recovery-footnote { align-items: start; line-height: 1.8; } }
+
 /* Collections keep claims, confirmed receipts and supplied debt legible. */
 .fund-art { width: 260px; max-width: 27%; flex-shrink: 0; }
 .fund-hero > div { min-width: 0; }

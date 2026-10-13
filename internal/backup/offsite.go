@@ -241,6 +241,10 @@ func (w *OffsiteWorker) prepare(ctx context.Context, j *database.OffsiteJob) (st
 func (w *OffsiteWorker) Process(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
+	quarantined, err := w.Store.RecoveryRequired(ctx)
+	if err != nil || quarantined {
+		return err // Preserve every staged original while recovery is withheld.
+	}
 	if err := w.cleanAcknowledgedStaging(ctx); err != nil {
 		return err
 	}

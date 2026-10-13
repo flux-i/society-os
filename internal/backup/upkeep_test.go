@@ -112,7 +112,7 @@ func TestUpkeepRecoveryPreservesPrivateRegisterSeparateCheckFrozenPublicSnapshot
 	action(s, admin, "UNPUBLISH", database.UpkeepAction{})
 	action(s, admin, "REOPEN", database.UpkeepAction{})
 	target := filepath.Join(root, "restored-upkeep.db")
-	if _, err = Restore(ctx, bundle, target); err != nil {
+	if _, err = restoreCheckpointComparison(t, ctx, bundle, target); err != nil {
 		t.Fatal(err)
 	}
 	restored, err := database.Open(ctx, target)

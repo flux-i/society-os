@@ -1,0 +1,37 @@
+# Restored-journal quarantine — bounded checkpoint contract
+
+Saved on 12 October 2026 before implementation, after verified personal 0.31 application [754ebb01](https://github.com/flux-i/society-os/commit/754ebb01490f38002704c9718268b020ecabe947) and documentation child [ba3d5161](https://github.com/flux-i/society-os/commit/ba3d516156a784c759d38f05a5a3d8d6ef85c3a3). The 565-source/862-hash private archive and all sixteen preceding accepted archives remain preserved. Existing preview data and both keys stay on the paired 0.31 release until this checkpoint passes.
+
+This is the next complete subworkflow of [custodied restore and reconciliation](restore-reconciliation-workflow.md). It establishes safe entry into recovery; separately verified current authority, external-job decisions, independent fresh numbering reservation and final release remain required subsequent work.
+
+## Outcome and current-code understanding
+
+`backup.Restore` currently verifies a matching snapshot, copies into a fresh private file and preserves its records. `Snapshot` removes bearer material from its copy. Fresh password/MFA authentication can still derive private authority from the checkpoint's old roles and memberships. `ClaimOffsite` can expire and retry an old capture under the retained identity/key; server startup also turns old claimed messages into unknown outcomes. A later storage acknowledgement cannot be inside its own earlier capture. These facts require a separate recovery journal and withheld handoffs, preserving the original rows.
+
+Every ordinary restore will add a versioned immutable quarantine epoch to the destination after verification, with its source manifest identity and bounded dispositions for unresolved off-site/message jobs. The source bundle, existing records, originals, capture identities, receipt counters and prior recovery epochs remain unchanged. Failure before durable completion removes only the fresh incomplete destination and its sidecars, leaving the source and unrelated files intact. Re-restoring a quarantined checkpoint adds a distinct epoch rather than replacing history. Existing destinations/sidecars and malformed source metadata are refused.
+
+Provide an offline `recover-restore` entry point that takes explicitly supplied ciphertext, its independently retained expected checksum, a private custody-identity file and a fresh database destination. It reuses whole authenticated decryption, bounded extraction and matching-schema verification. No provider credentials or live retrieval are required by this local workflow. The running server never accepts a private custody identity. `restore-check` now produces a verified quarantined copy too; a diagnostic restore cannot silently become an active host with old grants.
+
+## Permissions and presentation
+
+Quarantine withholds financial posting, reversal, receipt/counter issuance and other authoritative money effects even if the copied protection state is fresh. Database protection must cover direct SQL as well as application calls. All private society reads/writes are withheld from checkpoint-derived accounts. Authentication and sign-out remain available; their returned identity carries only the recovery boundary, with no old roles, household scope or usable permissions. A fresh password or factor does not establish current society authority. Central store checks and authenticated HTTP middleware both enforce the boundary.
+
+The scheduler and startup recovery preserve unresolved original jobs without capture, expiry, retry, upload or message replay. Historical job dispositions remain separate from source state and contain no fabricated provider/storage acknowledgement. Current quarantine has no release or override endpoint.
+
+The portal shows a calm forest/ivory recovery screen explaining that records are retained and review is needed, with a real status refresh, retry/error/pending states and sign-out. Direct private fragments do not render old data. Short-phone layouts keep its actions visible through ordinary scrolling. A small optional native read may expose only current quarantine/withheld status; it cannot expose job identities, source hashes/paths, private grants, keys or mutation. Previously held ordinary native results are discarded if the recovery boundary changes. A normal unchanged boundary preserves human forms; an actual authority loss clears the earlier private workspace.
+
+## Independent acceptance expectations
+
+- A populated matching restore preserves every original business table/row/BLOB and source checksum. Only the new recovery journal rows differ. Old bearer tokens remain invalid, and fresh old admin/Treasury/resident credentials cannot read private data or issue money.
+- A copied fresh verified backup does not lift quarantine. Independently supplied 40001-paise confirmation, reversal/counter and direct-SQL money attempts are rejected without creating a receipt or altering originals.
+- Old `CAPTURING`, sealed/retryable/exhausted/uncertain off-site jobs and queued/claimed/failed/unknown message deliveries remain byte-for-byte journal originals. Restart and ordinary claim/handoff calls create no network effect or second identity under an old key.
+- Wrong custody identity, checksum mismatch, truncated/authentication failure, invalid manifest, unsupported schema, existing/unsafe destination and interrupted journal insertion fail without overwriting data or retaining plaintext scratch files. Either independent identity works with the genuine encrypted source.
+- The epoch/dispositions are immutable and transactionally complete. A second recovery preserves its predecessor; concurrent fresh destination attempts have at most one completed result. A normal database upgrade adds only empty journal tables and does not quarantine the developer preview.
+- Actual login/status-refresh/error/retry/pending/sign-out and private-link denial are rendered at desktop, tablet, 375px, 320px and short 320px layouts. Inspect original PNG files, focus/keyboard/scroll and any real dialog/menu used; do not invent menu coverage for a screen without a menu.
+- Pass meaningful backend/race/TypeScript/build checks, ordinary/native regressions, matching recovery, existing-data/key preservation and private source-bound evidence publication before continuing current-authority/external-job/numbering review.
+
+Actual custody authority, adopted society policy, external gap reconstruction, physical off-host retrieval, Windows/HTTPS operation and production release require separate evidence. This contract does not make those decisions or initiate payments/messages.
+
+## Local checkpoint result
+
+The bounded contract is locally accepted on 13 October 2026 in 0.32/schema 29; see the [current evidence and limits](restored-quarantine-baseline.md). Complete backend/TypeScript/build,259ordinary/41suites,86actual native/20suites,96inspected originals, retained-data upgrade and matching quarantined recovery pass. Private archival and personal publication follow before implementing the next parent workflow. The paired preview stays stopped as requested; current-authority/external-job/numbering review and final release remain pending.

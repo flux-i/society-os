@@ -75,7 +75,7 @@ func TestCommunityRecoveryRetainsApprovedContactPendingReplacementAndExplicitRes
 	}
 	approve(contact, 3, "community-recovery-later-approve-12345")
 	target := filepath.Join(root, "restored-community", "society.db")
-	if _, e = Restore(ctx, bundle, target); e != nil {
+	if _, e = restoreCheckpointComparison(t, ctx, bundle, target); e != nil {
 		t.Fatal(e)
 	}
 	restored, e := database.Open(ctx, target)

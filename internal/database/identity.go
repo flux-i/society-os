@@ -98,6 +98,7 @@ type Principal struct {
 	WorkspaceMode       string   `json:"workspace_mode"`
 	WorkspaceName       string   `json:"workspace_name"`
 	Fresh               bool     `json:"fresh_authentication"`
+	RecoveryRequired    bool     `json:"recovery_required"`
 	passwordAt          int64
 	factorAt            int64
 }
@@ -127,6 +128,17 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 	}
 	p.WorkspaceMode = workspace.Mode
 	p.WorkspaceName = workspace.Name
+	p.RecoveryRequired, err = recoveryRequired(ctx, q)
+	if err != nil {
+		return p, err
+	}
+	if p.RecoveryRequired {
+		// Password authentication identifies this account, not current society
+		// authority. Do not expose checkpoint roles, memberships or permissions.
+		p.Roles = []string{}
+		p.ScopeKey = TokenHash(p.ID + ":recovery-quarantine")
+		return p, nil
+	}
 	p.Roles = []string{}
 	rows, err := q.QueryContext(ctx, `SELECT DISTINCT role FROM role_grants WHERE user_id = ?
         AND valid_from <= ? AND valid_until > ? AND revoked_at IS NULL ORDER BY role`, p.ID, now.Unix(), now.Unix())
@@ -240,6 +252,9 @@ func principalScope(ctx context.Context, q identityReader, p Principal, date str
 
 func fullPrincipal(ctx context.Context, q identityReader, hash string, now time.Time) (Principal, error) {
 	p, err := principal(ctx, q, hash, now)
+	if err == nil && p.RecoveryRequired {
+		err = ErrRecoveryRequired
+	}
 	if err == nil && p.MFAPending {
 		err = ErrMFARequired
 	}

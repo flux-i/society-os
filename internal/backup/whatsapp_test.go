@@ -88,7 +88,7 @@ func TestWhatsAppRecoveryRetainsUnknownExternalStartBindingsProofAndHeldSecret(t
 		t.Fatal(err)
 	}
 	target := filepath.Join(root, "restored", "society.db")
-	if _, err = Restore(ctx, bundle, target); err != nil {
+	if _, err = restoreCheckpointComparison(t, ctx, bundle, target); err != nil {
 		t.Fatal(err)
 	}
 	r, err := database.Open(ctx, target)
@@ -147,5 +147,27 @@ func TestWhatsAppRecoveryRetainsUnknownExternalStartBindingsProofAndHeldSecret(t
 	var count int
 	if err = r.DB.QueryRow("SELECT COUNT(*) FROM whatsapp_handoffs").Scan(&count); err != nil || count != 1 {
 		t.Fatal("duplicate retained handoff", count, err)
+	}
+	quarantinedPath := filepath.Join(root, "operational-recovery", "society.db")
+	if _, err = Restore(ctx, bundle, quarantinedPath); err != nil {
+		t.Fatal(err)
+	}
+	assertQuarantinedOriginals(t, bundle, quarantinedPath)
+	q, err := database.Open(ctx, quarantinedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer q.Close()
+	q.MFA = s.MFA
+	beforeQuarantine := persistentSnapshotRows(t, quarantinedPath)
+	if err = q.RecoverMessageClaims(ctx); err != nil {
+		t.Fatal(err)
+	}
+	currentToken := upkeepRecoveryLogin(t, q, "admin@demo.society")
+	if _, err = q.PrepareWhatsAppHandoff(ctx, currentToken, claims[0].ID, provider); !errors.Is(err, database.ErrRecoveryRequired) {
+		t.Fatal("Restored official-protocol handoff was prepared again", err)
+	}
+	if !reflect.DeepEqual(beforeQuarantine, persistentSnapshotRows(t, quarantinedPath)) {
+		t.Fatal("Quarantined provider restart altered its original claim, frozen destinations or proof")
 	}
 }

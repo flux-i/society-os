@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -291,20 +290,18 @@ func TestOffsiteCustodyArchiveKeepsExactBytesAndOriginalThroughCleanupAndResume(
 	// The new immutable disposition must survive actual matching-release recovery
 	// as populated data, not merely exist as an empty table in older fixtures.
 	bundle := filepath.Join(t.TempDir(), "post-disposition-snapshot")
-	if _, err := Snapshot(ctx, w.Store, bundle, "0.31.0-dev"); err != nil {
+	if _, err := Snapshot(ctx, w.Store, bundle, "0.32.0-dev"); err != nil {
 		t.Fatal(err)
 	}
 	want := persistentSnapshotRows(t, filepath.Join(bundle, "society.db"))
-	if len(want) != 105 || len(want["offsite_custody_dispositions"]) != 1 {
+	if len(want) != 107 || len(want["offsite_custody_dispositions"]) != 1 {
 		t.Fatal("Snapshot omitted populated custody evidence", len(want))
 	}
 	path := filepath.Join(t.TempDir(), "recovered", "society.db")
 	if _, err := Restore(ctx, bundle, path); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(want, persistentSnapshotRows(t, path)) {
-		t.Fatal("Recovery changed persistent originals, disposition or migration provenance")
-	}
+	assertQuarantinedOriginals(t, bundle, path)
 	restored, err := database.Open(ctx, path)
 	if err != nil {
 		t.Fatal(err)
@@ -334,8 +331,8 @@ func TestOffsiteCustodyArchiveKeepsExactBytesAndOriginalThroughCleanupAndResume(
 	if err := restarted.Process(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(retainedStage); !os.IsNotExist(err) {
-		t.Fatal("Recovered committed custody did not clean only its exact staged original", err)
+	if retained, err := os.ReadFile(filepath.Join(retainedStage, "snapshot.tar.gz.age")); err != nil || !bytes.Equal(retained, originalBytes) {
+		t.Fatal("Quarantined restart changed or cleaned the retained staged original", err)
 	}
 	if puts, _ := peer.Counts(); puts != 5 {
 		t.Fatal("Recovered custody replayed an exhausted original", puts)

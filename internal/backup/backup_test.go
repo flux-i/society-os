@@ -28,7 +28,22 @@ func setup(t *testing.T) (*database.Store, string) {
 	return s, root
 }
 
-func TestRecoveryPreservesIdentityAndAuditButNeverRevivesSessions(t *testing.T) {
+// Legacy checkpoint comparison cases deliberately exercise the internal exact
+// byte-copy primitive and its saved scope. They do not claim operational host
+// activation. Public Restore/RestoreEncrypted are covered by quarantine cases.
+func restoreCheckpointComparison(t *testing.T, ctx context.Context, bundle, target string) (Manifest, error) {
+	t.Helper()
+	manifest, err := copyVerifiedSnapshot(ctx, bundle, target)
+	if err == nil {
+		hash, size, checksumErr := digest(target)
+		if checksumErr != nil || hash != manifest.SHA256 || size != manifest.Bytes {
+			t.Fatal("Diagnostic checkpoint copy changed original bytes", checksumErr)
+		}
+	}
+	return manifest, err
+}
+
+func TestCheckpointComparisonPreservesIdentityAndAuditButNeverRevivesSessions(t *testing.T) {
 	s, root := setup(t)
 	ctx := context.Background()
 	if err := s.SeedDemoAccounts(ctx); err != nil {
@@ -65,7 +80,7 @@ func TestRecoveryPreservesIdentityAndAuditButNeverRevivesSessions(t *testing.T) 
 		t.Fatal("snapshot logged out the live user")
 	}
 	target := filepath.Join(root, "recovered.db")
-	if _, err := Restore(ctx, bundle, target); err != nil {
+	if _, err := restoreCheckpointComparison(t, ctx, bundle, target); err != nil {
 		t.Fatal(err)
 	}
 	recovered, err := database.Open(ctx, target)
@@ -130,7 +145,7 @@ func TestSnapshotRestoresCommittedWALAndNotLaterChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	destination := filepath.Join(root, "restored", "society.db")
-	recovered, err := Restore(ctx, bundle, destination)
+	recovered, err := restoreCheckpointComparison(t, ctx, bundle, destination)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +170,7 @@ func TestSnapshotRestoresCommittedWALAndNotLaterChanges(t *testing.T) {
 	if err := restored.Ready(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Restore(ctx, bundle, destination); err == nil {
+	if _, err := restoreCheckpointComparison(t, ctx, bundle, destination); err == nil {
 		t.Fatal("active destination overwritten")
 	}
 	if _, err := Snapshot(ctx, s, bundle, "test"); err == nil {
@@ -178,7 +193,7 @@ func TestCorruptedSnapshotRejectedBeforeRestore(t *testing.T) {
 	}
 	f.Close()
 	destination := filepath.Join(root, "should-not-exist.db")
-	if _, err := Restore(context.Background(), bundle, destination); err == nil {
+	if _, err := restoreCheckpointComparison(t, context.Background(), bundle, destination); err == nil {
 		t.Fatal("corrupted snapshot restored")
 	}
 	if _, err := os.Stat(destination); !os.IsNotExist(err) {
@@ -196,7 +211,7 @@ func TestRestoreRefusesExistingSidecar(t *testing.T) {
 	if err := os.WriteFile(destination+"-wal", []byte("existing sidecar"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Restore(context.Background(), bundle, destination); err == nil {
+	if _, err := restoreCheckpointComparison(t, context.Background(), bundle, destination); err == nil {
 		t.Fatal("existing WAL sidecar ignored")
 	}
 }

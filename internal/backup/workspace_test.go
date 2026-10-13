@@ -61,7 +61,7 @@ func TestNonDemoWorkspaceRestorePreservesSetupImportSourceIdentityAndBoundKeysWi
 		t.Fatal("workspace snapshot", manifest, err)
 	}
 	path := filepath.Join(root, "restored", "workspace.db")
-	if _, err = Restore(ctx, filepath.Join(root, "bundle"), path); err != nil {
+	if _, err = restoreCheckpointComparison(t, ctx, filepath.Join(root, "bundle"), path); err != nil {
 		t.Fatal(err)
 	}
 	restored, err := database.Open(ctx, path)

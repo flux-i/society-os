@@ -26,7 +26,7 @@ import (
 	"society.local/portal/internal/server"
 )
 
-var version = "0.31.0-dev"
+var version = "0.32.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -40,7 +40,7 @@ func main() {
 
 func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if len(args) == 0 {
-		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-mfa|offsite-keygen|offsite-decrypt|offsite-reconcile|offsite-archive|version> [flags]")
+		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-restore|recover-mfa|offsite-keygen|offsite-decrypt|offsite-reconcile|offsite-archive|version> [flags]")
 	}
 	command := args[0]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -167,6 +167,21 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if command == "serve" && *identitiesFile != "" {
 		return errors.New("the server refuses private decryption custody identities")
 	}
+	if command == "recover-restore" {
+		if *encryptedFile == "" || *expectedChecksum == "" || *identitiesFile == "" || *output == "" || *offsiteConfig != "" || *objectVersion != "" || *offsiteFixture || explicit["db"] || *snapshot != "" || *demo || *workspace {
+			return errors.New("offline recovery requires --encrypted-file, --expected-sha256, --custody-identities-file and a fresh --out database; provider and active-workspace flags are refused")
+		}
+		identities, err := backup.LoadCustodyIdentities(*identitiesFile)
+		if err != nil {
+			return err
+		}
+		start := time.Now()
+		info, manifest, err := backup.RestoreEncrypted(ctx, *encryptedFile, *expectedChecksum, *output, identities)
+		if err != nil {
+			return err
+		}
+		return printJSON(map[string]any{"status": "restored_verified_quarantined", "recovery_required": true, "elapsed_ms": float64(time.Since(start).Microseconds()) / 1000, "archive": info, "manifest": manifest})
+	}
 	if command == "offsite-reconcile" && (!explicit["db"] || *offsiteConfig == "" || *identitiesFile == "" || *backupID == "" || *objectVersion == "" || *output == "" || len(*recoveryReason) < 10 || len(*recoveryReason) > 300) {
 		return errors.New("offline reconciliation requires explicit --db, --offsite-config-file, --custody-identities-file, --backup-id, --object-version, --reason and a new --out directory")
 	}
@@ -182,7 +197,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		if err != nil {
 			return err
 		}
-		return printJSON(map[string]any{"status": "restored_and_verified", "elapsed_ms": float64(time.Since(start).Microseconds()) / 1000, "manifest": manifest})
+		return printJSON(map[string]any{"status": "restored_verified_quarantined", "recovery_required": true, "elapsed_ms": float64(time.Since(start).Microseconds()) / 1000, "manifest": manifest})
 	}
 	switch command {
 	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa", "offsite-reconcile", "offsite-archive":
@@ -397,7 +412,13 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 			return err
 		}
 		var offsiteWorker *backup.OffsiteWorker
-		if *offsiteConfig != "" {
+		quarantined, err := store.RecoveryRequired(ctx)
+		if err != nil {
+			return err
+		}
+		if quarantined {
+			logger.Info("recovery_quarantined", "external_handoffs", "withheld")
+		} else if *offsiteConfig != "" {
 			config, client, recipients, hash, err := backup.LoadOffsiteConfig(*offsiteConfig, *offsiteFixture)
 			if err != nil {
 				return err
@@ -420,20 +441,23 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 			return err
 		}
 		defer documentStore.Close()
-		if err = documentStore.Reconcile(ctx, store); err != nil {
-			return err
-		}
 		workerCtx, stopWorker := context.WithCancel(ctx)
-		workerDone := make(chan struct{})
-		go func() { defer close(workerDone); documentStore.Run(workerCtx, store, logger) }()
-		validationDone := make(chan struct{})
-		go func() { defer close(validationDone); documents.RunValidation(workerCtx, store, logger) }()
-		statementValidationDone := make(chan struct{})
-		go func() {
-			defer close(statementValidationDone)
-			documents.RunStatementValidation(workerCtx, store, logger)
-		}()
-		defer func() { stopWorker(); <-workerDone; <-validationDone; <-statementValidationDone }()
+		defer stopWorker()
+		if !quarantined {
+			if err = documentStore.Reconcile(ctx, store); err != nil {
+				return err
+			}
+			workerDone := make(chan struct{})
+			go func() { defer close(workerDone); documentStore.Run(workerCtx, store, logger) }()
+			validationDone := make(chan struct{})
+			go func() { defer close(validationDone); documents.RunValidation(workerCtx, store, logger) }()
+			statementValidationDone := make(chan struct{})
+			go func() {
+				defer close(statementValidationDone)
+				documents.RunStatementValidation(workerCtx, store, logger)
+			}()
+			defer func() { stopWorker(); <-workerDone; <-validationDone; <-statementValidationDone }()
+		}
 		if offsiteWorker != nil {
 			offsiteDone := make(chan struct{})
 			go func() { defer close(offsiteDone); offsiteWorker.Run(workerCtx, logger) }()

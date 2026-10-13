@@ -23,6 +23,7 @@ const MoveChecklists=lazy(()=>import('./components/MoveChecklists').then(module=
 const RegistryImport=lazy(()=>import('./components/RegistryImport').then(module=>({default:module.RegistryImport})))
 const HouseholdFinance=lazy(()=>import('./components/HouseholdFinance').then(module=>({default:module.HouseholdFinance})))
 const Backups=lazy(()=>import('./components/Backups').then(module=>({default:module.Backups})))
+const RecoveryGate=lazy(()=>import('./components/RecoveryGate').then(module=>({default:module.RecoveryGate})))
 const Records=lazy(()=>import('./components/Records').then(module=>({default:module.Records})))
 const Reviews=lazy(()=>import('./components/Reviews').then(module=>({default:module.Reviews})))
 const Community=lazy(()=>import('./components/Community').then(module=>({default:module.Community})))
@@ -249,7 +250,7 @@ export default function App() {
   const identity = useRef<User | null>(null)
   const generation = useRef(0)
   const revoking = useRef<Promise<void> | null>(null)
-  const screen = connection.pendingSignout ? 'signed-out' : loading ? 'loading' : linkToken ? 'link' : !user ? 'login' : user.mfa_pending ? 'verification' : 'workspace'
+  const screen = connection.pendingSignout ? 'signed-out' : loading ? 'loading' : user?.recovery_required ? 'recovery' : linkToken ? 'link' : !user ? 'login' : user.mfa_pending ? 'verification' : 'workspace'
   useLayoutEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [screen])
   const storeUser = (value: User | null) => {
     if (value && portalConnection().pendingSignout) return
@@ -316,8 +317,9 @@ export default function App() {
   let content
   if (connection.pendingSignout || (!user && connection.connection !== 'online' && !loading)) content = <main className="reconnect-screen"><span className="footer-wordmark">society.</span><span className="about-mark"><Icon name="leaf"/></span><span className="eyebrow">A LITTLE PAUSE</span><h1>{connection.pendingSignout ? <>Your workspace<br/><em>is closed.</em></> : <>We’ll be here<br/><em>when you reconnect.</em></>}</h1><p>{connection.pendingSignout ? 'Private screens and open work have been cleared. Reconnect to finish signing out of the server.' : 'A connection is needed to open your private workspace. Your records stay safely on the server.'}</p><button type="button" className="button button-dark" disabled={connection.connection === 'checking'} onClick={requestConnectionCheck}>Check connection<Icon name="refresh"/></button><InstallHelp/></main>
   else if (loading) content = <main className="session-loading" role="status"><span className="footer-wordmark">society.</span><p>Opening your workspace…</p></main>
+  else if (user?.recovery_required) content = <Suspense fallback={<main className="session-loading" role="status"><span className="footer-wordmark">society.</span><p>Opening recovery review…</p></main>}><RecoveryGate key={userAccessScope(user)} user={user} onUser={acceptUser} onLogout={() => void logout()} /></Suspense>
   else if (linkToken) content = <AccountLink key={linkToken} token={linkToken} onDone={() => { setLinkToken(''); if (user) void logout() }} />
   else if (user?.mfa_pending) content = <MFAGate key={user.id} user={user} onVerified={acceptUser} onLogout={() => void logout()} />
   else content = user ? <>{message && <div className="session-message" role="alert">{message}</div>}<Workspace key={userAccessScope(user)} user={user} onUser={acceptUser} onLogout={() => { setMessage(''); void logout() }} /></> : <Login message={message} onLogin={acceptUser} />
-  return <><PWAStatus workspace={!!user && !user.mfa_pending} onSignOut={()=>void logout()}/>{content}</>
+  return <><PWAStatus workspace={!!user && !user.mfa_pending && !user.recovery_required} onSignOut={()=>void logout()}/>{content}</>
 }

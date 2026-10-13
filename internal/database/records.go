@@ -510,6 +510,14 @@ func (s *Store) ClaimReceipt(ctx context.Context, now time.Time) (ReceiptJob, er
 		return ReceiptJob{}, err
 	}
 	defer tx.Rollback()
+	// Reserve the writer before reading recovery state. A warmed WAL reader
+	// cannot safely upgrade its snapshot after another portal writer commits.
+	if _, err = tx.ExecContext(ctx, "UPDATE app_metadata SET value=value WHERE key='fixture_version'"); err != nil {
+		return ReceiptJob{}, err
+	}
+	if err = requireNoRecovery(ctx, tx); err != nil {
+		return ReceiptJob{}, err
+	}
 	var job ReceiptJob
 	job.Lease = randomToken()
 	err = tx.QueryRowContext(ctx, `UPDATE receipt_jobs SET state='RUNNING',attempts=attempts+1,lease_token=?,lease_until=?

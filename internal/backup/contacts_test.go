@@ -49,7 +49,7 @@ func TestContactRecoveryPreservesVerifiedDestinationsConsentOptOutHistoryAndNoTe
 		t.Fatal(e)
 	}
 	target := filepath.Join(root, "restored-contacts", "society.db")
-	if _, e = Restore(ctx, bundle, target); e != nil {
+	if _, e = restoreCheckpointComparison(t, ctx, bundle, target); e != nil {
 		t.Fatal(e)
 	}
 	r, e := database.Open(ctx, target)

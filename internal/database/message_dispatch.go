@@ -21,6 +21,9 @@ type SimulationHandoff struct {
 }
 
 func messageOperatorCurrent(ctx context.Context, q identityReader, id, kind string) (bool, error) {
+	if err := requireNoRecovery(ctx, q); err != nil {
+		return false, err
+	}
 	roles := "'ADMINISTRATOR','COMMITTEE'"
 	if financeMessageKind(kind) {
 		roles = "'TREASURER'"
@@ -304,6 +307,9 @@ func (s *Store) SyntheticMessageHandoff(ctx context.Context, token, attempt, out
 		return SimulationHandoff{}, e
 	}
 	defer tx.Rollback()
+	if e = requireNoRecovery(ctx, tx); e != nil {
+		return SimulationHandoff{}, e
+	}
 	if _, e = tx.ExecContext(ctx, "UPDATE sessions SET last_seen_at=last_seen_at WHERE token_hash=?", TokenHash(token)); e != nil {
 		return SimulationHandoff{}, e
 	}
@@ -465,6 +471,10 @@ func (s *Store) RecoverMessageClaims(ctx context.Context) error {
 		return e
 	}
 	defer tx.Rollback()
+	required, e := recoveryRequired(ctx, tx)
+	if e != nil || required {
+		return e // Preserve the original handoff and its separate disposition.
+	}
 	if _, e = tx.ExecContext(ctx, "UPDATE message_deliveries SET updated_at=updated_at WHERE state='CLAIMED'"); e != nil {
 		return e
 	}

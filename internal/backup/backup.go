@@ -224,10 +224,16 @@ func Verify(ctx context.Context, bundle string) (Manifest, error) {
 	return expected, nil
 }
 
-func Restore(ctx context.Context, bundle, destination string) (Manifest, error) {
+// copyVerifiedSnapshot is the internal byte-preservation primitive. Operational
+// callers use Restore, which completes quarantine before returning the host.
+func copyVerifiedSnapshot(ctx context.Context, bundle, destination string) (Manifest, error) {
 	manifest, err := Verify(ctx, bundle)
 	if err != nil {
 		return Manifest{}, err
+	}
+	created, err := time.Parse(time.RFC3339Nano, manifest.CreatedAt)
+	if err != nil || created.Unix() <= 0 || manifest.ApplicationVersion == "" || len(manifest.ApplicationVersion) > 80 || manifest.Bytes <= 0 || manifest.Bytes > MaxSnapshotBytes {
+		return Manifest{}, errors.New("recovery source manifest identity is invalid")
 	}
 	abs, err := filepath.Abs(destination)
 	if err != nil {
@@ -258,7 +264,9 @@ func Restore(ctx context.Context, bundle, destination string) (Manifest, error) 
 	complete := false
 	defer func() {
 		if !complete {
-			os.Remove(abs)
+			for _, path := range []string{abs + "-wal", abs + "-shm", abs} {
+				os.Remove(path)
+			}
 		}
 	}()
 	h := sha256.New()
@@ -285,6 +293,54 @@ func Restore(ctx context.Context, bundle, destination string) (Manifest, error) 
 	}
 	if err := syncPath(filepath.Dir(abs)); err != nil {
 		return Manifest{}, err
+	}
+	complete = true
+	return manifest, nil
+}
+
+func Restore(ctx context.Context, bundle, destination string) (Manifest, error) {
+	manifest, err := copyVerifiedSnapshot(ctx, bundle, destination)
+	if err != nil {
+		return Manifest{}, err
+	}
+	abs, err := filepath.Abs(destination)
+	if err != nil {
+		return Manifest{}, err
+	}
+	complete := false
+	defer func() {
+		if !complete {
+			for _, path := range []string{abs + "-wal", abs + "-shm", abs} {
+				os.Remove(path)
+			}
+		}
+	}()
+	created, err := time.Parse(time.RFC3339Nano, manifest.CreatedAt)
+	if err != nil {
+		return Manifest{}, err
+	}
+	// The verified byte copy is not a current authority or numbering decision.
+	// Journal quarantine in the destination only; original records stay intact.
+	restored, err := database.Open(ctx, abs)
+	if err != nil {
+		return Manifest{}, err
+	}
+	_, journalErr := restored.QuarantineRecovery(ctx, database.RecoveryOrigin{
+		FormatVersion: 1, SourceSHA256: manifest.SHA256, SourceBytes: manifest.Bytes,
+		SourceSchema: manifest.SchemaVersion, SourceApplication: manifest.ApplicationVersion,
+		SourceCreatedAt: created.Unix(),
+	}, time.Now())
+	closeErr := restored.Close()
+	if journalErr != nil {
+		return Manifest{}, journalErr
+	}
+	if closeErr != nil {
+		return Manifest{}, closeErr
+	}
+	for _, path := range []string{abs, filepath.Dir(abs)} {
+		if err := syncPath(path); err != nil {
+			return Manifest{}, err
+		}
 	}
 	complete = true
 	return manifest, nil

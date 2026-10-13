@@ -103,7 +103,7 @@ func TestMessageRecoveryRetainsUnresolvedHandoffConsentPerAttemptProofMoneyAndSe
 		t.Fatal(e)
 	}
 	target := filepath.Join(root, "restored", "society.db")
-	if _, e = Restore(ctx, bundle, target); e != nil {
+	if _, e = restoreCheckpointComparison(t, ctx, bundle, target); e != nil {
 		t.Fatal(e)
 	}
 	r, e := database.Open(ctx, target)
@@ -168,5 +168,32 @@ func TestMessageRecoveryRetainsUnresolvedHandoffConsentPerAttemptProofMoneyAndSe
 		if e = r.DB.QueryRow(tc.query).Scan(&n); e != nil || n != tc.want {
 			t.Fatal(tc.query, n, e)
 		}
+	}
+	// The actual operational entry point additionally withholds this copied
+	// claim. These are real saved handoff/original-money rows from the fixture.
+	quarantinedPath := filepath.Join(root, "operational-recovery", "society.db")
+	if _, e = Restore(ctx, bundle, quarantinedPath); e != nil {
+		t.Fatal(e)
+	}
+	assertQuarantinedOriginals(t, bundle, quarantinedPath)
+	q, e := database.Open(ctx, quarantinedPath)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer q.Close()
+	q.MFA = s.MFA
+	beforeQuarantine := persistentSnapshotRows(t, quarantinedPath)
+	if e = q.RecoverMessageClaims(ctx); e != nil {
+		t.Fatal(e)
+	}
+	currentToken := upkeepRecoveryLogin(t, q, "admin@demo.society")
+	if _, e = q.SyntheticMessageHandoff(ctx, currentToken, claims[0].ID, "UNKNOWN"); !errors.Is(e, database.ErrRecoveryRequired) {
+		t.Fatal("Restored simulation handoff was resumed", e)
+	}
+	if _, _, e = q.ClaimMessageDispatch(ctx, currentToken, id, claimAction); !errors.Is(e, database.ErrRecoveryRequired) {
+		t.Fatal("Copied message authority claimed another attempt", e)
+	}
+	if !reflect.DeepEqual(beforeQuarantine, persistentSnapshotRows(t, quarantinedPath)) {
+		t.Fatal("Quarantined message restart changed original handoffs, recipients or money")
 	}
 }

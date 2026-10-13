@@ -99,6 +99,9 @@ func (s *Store) ClaimOffsite(ctx context.Context, configHash, prefix string, now
 	if _, err = tx.ExecContext(ctx, "UPDATE offsite_policy SET highest_clock_at=highest_clock_at WHERE id=1"); err != nil {
 		return OffsiteJob{}, err
 	}
+	if err = requireNoRecovery(ctx, tx); err != nil {
+		return OffsiteJob{}, err
+	}
 	var current string
 	var highest int64
 	if err = tx.QueryRowContext(ctx, "SELECT config_hash,highest_clock_at FROM offsite_policy WHERE id=1").Scan(&current, &highest); err != nil {

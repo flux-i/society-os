@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -138,7 +137,7 @@ func TestEncryptedPopulatedSnapshotRestoresWithEitherIndependentCustodyIdentity(
 	}
 	bundle := filepath.Join(root, "snapshot")
 	start := time.Now().Add(-time.Second).Unix()
-	if _, err := Snapshot(ctx, s, bundle, "0.30.0-dev"); err != nil {
+	if _, err := Snapshot(ctx, s, bundle, "0.32.0-dev"); err != nil {
 		t.Fatal(err)
 	}
 	recipients, identities := custodyPair(t)
@@ -153,22 +152,20 @@ func TestEncryptedPopulatedSnapshotRestoresWithEitherIndependentCustodyIdentity(
 		t.Fatal("standard encrypted envelope or plaintext isolation")
 	}
 	want := persistentSnapshotRows(t, filepath.Join(bundle, "society.db"))
-	if len(want) != 105 { // 104 persistent business tables plus migration provenance.
+	if len(want) != 107 { // 106 persistent business tables plus migration provenance.
 		t.Fatal("complete current snapshot inventory", len(want))
 	}
 	for i, identity := range identities {
 		extracted := filepath.Join(root, "custodian-"+string(rune('a'+i)))
 		got, manifest, err := DecryptArchive(ctx, encrypted, hash, extracted, []age.Identity{identity})
-		if err != nil || got.CapturedAt != start || got.JobID != info.JobID || manifest.SchemaVersion != 28 {
+		if err != nil || got.CapturedAt != start || got.JobID != info.JobID || manifest.SchemaVersion != 29 {
 			t.Fatal("independent custodian decrypt", i, got, err)
 		}
 		target := filepath.Join(root, "restored-"+string(rune('a'+i))+".db")
 		if _, err := Restore(ctx, extracted, target); err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(want, persistentSnapshotRows(t, target)) {
-			t.Fatal("persistent records, BLOBs or immutable sources changed", i)
-		}
+		assertQuarantinedOriginals(t, extracted, target)
 		restored, err := database.Open(ctx, target)
 		if err != nil {
 			t.Fatal(err)
@@ -178,13 +175,16 @@ func TestEncryptedPopulatedSnapshotRestoresWithEitherIndependentCustodyIdentity(
 			t.Fatal("old bearer revived", err)
 		}
 		fresh := upkeepRecoveryLogin(t, restored, "admin@demo.society")
-		current, err := restored.EntryFor(ctx, fresh, paid)
-		if err != nil || current.ReceiptNumber != original.ReceiptNumber || current.AmountPaise != 40000 || current.State != "REVERSED" {
-			t.Fatal("original or correction changed", current, err)
+		if _, err := restored.EntryFor(ctx, fresh, paid); !errors.Is(err, database.ErrRecoveryRequired) {
+			t.Fatal("Copied Treasury authority read a private receipt before review", err)
 		}
-		ledger, err := restored.EntriesFor(ctx, fresh, "demo-flat-A-101", "", "", false, 1)
-		if err != nil || ledger.BalancePaise != 150001 {
-			t.Fatal("recovered independent balance", ledger.BalancePaise, err)
+		var number, state string
+		var amount, balance int64
+		if err := restored.DB.QueryRow("SELECT r.number,e.amount_paise,CASE WHEN EXISTS(SELECT 1 FROM entry_reversals WHERE entry_id=e.id) THEN 'REVERSED' ELSE e.state END FROM entries e JOIN receipts r ON r.entry_id=e.id WHERE e.id=?", paid).Scan(&number, &amount, &state); err != nil || number != original.ReceiptNumber || amount != 40000 || state != "REVERSED" {
+			t.Fatal("Retained original receipt or linked correction changed", err)
+		}
+		if err := restored.DB.QueryRow("SELECT SUM(CASE WHEN kind='RECEIVED' THEN -amount_paise ELSE amount_paise END) FROM entries WHERE state='POSTED' AND id NOT IN(SELECT entry_id FROM entry_reversals)").Scan(&balance); err != nil || balance != 150001 {
+			t.Fatal("Recovered independently expected balance changed", balance, err)
 		}
 		restored.Close()
 	}

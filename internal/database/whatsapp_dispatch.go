@@ -69,6 +69,9 @@ func (s *Store) PrepareWhatsAppHandoff(ctx context.Context, token, attempt strin
 		return WhatsAppAttempt{}, err
 	}
 	defer tx.Rollback()
+	if err = requireNoRecovery(ctx, tx); err != nil {
+		return WhatsAppAttempt{}, err
+	}
 	if _, err = tx.ExecContext(ctx, "UPDATE sessions SET last_seen_at=last_seen_at WHERE token_hash=?", TokenHash(token)); err != nil {
 		return WhatsAppAttempt{}, err
 	}

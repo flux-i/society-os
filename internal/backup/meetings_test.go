@@ -111,7 +111,7 @@ func TestMeetingRecoveryRetainsPendingAgendaMinutesCancellationPersonalOriginals
 	check(e)
 	approve(pending, 3)
 	target := filepath.Join(root, "restored-meetings", "society.db")
-	_, e = Restore(ctx, bundle, target)
+	_, e = restoreCheckpointComparison(t, ctx, bundle, target)
 	check(e)
 	r, e := database.Open(ctx, target)
 	check(e)

@@ -105,7 +105,7 @@ func TestIncidentRecoveryRetainsOriginalAndMetadataFreePreviewPrivateReviewNotic
 		t.Fatal(e)
 	}
 	target := filepath.Join(root, "restored-incidents.db")
-	if _, e = Restore(ctx, bundle, target); e != nil {
+	if _, e = restoreCheckpointComparison(t, ctx, bundle, target); e != nil {
 		t.Fatal(e)
 	}
 	restored, e := database.Open(ctx, target)

@@ -204,7 +204,7 @@ test('populated configured snapshot and restore preserve source, private origina
   const folder=artifactFolder();mkdirSync(folder,{recursive:true,mode:0o700});const runtime=dirname(db),binary=join(runtime,'society-server'),snapshot=join(folder,'snapshot'),restored=join(folder,'restored','society.db')
   for(const name of ['mfa.key','messages.key']){const source=join(runtime,'keys',name==='messages.key'?'messages.key':'mfa.key');copyFileSync(source,join(folder,name))}
   const result=JSON.parse(execFileSync(binary,['snapshot','--db',db,'--out',snapshot],{encoding:'utf8'}))
-  expect(result.schema_version).toBe(28)
+  expect(result.schema_version).toBe(29)
   execFileSync(binary,['restore-check','--snapshot',snapshot,'--out',restored],{encoding:'utf8'})
   const verify=`import sqlite3,json,sys,hashlib
 def state(path):
@@ -213,14 +213,22 @@ def state(path):
  tables=[x[1] for x in definitions if x[0]=='table' and x[1] not in ['sessions','account_tokens','mfa_pending','mfa_recovery_codes']]
  rows={t:sorted([list(r) for r in c.execute('SELECT * FROM "'+t+'"')],key=repr) for t in tables}
  return c,definitions,rows
-a,ad,ar=state(sys.argv[1]);b,bd,br=state(sys.argv[2]);assert ad==bd and ar==br
+a,ad,ar=state(sys.argv[1]);b,bd,br=state(sys.argv[2]);assert ad==bd and ar.keys()==br.keys()
+for t in ar:
+ if t not in ['recovery_epochs','recovery_external_jobs']:assert ar[t]==br[t],t
+assert len(ar['recovery_epochs'])==0 and len(br['recovery_epochs'])==1
+assert len(ar['recovery_external_jobs'])==0
+expected=json.loads(sys.argv[3])
+assert b.execute('SELECT source_sha256,source_bytes,source_schema,source_application FROM recovery_epochs').fetchone()==(expected['sha256'],expected['bytes'],29,expected['application_version'])
+withheld=b.execute("SELECT (SELECT COUNT(*) FROM offsite_backup_jobs WHERE state!='VERIFIED')+(SELECT COUNT(*) FROM message_deliveries WHERE state IN('QUEUED','CLAIMED','FAILED','UNKNOWN'))").fetchone()[0]
+assert len(br['recovery_external_jobs'])==withheld
 assert b.execute('PRAGMA integrity_check').fetchone()[0]=='ok' and not b.execute('PRAGMA foreign_key_check').fetchall()
 for t in ['sessions','account_tokens','mfa_pending','mfa_recovery_codes']:assert b.execute('SELECT COUNT(*) FROM '+t).fetchone()[0]==0
 assert b.execute("SELECT SUM(CASE WHEN kind='RECEIVED' THEN -amount_paise ELSE amount_paise END) FROM entries WHERE state='POSTED' AND id NOT IN (SELECT entry_id FROM entry_reversals)").fetchone()[0]==150001
 assert b.execute('SELECT COUNT(*) FROM receipts').fetchone()[0]==1
 assert b.execute("SELECT COUNT(*) FROM flat_memberships WHERE flat_id=(SELECT entity_id FROM registry_import_entities WHERE entity_kind='HOME' AND source_id='a-101') AND can_view_finances=1").fetchone()[0]==0
-print(json.dumps({'persistent_tables':len(ar)-1,'all_rows_and_definitions_preserved':True,'integrity_and_foreign_keys':True,'bearer_sessions_purged':True,'balance_paise':150001,'original_receipts':1}))`
-  const proof=JSON.parse(execFileSync('python3',['-c',verify,db,restored],{encoding:'utf8'}));expect(proof.persistent_tables).toBe(104)
+print(json.dumps({'persistent_tables':len(ar)-1,'all_original_rows_and_definitions_preserved':True,'only_recovery_journal_appended':True,'recovery_required':True,'integrity_and_foreign_keys':True,'bearer_sessions_purged':True,'balance_paise':150001,'original_receipts':1}))`
+  const proof=JSON.parse(execFileSync('python3',['-c',verify,db,restored,JSON.stringify(result)],{encoding:'utf8'}));expect(proof.persistent_tables).toBe(106)
   expect(readDB('SELECT snapshot_json FROM receipts WHERE id=?',[receiptID])[0][0]).toBe(originalSnapshot)
   const issuer=JSON.parse(originalSnapshot).issuer;expect(issuer.name).toBe('The Neighbourhood Rehearsal')
   const hash=(path:string)=>createHash('sha256').update(readFileSync(path)).digest('hex')
@@ -239,20 +247,14 @@ print(json.dumps({'persistent_tables':len(ar)-1,'all_rows_and_definitions_preser
       const context=await browser.newContext({baseURL:origin,serviceWorkers:'block'});contexts.push(context)
       const page=await context.newPage();await loginPerson({page,context,name:original.name,email:original.email,recovery:[]})
       const identity=await(await page.request.get('/api/auth/me')).json();expect(identity.is_demo).toBe(false)
-      expect(identity.can_manage_records).toBe(false);expect(identity.can_read_records).toBe(original===actors.owner)
-      const homes=await(await page.request.get('/api/flats')).json();expect(homes.total).toBe(original===actors.owner?2:0)
-      if(original===actors.owner){
-        const records=await(await page.request.get('/api/entries')).json();expect(records.homes.map((home:{label:string})=>home.label)).toEqual(['A-102'])
-        expect((await page.request.get('/api/receipts/'+receiptID+'/download')).status()).toBe(404)
-        const content=await page.request.get('/api/documents/'+documentID+'/download');expect(content.status()).toBe(200);expect(await content.body()).toEqual(plainPDF())
-        await navigate(page,'Entries');await capture(page,'restored-current-finance-home-desktop')
-      }else{
-        expect((await page.request.get('/api/complaints/'+reportID)).status()).toBe(404)
-        expect((await page.request.get('/api/documents/'+documentID+'/download')).status()).toBe(404)
-        await navigate(page,'Your homes');await page.setViewportSize({width:320,height:440});await capture(page,'restored-ended-household-320-440')
-      }
+      expect(identity.recovery_required).toBe(true);expect(identity.roles).toEqual([])
+      expect(identity.can_manage_records).toBe(false);expect(identity.can_read_records).toBe(false)
+      await expect(page.getByRole('heading',{name:'Your records. Kept together.'})).toBeVisible()
+      for(const path of ['/api/flats','/api/entries','/api/receipts/'+receiptID+'/download','/api/documents/'+documentID+'/download','/api/complaints/'+reportID])expect((await page.request.get(path)).status()).toBe(423)
+      if(original===actors.owner){await capture(page,'restored-owner-authority-withheld-desktop')}
+      else{await page.setViewportSize({width:320,height:440});await page.getByRole('button',{name:'Check status',exact:true}).scrollIntoViewIfNeeded();await capture(page,'restored-ended-household-withheld-320-440')}
     }
-    const saved=JSON.parse(readFileSync(join(folder,'recovery-proof.json'),'utf8'));saved.restored_http={prior_bearer_rejected:true,personal_password_login:true,finance_home:'A-102',ended_tenant_homes:0,private_original_bytes_preserved:true};writeFileSync(join(folder,'recovery-proof.json'),JSON.stringify(saved,null,2)+'\n',{mode:0o600})
+    const saved=JSON.parse(readFileSync(join(folder,'recovery-proof.json'),'utf8'));saved.restored_http={prior_bearer_rejected:true,personal_password_login:true,recovery_required:true,copied_private_authority_withheld:true,receipt_and_document_reads_withheld:true,original_private_bytes_preserved_in_checkpoint:true};writeFileSync(join(folder,'recovery-proof.json'),JSON.stringify(saved,null,2)+'\n',{mode:0o600})
   }finally{
     await Promise.all(contexts.map(context=>context.close()))
     if(server.exitCode===null){const finished=new Promise<void>(resolve=>server.once('exit',()=>resolve()));server.kill('SIGTERM');const timer=setTimeout(()=>server.kill('SIGKILL'),6000);await finished;clearTimeout(timer)}

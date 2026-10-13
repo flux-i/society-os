@@ -49,7 +49,7 @@ func TestReviewRecoveryRetainsApprovedContentAndDecisionsWithoutRevivingSessions
 		t.Fatal(err)
 	}
 	target := filepath.Join(root, "restored-review.db")
-	if _, err = Restore(ctx, bundle, target); err != nil {
+	if _, err = restoreCheckpointComparison(t, ctx, bundle, target); err != nil {
 		t.Fatal(err)
 	}
 	recovered, err := database.Open(ctx, target)

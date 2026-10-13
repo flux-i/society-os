@@ -82,7 +82,7 @@ func TestDocumentSnapshotRestoresOriginalBytesAndSeparateReviewWithoutRevivingSe
 		t.Fatal(err)
 	}
 	target := filepath.Join(root, "restored-documents.db")
-	if _, err = Restore(ctx, bundle, target); err != nil {
+	if _, err = restoreCheckpointComparison(t, ctx, bundle, target); err != nil {
 		t.Fatal(err)
 	}
 	restored, err := database.Open(ctx, target)

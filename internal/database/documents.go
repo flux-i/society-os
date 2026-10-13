@@ -708,6 +708,9 @@ func (s *Store) ClaimDocumentCheck(ctx context.Context, now time.Time) (Document
 	if _, err = tx.ExecContext(ctx, `UPDATE library_documents SET version=version WHERE id=(SELECT id FROM library_documents LIMIT 1)`); err != nil {
 		return DocumentCheckJob{}, err
 	}
+	if err = requireNoRecovery(ctx, tx); err != nil {
+		return DocumentCheckJob{}, err
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT id,version FROM library_documents WHERE review_state='PENDING' AND validation_status='PENDING' AND uploaded_at IS NULL AND expires_at<=? LIMIT 20`, now.Unix())
 	if err != nil {
 		return DocumentCheckJob{}, err

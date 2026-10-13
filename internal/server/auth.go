@@ -52,6 +52,10 @@ func (s *Server) protected(next http.HandlerFunc) http.HandlerFunc {
 			s.resultError(w, r, err)
 			return
 		}
+		if p.RecoveryRequired && r.URL.Path != "/api/auth/me" && r.URL.Path != "/api/auth/logout" {
+			s.resultError(w, r, database.ErrRecoveryRequired)
+			return
+		}
 		if p.MFAPending && !strings.HasPrefix(r.URL.Path, "/api/auth/") {
 			s.resultError(w, r, database.ErrMFARequired)
 			return
@@ -178,6 +182,8 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) resultError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case database.IsRecoveryRequired(err):
+		respond(w, http.StatusLocked, map[string]string{"error": "recovery_review_required", "message": "Your records are retained. Private access and new changes are paused while recovery is reviewed."})
 	case errors.Is(err, sql.ErrNoRows):
 		respond(w, 404, map[string]string{"error": "not_found"})
 	case errors.Is(err, database.ErrMFARequired):

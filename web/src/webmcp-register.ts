@@ -77,6 +77,13 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
     }
     const search = { type: 'string', maxLength: 100, description: 'A home number or name from the signed-in account’s permitted results.' }
     const page = { type: 'integer', minimum: 1, maximum: 10000 }
+    if (user.recovery_required) {
+      add('society_read_recovery_state', 'Read the current recovery boundary only. Private access, financial changes and external handoffs remain withheld. No private data, job identities, source hashes, keys or recovery mutation is exposed.', {}, [], async (_input, _signal, me) => {
+        if (!me.recovery_required) throw new Error('The recovery boundary changed. Discover tools again.')
+        return { recovery_required: true, private_access: 'WITHHELD', financial_changes: 'WITHHELD', external_handoffs: 'WITHHELD', can_resume: false }
+      })
+      return () => lifetime.abort()
+    }
     const readCurrentMeeting = async <T,>(path:string, signal:AbortSignal, select:(value:T)=>unknown=value=>value) => {
       const first=await request<T>(path,signal)
       const fresh=await request<T>(path,signal)
