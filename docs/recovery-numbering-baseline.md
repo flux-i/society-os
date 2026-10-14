@@ -33,7 +33,7 @@ The selected screenshots were captured and individually inspected **before that 
 | RNUM-03 | The common CLI whitelist omits all three implemented private series commands. The actual subprocess and independent guard regression fail before repair and pass afterward. |
 | RNUM-04 | Refresh icon renders below its label. Independent geometry measures 21px separation before repair; scoped inline flex passes the unchanged at-most-1px expectation at 1440/820/375/320px. |
 
-Four reproduced RNUM findings are repaired and locally accepted; private archival/personal publication are pending, and the published closed ledger remains **129**. Locator/fixture callback, TOTP-purge, route-status, nested-fixture, subprocess orchestration and inventory-oracle corrections are diagnostics, not additional product bugs. Passing tests, images and repeated checks do not increase the finding count.
+The four RNUM findings are fully verified and personally published; the ledger is **133 = 131 product/UI + two operational**. Locator/fixture callback, TOTP-purge, route-status, nested-fixture, subprocess orchestration and inventory-oracle corrections are diagnostics, not additional product bugs. Passing tests, images and repeated checks do not increase the finding count.
 
 ## Original data, matching recovery and preview
 
@@ -60,4 +60,4 @@ The society's adopted numbering/finance policy, current independent custody/iden
 
 ## Private archival and personal publication
 
-Local acceptance is complete; immutable private archival and personal application/metadata publication are pending. The published ledger remains **129**; the four locally verified RNUM findings remain open until those steps are independently verified. The whole goal remains active.
+Personal application [cb357691](https://github.com/flux-i/society-os/commit/cb3576916a6dc4c12c99e3c2fb53f8d4a7812186) is independently verified at **2026-10-14T10:57:06.041158+00:00**, using `flux-i`, its personal author, credential-free origin, GitHub API main equal to local HEAD and a clean worktree. Its immutable private archive binds **616 source files / 885 verified hashes** to that application commit, including **47 selected directly inspected originals and 20 matching recovery bundles**. All **19 preceding archives / 14,890 hashes** remain unchanged. The four RNUM findings are now counted once; the published ledger is **133 = 131 product/UI + two operational**. The documentation child retains this application binding and is verified separately. The whole goal remains active.
