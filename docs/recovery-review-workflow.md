@@ -1,6 +1,6 @@
 # Current recovery authority and retained-work review — before-code contract
 
-Saved on 13 October 2026 after verified 0.32 application [9aa7d3d4](https://github.com/flux-i/society-os/commit/9aa7d3d4e8a5e7e5ba63cf4c371a722e258ac13e) and documentation child [31bfc6b4](https://github.com/flux-i/society-os/commit/31bfc6b4f404bd3138b486e201bd62f36adae5dc). The immutable 579-source/995-hash archive retains 96 inspected originals and seven matching recovery bundles. All 17 earlier archives remain preserved. The paired preview stays stopped; existing data and separately held keys remain preserved.
+Saved on 13 October 2026 after verified 0.32 application [9aa7d3d4](https://github.com/flux-i/society-os/commit/9aa7d3d4e8a5e7e5ba63cf4c371a722e258ac13e) and documentation child [31bfc6b4](https://github.com/flux-i/society-os/commit/31bfc6b4f404bd3138b486e201bd62f36adae5dc). The immutable 579-source/995-hash archive retains 96 inspected originals and seven matching recovery bundles. All 17 earlier archives remain preserved. At that accepted checkpoint, the paired preview was stopped; existing data and separately held keys were preserved. The separately requested current preview startup is recorded below.
 
 This is the next complete workflow of [custodied restore and reconciliation](restore-reconciliation-workflow.md). Its outcome is a usable, separately authorised recovery desk: current nominated reviewers authenticate with real password/MFA, inspect appropriate retained access/work metadata, prepare evidence-backed decisions and obtain another current reviewer's approval. The approved decisions remain preparation for subsequent fresh-numbering and final-cutover work. They do not themselves open the ordinary private portal, lift the financial hold, replay a message or replace an old capture.
 
@@ -34,6 +34,12 @@ Actual native WebMCP may report bounded current recovery/review status only. It 
 
 ## Independent acceptance expectations
 
+### Implementation protocol saved before code
+
+The offline commands are `recover-nominate --db … --nomination-file … --reviewer-passwords-file …` and `recover-revoke --db … --revocation-file …`. They require an existing, matching migrated database, refuse serving/provider/custody-decryption flags and read bounded regular private files. The nomination contains version 1, a supplied operation identity, exact current epoch/source, an explicit predecessor nomination when replacing one, supplied appointment times, two custodian attestations and two to eight reviewers. Each reviewer supplies normalized email, display name, distinct person reference, verification time/evidence reference and, for an existing account, its exact account identity. New-account passwords are separate private inputs. The application bounds appointments and verification age to 30 days; these are technical limits, not an adopted society verification policy. Replacement and revocation retain prior nominations and require the same explicit current-source binding and two custodian attestations.
+
+The next migration appends explicit integer-ordered epoch heads. A single legacy epoch can be identified without guessing; multiple unheaded legacy epochs remain ambiguous until a new verified operational restore establishes its head. Nomination, reviewer, revocation, proposal and decision records are append-only. Frozen proposals concern `ACCESS` or `EXTERNAL` work; external outcomes are supplied evidence assessments (`RETAIN_UNKNOWN`, `EVIDENCE_CONFIRMED`, `ABANDONED`), never provider acknowledgements. Exact actor/input-bound operation retries return retained results; another operation cannot decide an already decided version. Linked successor proposals preserve their predecessors.
+
 - A copied administrator, Treasurer, resident, old bearer or old nomination cannot enter the recovery desk. Explicit new/current supplied nominees with real password/MFA can enter only its narrow scope. Expiry, revocation, account suspension and a newer epoch remove that access.
 - Independent supplied nomination references and source/epoch binding are checked before effects. Wrong/malformed/unsafe/duplicate/expired/conflicting input changes no rows or credentials. Exact acknowledged/lost-response retry records one nomination and one credential invalidation. New accounts have no ordinary administrator or finance grant.
 - Current epoch ordering survives timestamp ties, rollback, restart and nested snapshot/restore. Ambiguous legacy history cannot select old authority. All predecessor origins and nominations remain preserved.
@@ -43,3 +49,76 @@ Actual native WebMCP may report bounded current recovery/review status only. It 
 - Pass meaningful domain/race/TypeScript/build checks, full affected ordinary/native regression, matching populated recovery and migration/key preservation. Keep previous archives unchanged; freeze the exact source/runtime/evidence and verify personal publication before implementing independent fresh-numbering/final-release work.
 
 No production authority, post-checkpoint external outcome, statutory numbering policy or final release is inferred from fictional inputs, a password/MFA, retained encryption keys or elapsed time. The parent contract and whole goal remain active.
+
+## Historical resumed checklist — 13 October 2026, before final acceptance
+
+At this earlier resumed stage the separately requested preview served the accepted 0.32/schema29 pair at `http://localhost:8080`; private startup proof remains outside Git. The 0.33/schema30 desk was then unaccepted. The final acceptance update below supersedes that status. The user has authorised autonomous continuation through complete checkpoints.
+
+- [ ] `RecoveryProposalsFor`, `RecoveryProposalFor` and history must classify every earlier-nomination proposal as stale, including previously approved/declined ones, while preserving its original decision and evidence. Prove the old behavior fails an independent replacement test before repairing it; verify summary and filtered-list consistency and a linked current correction.
+- [ ] Render the real replacement and correction controls, household relationships, home/history loading/error/retry, short-phone scrolling, current-person reauthentication, separate external-work decisions and bounded pages. Inspect the resulting original screenshots.
+- [ ] Include the offline commands in CLI help and document private nomination/password/revocation handover and trust limits.
+- [ ] Pass the current race/static/build checks and complete ordinary/native suites on one unchanged source/runtime frame. Preserve the original developer database and separately held keys throughout disposable evaluations.
+- [ ] Verify populated schema29-to30 migration and matching nested recovery, retain prior archives unchanged, pin the accepted runtime and verify publication through the authorised personal account. Only then advance to fresh numbering and final recovery release.
+
+RREV-01 is the observed dialog padding/internal-scroll issue repaired in the working tree; closure remains conditional on full acceptance. A late-MFA reply probe passed and is not counted as a product bug. Earlier focused pass counts do not prove the latest edits or full checkpoint.
+
+## Offline handover protocol
+
+Use the matching accepted executable on the already restored and migrated host. `recover-origin --db /private/restored/society.db` returns the exact current epoch/source binding; it does not appoint anyone. Custodians independently prepare private regular files with owner-only permissions, outside the repository. A nomination JSON has `format_version: 1`, a stable `operation_id`, the supplied `epoch_id` and `source_sha256`, explicit `replaces_operation_id`, Unix-second `valid_from`/`valid_until`, two `custodians` and two to eight `reviewers`. Each custodian supplies distinct `identity_ref`, `evidence_ref` and `verified_at`. Reviewers add normalized `email`, `name` and optional exact existing `account_id` to their independent references and verification time. Omit an existing account identity only for a deliberately supplied new account.
+
+A separate password JSON contains `passwords`, an array of `{email, password}` for new reviewers only. Existing-account replacements use an empty array and preserve their current password/factor. Handover passwords privately to the named people; the nomination receipt prints only its operation identity, count and appointment expiry. The portal then requires personal real authenticator enrollment/verification, with privately saved recovery codes. Copied demo verification shortcuts are unavailable in recovery.
+
+```sh
+./society-server recover-origin --db /private/restored/society.db
+./society-server recover-nominate --db /private/restored/society.db --nomination-file /private/custody/nomination.json --reviewer-passwords-file /private/handover/reviewer-passwords.json
+./society-server recover-revoke --db /private/restored/society.db --revocation-file /private/custody/revocation.json
+```
+
+Revocation JSON supplies `format_version`, a fresh `operation_id`, the exact current `epoch_id`/`source_sha256`, current `nomination_id`, `reason` and two current independent custodian attestations. Replacements name the exact predecessor, invalidate affected bearer sessions once and retain predecessor evidence. Every proposal from that predecessor becomes an earlier appointment, including a retained historical approval. A current linked correction creates a new frozen version; an old approval does not become current authority.
+
+Reuse the exact same operation and private inputs after a lost command reply. A changed payload, different source or newer appointment cannot reuse it. Serving/provider/custody-decryption flags are refused by these offline commands; private inputs are refused by `serve`. These checks record supplied trust and protect narrow review boundaries; the real custodians, adopted verification policy and final recovery release still require separate acceptance.
+
+Original screenshot inspection also found the detail retry button touching its error notice. The dialog-spacing repair now gives adjacent error/retry controls a 12px gap. The first complete-eval attempt started before this final CSS edit; it cannot prove an unchanged finished source frame. Backend inputs remain unchanged, and a final complete gate must follow from the finished source.
+
+An unreviewed retained external action must initially display “Keep outcome uncertain”; empty supplied review fields do not establish evidence or an acknowledgement. The opened dropdown and its trigger must also fit the scrollable dialog. The independent browser expectations are being checked before treating those interactions as verified.
+
+RREV-03 reproduced a blank initial outcome for unreviewed retained work: the bounded list supplies an empty string, which the nullish fallback did not replace. The repaired initial form displays “Keep outcome uncertain” while still requiring supplied evidence and a separate attested review. The independent committed browser expectation failed before repair. A private opened-menu probe separately corrected an ARIA-hidden locator and a 0.234px subpixel-boundary tolerance; neither diagnostic correction is counted as a product bug. Final native/full regression and acceptance remain pending.
+
+An uncertain operation remains frozen if its retry requires renewed fresh authentication: a `reauthentication_required` denial proves that retry was denied, not that the earlier operation was absent. Keep its original actor/input/operation identity, offer real identity confirmation while it is uncertain, and then resolve or retry the same operation once. The browser expiry transition is being checked before this boundary is accepted.
+
+RREV-04 reproduced loss of uncertain-retry controls when the original saved reply was lost and a subsequent retry required fresh authentication. The repaired hook retains its frozen operation/input on the named `reauthentication_required` error, refreshes the current identity state and offers real reauthentication while uncertainty is retained. The independent browser case now waits for the actual 403 `reauthentication_required` response, verifies locked inputs/close, completes real password/recovery-code confirmation and expects three attempts to retain one operation/proposal. Complete acceptance is still pending.
+
+The initial expiry repair/test assumed 412; source inspection established that the server uses 403 with `reauthentication_required`. The final repair matches this specific named error, preserving ordinary permission denials as distinct, and the browser case waits for the actual 403 response. The initial status mismatch is diagnostic/implementation correction, not another product finding.
+
+## Late identity reply after revoked recovery authority — before-fix expectation
+
+RREV-05 is independently reproduced by the private actual-browser probe: complete a real password/recovery-code reauthentication on the matching synthetic restored host, hold its successful response body, revoke the current nomination through the public offline command, observe `/api/auth/me` returning 401 and the UI returning to sign-in, then release the older 200 reply. A DOM observer detects the retired recovery desk briefly mounting again. The final failure screenshots show the eventual sign-in state; the observer and held-response trace establish the transient regression. Backend authority remains revoked and private routes remain denied.
+
+- [x] Guard `RecoveryReauth` asynchronous success, error and busy-state callbacks with the dialog's mounted lifetime. An unmounted confirmation cannot call the parent identity callback or close a later dialog; the focused actual regression passes.
+- [x] Commit the exact held-response/offline-revocation regression using a fresh disposable matching host. It verifies no recovery desk mount after the old reply, continued 401 for that bearer, copied-account sign-in limited to the basic recovery gate, denied private receipt access, and unchanged 40000-paise receipt/150001-paise corrected balance.
+- [ ] Rerun the affected real browser cases, TypeScript/build and native WebMCP, inspect their original screenshots, and finish a complete gate on the unchanged final source/runtime before acceptance. The currently running complete gate predates this fix and cannot serve as that final source proof.
+
+The initial post-fix run passed the transient-desk and revoked-session expectations, then failed an additional copied-account endpoint assertion that incorrectly expected 403. The existing protected recovery boundary and independent HTTP test require 423 for a non-nominee's `/api/recovery/status`; that expectation was corrected without changing the backend. It is a diagnostic correction, not another product finding. The corrected case passes in 6.5 seconds; the other 13 current recovery cases, one empty-work case and four actual native cases pass in 30.3, 4.1 and 12.2 seconds. TypeScript/production build and the separate six-frame scrolled-control supplement also pass. Original inspection is in progress and complete acceptance remains pending.
+
+## Short-phone history pager alignment — before-fix expectation
+
+RREV-06 was found in the additional actual pager screenshots, after the focused cases passed. At 320×440 the dialog's narrower content width wraps `Next` onto a separate left-aligned row while `Previous` and the page label share the first row. The controls work, but their unbalanced layout fails the expected aligned paging controls. The initial 59 original screenshots are retained with their exact source/runtime frame; they do not prove the forthcoming layout repair.
+
+- [x] Add an independent committed browser expectation that the two history paging buttons share the same row at320px. The actual pre-fix browser failure reports a56px vertical difference against the independent expectation of at most1px.
+- [x] Give small-phone recovery pagers a centered full-width page label and an aligned pair of controls below it, with appropriate touch targets and clear permitted/disabled states. The focused expectation and fresh opened/scrolled pager originals pass; desktop/tablet keep the existing horizontal layout.
+- [ ] Rerun actual account/journal/history paging, keyboard activation, current recovery and native cases; inspect fresh original screenshots and pass the complete final source/runtime gate. All six findings remain open until complete checkpoint acceptance.
+
+After the repair, the13 main cases pass in30.6s, the late-identity revocation case in6.0s, the empty-work case in4.1s, and the four actual native cases in11.7s. The private pager and scrolled-control supplements pass in9.5s and11.9s. A subsequent private pager capture waits for all seven actual page-two account rows and the19-record total before centering the controls; its9.2s pass corrects capture timing only, not another product defect. The earlier59-image inspection remains chronological pre-pager evidence; fresh original inspection and the final complete gate are separate.
+
+## Current completed verification — 13 October 2026
+
+[Release 0.33/schema 30 is locally accepted](recovery-review-baseline.md) at 11:29:14.618187 UTC. The earlier in-progress paragraphs and unchecked historical checklists above retain the actual sequence; this completed checklist is current.
+
+- [x] Reproduce and fix predecessor-appointment classification, dialog scrolling/spacing, default uncertain outcome, fresh-authentication unresolved-operation retention, revoked-authority late identity reply and short-phone pager alignment. Independent before-fix failures and current regressions verify six distinct groups.
+- [x] Exercise current real-MFA access/work decisions, linked corrections, bounded history/pages, actual selection/keyboard/hover/focus, loading/error/retry, frozen pending/uncertain inputs, short-phone internal scrolling and revoked/copied authority denial. Individually inspect 59 selected current originals; do not add historical or excluded partial-capture image counts.
+- [x] Document the offline private handover commands, distinct supplied custodian/person references and trust limits.
+- [x] Observe terminal exit 0 of literal complete `make eval` on one unchanged 514-input frame: formatting/vet/race/TypeScript/build, 274 ordinary cases/44 suites and 90 actual native cases/21 suites; keys remain preserved.
+- [x] Verify actual original schema29→30 preservation, 13 matching recovery bundles, populated configured personal/nested recoveries and unchanged 18 prior archives/14,014 hashes. Pin all 50 current runtime files and restart only the precisely identified preview process; localhost8080 now serves 0.33 with readiness/index verified.
+- [ ] Freeze the accepted source/runtime/evidence, verify personal application and documentation publication, then advance to independently reserved fresh numbering and final recovery release.
+
+The final 59 selected screenshots are actual originals from running disposable local test servers, distinct from the developer's preview. Each runner waits for readiness and stops its paired server afterward. A stopped preview does not imply a stopped QA host. The six groups are locally verified; cumulative published closure stays123 until archival/publication is verified, after which it becomes129. The whole goal remains active and production acceptance is separate.

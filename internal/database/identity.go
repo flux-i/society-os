@@ -99,8 +99,13 @@ type Principal struct {
 	WorkspaceName       string   `json:"workspace_name"`
 	Fresh               bool     `json:"fresh_authentication"`
 	RecoveryRequired    bool     `json:"recovery_required"`
+	RecoveryReviewer    bool     `json:"recovery_reviewer"`
+	CanReviewRecovery   bool     `json:"can_review_recovery"`
 	passwordAt          int64
 	factorAt            int64
+	recoveryEpoch       string
+	recoveryNomination  string
+	recoveryIdentity    string
 }
 
 type identityReader interface {
@@ -137,7 +142,8 @@ func principal(ctx context.Context, q identityReader, hash string, now time.Time
 		// authority. Do not expose checkpoint roles, memberships or permissions.
 		p.Roles = []string{}
 		p.ScopeKey = TokenHash(p.ID + ":recovery-quarantine")
-		return p, nil
+		err = recoveryReviewer(ctx, q, &p, now)
+		return p, err
 	}
 	p.Roles = []string{}
 	rows, err := q.QueryContext(ctx, `SELECT DISTINCT role FROM role_grants WHERE user_id = ?

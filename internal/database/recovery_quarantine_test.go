@@ -18,6 +18,7 @@ func controlledRecoveryOrigin() RecoveryOrigin {
 func withoutRecoveryRows(rows map[string]string) map[string]string {
 	delete(rows, "recovery_epochs")
 	delete(rows, "recovery_external_jobs")
+	delete(rows, "recovery_epoch_heads")
 	return rows
 }
 

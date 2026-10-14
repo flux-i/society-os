@@ -72,7 +72,7 @@ try {
     !argument.startsWith('-') && argument.endsWith('.spec.ts')
       ? '(?:^|[\\\\/])' + argument.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'
       : argument)
-  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: pwaFixture?.origin ?? base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_WEB_DIR: webDir, SOCIETY_BROWSER_ARTIFACTS: artifacts,...(whatsappFixture?{SOCIETY_WHATSAPP_FIXTURE:whatsappFixture.origin}:{}),...(offsiteFixture?{SOCIETY_OFFSITE_FIXTURE:offsiteFixture.origin,SOCIETY_OFFSITE_READER:offsiteFixture.reader,SOCIETY_OFFSITE_IDENTITY:offsiteFixture.identities[0],SOCIETY_OFFSITE_SECOND_IDENTITY:offsiteFixture.identities[1],SOCIETY_BROWSER_BINARY:binary}:{}) } })
+  const runner = spawn(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', ...testArguments], { stdio: 'inherit', env: { ...process.env, SOCIETY_BROWSER_URL: pwaFixture?.origin ?? base, SOCIETY_BROWSER_DB: db, SOCIETY_BROWSER_BINARY: binary, SOCIETY_BROWSER_WEB_DIR: webDir, SOCIETY_BROWSER_ARTIFACTS: artifacts,...(whatsappFixture?{SOCIETY_WHATSAPP_FIXTURE:whatsappFixture.origin}:{}),...(offsiteFixture?{SOCIETY_OFFSITE_FIXTURE:offsiteFixture.origin,SOCIETY_OFFSITE_READER:offsiteFixture.reader,SOCIETY_OFFSITE_IDENTITY:offsiteFixture.identities[0],SOCIETY_OFFSITE_SECOND_IDENTITY:offsiteFixture.identities[1]}:{}) } })
   process.exitCode = await new Promise(resolve => runner.on('exit', code => resolve(code ?? 1)))
 } finally {
   if (server && server.exitCode === null) {

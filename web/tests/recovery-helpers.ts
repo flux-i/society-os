@@ -31,7 +31,7 @@ export async function recoveredHost(page: Page, browser: Browser, label: string)
   expect(independent.archive.job_id).toBe(rows[0][0])
   const target = join(root, 'host', 'society.db')
   const proof = JSON.parse(execFileSync(binary, ['recover-restore', '--encrypted-file', cipher, '--expected-sha256', object.sha256, '--custody-identities-file', process.env.SOCIETY_OFFSITE_SECOND_IDENTITY!, '--out', target], { encoding: 'utf8' }))
-  expect(proof.status).toBe('restored_verified_quarantined'); expect(proof.recovery_required).toBe(true); expect(proof.manifest.schema_version).toBe(29)
+  expect(proof.status).toBe('restored_verified_quarantined'); expect(proof.recovery_required).toBe(true); expect(proof.manifest.schema_version).toBe(30)
   expect(proof.archive.job_id).toBe(rows[0][0])
   for (const key of ['mfa.key', 'messages.key']) { copyFileSync(join(runtime, 'keys', key), join(root, key)); chmodSync(join(root, key), 0o600) }
   const reservation = createServer(); await new Promise<void>((resolve, reject) => { reservation.once('error', reject); reservation.listen(0, '127.0.0.1', resolve) })
@@ -56,7 +56,8 @@ export async function recoveredHost(page: Page, browser: Browser, label: string)
 // races, separate from the authenticated operational restore above.
 export function insertControlledQuarantine() {
   const epoch = 'Q'.repeat(43)
-  db("INSERT INTO recovery_epochs VALUES(?,1,?,1585152,29,'controlled-browser-boundary',unixepoch('now')-60,unixepoch('now'))", [epoch, 'a'.repeat(64)])
+  db("INSERT INTO recovery_epochs VALUES(?,1,?,1585152,30,'controlled-browser-boundary',unixepoch('now')-60,unixepoch('now'))", [epoch, 'a'.repeat(64)])
+  db('INSERT INTO recovery_epoch_heads SELECT COALESCE(MAX(sequence),0)+1,? FROM recovery_epoch_heads', [epoch])
   db("INSERT INTO recovery_external_jobs SELECT ?,'OFFSITE',id,state,'WITHHELD' FROM offsite_backup_jobs WHERE state!='VERIFIED'", [epoch])
   db("INSERT INTO recovery_external_jobs SELECT ?,'MESSAGE',id,state,'WITHHELD' FROM message_deliveries WHERE state IN('QUEUED','CLAIMED','FAILED','UNKNOWN')", [epoch])
 }

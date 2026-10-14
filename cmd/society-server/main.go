@@ -26,7 +26,7 @@ import (
 	"society.local/portal/internal/server"
 )
 
-var version = "0.32.0-dev"
+var version = "0.33.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -40,7 +40,7 @@ func main() {
 
 func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if len(args) == 0 {
-		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-restore|recover-mfa|offsite-keygen|offsite-decrypt|offsite-reconcile|offsite-archive|version> [flags]")
+		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-restore|recover-mfa|recover-origin|recover-nominate|recover-revoke|offsite-keygen|offsite-decrypt|offsite-reconcile|offsite-archive|version> [flags]")
 	}
 	command := args[0]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -68,6 +68,9 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	custodianOne := flags.String("custodian-one", "", "first verified recovery custodian")
 	custodianTwo := flags.String("custodian-two", "", "second verified recovery custodian")
 	recoveryReason := flags.String("reason", "", "verified offline recovery reason")
+	nominationFile := flags.String("nomination-file", "", "private version-1 current recovery nomination JSON")
+	reviewerPasswordsFile := flags.String("reviewer-passwords-file", "", "separate private new reviewer passwords JSON")
+	revocationFile := flags.String("revocation-file", "", "private version-1 current recovery revocation JSON")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -76,6 +79,25 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	}
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
+	if command == "recover-origin" || command == "recover-nominate" || command == "recover-revoke" {
+		allowed := map[string]bool{"db": true}
+		if command == "recover-nominate" {
+			allowed["nomination-file"], allowed["reviewer-passwords-file"] = true, true
+		}
+		if command == "recover-revoke" {
+			allowed["revocation-file"] = true
+		}
+		for name := range explicit {
+			if !allowed[name] {
+				return errors.New("recovery review commands refuse serving, provider, custody and unrelated flags")
+			}
+		}
+		if !explicit["db"] || *dbPath == "" || (command == "recover-nominate" && (*nominationFile == "" || *reviewerPasswordsFile == "")) || (command == "recover-revoke" && *revocationFile == "") {
+			return errors.New("recovery review requires an explicit existing --db and the command's separate private input files")
+		}
+	} else if *nominationFile != "" || *reviewerPasswordsFile != "" || *revocationFile != "" {
+		return errors.New("recovery nomination inputs are exclusively offline; the server refuses them")
+	}
 	if *demo && *workspace {
 		return errors.New("choose --demo or --workspace")
 	}
@@ -200,7 +222,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return printJSON(map[string]any{"status": "restored_verified_quarantined", "recovery_required": true, "elapsed_ms": float64(time.Since(start).Microseconds()) / 1000, "manifest": manifest})
 	}
 	switch command {
-	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa", "offsite-reconcile", "offsite-archive":
+	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa", "offsite-reconcile", "offsite-archive", "recover-origin", "recover-nominate", "recover-revoke":
 	default:
 		return errors.New("unknown command")
 	}
@@ -224,6 +246,42 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 			return err
 		}
 	}
+	var nomination database.RecoveryNomination
+	var reviewerPasswords database.RecoveryPasswords
+	var revocation database.RecoveryRevocation
+	if command == "recover-origin" || command == "recover-nominate" || command == "recover-revoke" {
+		if info, err := os.Lstat(*dbPath); err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
+			return errors.New("recovery review requires an existing regular private database")
+		}
+		if command == "recover-nominate" {
+			body, err := readPrivateFile(*nominationFile, 32768)
+			if err != nil {
+				return err
+			}
+			nomination, err = database.ParseRecoveryNomination(body)
+			if err != nil {
+				return err
+			}
+			body, err = readPrivateFile(*reviewerPasswordsFile, 8192)
+			if err != nil {
+				return err
+			}
+			reviewerPasswords, err = database.ParseRecoveryPasswords(body)
+			if err != nil {
+				return err
+			}
+		}
+		if command == "recover-revoke" {
+			body, err := readPrivateFile(*revocationFile, 8192)
+			if err != nil {
+				return err
+			}
+			revocation, err = database.ParseRecoveryRevocation(body)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	store, err := database.Open(ctx, *dbPath)
 	if err != nil {
 		return err
@@ -240,6 +298,29 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		}
 	}
 	switch command {
+	case "recover-origin":
+		origin, err := store.RecoveryOriginForCustody(ctx)
+		if err != nil {
+			return err
+		}
+		return printJSON(origin)
+	case "recover-nominate":
+		if err := store.VerifySchema(ctx); err != nil {
+			return err
+		}
+		result, err := store.NominateRecovery(ctx, nomination, reviewerPasswords)
+		if err != nil {
+			return err
+		}
+		return printJSON(result)
+	case "recover-revoke":
+		if err := store.VerifySchema(ctx); err != nil {
+			return err
+		}
+		if err := store.RevokeRecoveryNomination(ctx, revocation); err != nil {
+			return err
+		}
+		return printJSON(map[string]string{"status": "recovery_nomination_revoked", "operation_id": revocation.OperationID})
 	case "bootstrap":
 		// A committed setup binds both keys. Never create a missing replacement on
 		// retry, even before the first administrator has enrolled an authenticator.

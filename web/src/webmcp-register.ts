@@ -78,6 +78,13 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
     const search = { type: 'string', maxLength: 100, description: 'A home number or name from the signed-in account’s permitted results.' }
     const page = { type: 'integer', minimum: 1, maximum: 10000 }
     if (user.recovery_required) {
+      if (user.can_review_recovery) add('society_read_recovery_review_status', 'Read bounded current review counts only. This cannot appoint, approve, resume, expose people/source/job identities, retrieve evidence or perform an external action. Stable reads preserve human forms.', {}, [], async (_input, signal, me) => {
+        if (!me.can_review_recovery) throw new Error('Current recovery review authority is required.')
+        type ReviewStatus = { pending: number; approved: number; declined: number; stale: number; retained_work: number; status_key: string; can_resume: boolean }
+        const first = await request<ReviewStatus>('/api/recovery/status', signal), fresh = await request<ReviewStatus>('/api/recovery/status', signal)
+        if (first.status_key !== fresh.status_key) throw new Error('The review version changed. Read current review status again.')
+        return { pending: fresh.pending, approved_preparation: fresh.approved, declined: fresh.declined, earlier_appointment: fresh.stale, unfinished_actions_held: fresh.retained_work, can_resume: false }
+      })
       add('society_read_recovery_state', 'Read the current recovery boundary only. Private access, financial changes and external handoffs remain withheld. No private data, job identities, source hashes, keys or recovery mutation is exposed.', {}, [], async (_input, _signal, me) => {
         if (!me.recovery_required) throw new Error('The recovery boundary changed. Discover tools again.')
         return { recovery_required: true, private_access: 'WITHHELD', financial_changes: 'WITHHELD', external_handoffs: 'WITHHELD', can_resume: false }

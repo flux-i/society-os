@@ -1,5 +1,86 @@
 @import "tailwindcss";
 
+/* Current recovery reviewers use the same calm community interface. */
+.review-desk { max-width: 1280px; margin: 0 auto; padding: 34px 56px; outline: none; }
+.review-desk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.review-desk-actions .button { min-height: 42px; }
+.review-desk-intro { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); gap: 60px; align-items: center; margin: 56px 0 40px; }
+.review-desk-intro h1 { font: 400 clamp(48px,5vw,68px)/1.08 var(--font-display); letter-spacing: -1.3px; margin: 18px 0 24px; }
+.review-desk-intro h1 em,.review-desk-intro h2 em { font-weight: 400; color: #7f8f58; }
+.review-desk-intro p { color: var(--color-muted); line-height: 1.9; font-size: 14px; }
+.review-desk-intro aside { padding: 30px; border-left: 1px solid var(--color-line); }
+.review-desk-intro aside > svg { width: 26px; height: 30px; color: #7f8f58; }
+.review-desk-intro h2 { font: 400 32px/1.2 var(--font-display); margin: 14px 0; }
+.review-desk-intro aside p { font-size: 12px; max-width: 300px; }
+.review-desk-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
+.review-desk-stats article { border-radius: 18px; padding: 24px 27px; background: #e9edde; }
+.review-desk-stats article:nth-child(2) { background: #eee5d9; }
+.review-desk-stats article:nth-child(3) { background: #ebe8ed; }
+.review-desk-stats span { color: var(--color-muted); font-size: 10px; letter-spacing: 1.2px; line-height: 1.7; display: block; }
+.review-desk-stats strong { font: 400 57px/1.1 var(--font-display); margin: 17px 0 7px; display: block; }
+.review-desk-stats p { color: var(--color-muted); font-size: 12px; margin: 0; line-height: 1.6; }
+.review-desk-appointment { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 15px; padding: 20px 0; font-size: 11px; color: var(--color-muted); }
+.review-desk-appointment .text-button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; }
+.review-desk-source { font-size: 11px; color: var(--color-muted); padding-bottom: 24px; line-height: 1.8; overflow-wrap: anywhere; }
+.review-desk-source summary { cursor: pointer; width: fit-content; padding: 6px 0; }
+.review-desk-source code { font-size: 10px; }
+.review-desk-tabs { display: flex; flex-wrap: wrap; gap: 5px; border-bottom: 1px solid var(--color-line); margin: 12px 0 28px; }
+.review-desk-tabs button { min-height: 48px; padding: 12px 20px; font-size: 13px; color: var(--color-muted); border-bottom: 2px solid transparent; }
+.review-desk-tabs button[aria-current=page] { color: var(--color-forest); border-color: #78865b; }
+.review-desk-tabs button:hover { background: #e9edde; border-radius: 8px 8px 0 0; }
+.review-desk-heading { display: flex; align-items: center; justify-content: space-between; gap: 25px; margin: 22px 0; }
+.review-desk-heading > div { min-width: 0; }
+.review-desk-heading h2 { font: 400 34px/1.2 var(--font-display); margin: 0 0 10px; }
+.review-desk-heading p { color: var(--color-muted); font-size: 12px; line-height: 1.85; max-width: 650px; }
+.review-desk-heading .button { flex: 0 0 auto; }
+.review-desk-search { display: grid; gap: 9px; font-size: 11px; color: var(--color-muted); margin: 23px 0; max-width: 570px; }
+.review-desk-search input { min-height: 48px; width: 100%; padding: 12px 16px; border: 1px solid var(--color-line); background: #fffdf8; color: var(--color-forest); border-radius: 10px; font-size: 13px; }
+.review-desk-filters { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; max-width: 520px; margin: 23px 0; }
+.review-desk-filters .filter-select { width: 100%; }
+.review-desk-list { display: grid; gap: 12px; }
+.review-desk-list article { display: flex; align-items: center; gap: 20px; padding: 23px; background: #fffdf8; border: 1px solid var(--color-line); border-radius: 16px; }
+.review-desk-symbol { display: grid; place-items: center; width: 45px; height: 45px; background: #e9edde; border-radius: 13px; flex: 0 0 auto; }
+.review-desk-symbol svg { width: 23px; height: 23px; }
+.review-desk-list article > div { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.review-desk-list h3 { font-size: 14px; font-weight: 500; margin: 4px 0 8px; }
+.review-desk-list p { font-size: 12px; line-height: 1.7; color: var(--color-muted); margin: 0; }
+.review-desk-list article > div > span:not(.eyebrow) { color: var(--color-muted); font-size: 10px; display: inline-block; margin-top: 7px; }
+.review-desk-list code { color: var(--color-muted); font-size: 10px; overflow-wrap: anywhere; }
+.review-desk-list article > .button { flex: 0 0 auto; }
+.review-desk-empty { padding: 45px 24px; border: 1px dashed var(--color-line); border-radius: 16px; text-align: center; color: var(--color-muted); margin: 20px 0; }
+.review-desk-empty svg { width: 24px; height: 24px; margin: 0 auto 17px; }
+.review-desk-empty h3 { font: 400 29px/1.2 var(--font-display); color: var(--color-forest); margin: 0 0 13px; }
+.review-desk-empty p { font-size: 12px; line-height: 1.8; margin: 0; }
+.review-desk-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 23px 0; }
+.review-desk-pager span { font-size: 11px; color: var(--color-muted); }
+.review-desk-feedback,.review-desk-note { border: 1px solid #d9e1c9; border-radius: 12px; background: #f0f3e9; color: #4e624d; font-size: 12px; line-height: 1.85; padding: 17px 20px; margin: 22px 0; }
+.review-desk-error { padding: 20px; border: 1px solid var(--color-line); border-radius: 12px; margin: 20px 0; }
+.review-desk-error p { color: #884e35; font-size: 12px; line-height: 1.8; margin-bottom: 14px; }
+.review-desk-dialog { width: min(660px,calc(100vw - 32px)); overflow-wrap: anywhere; }
+.review-desk-dialog-top { min-height: 82px; height: 82px; padding: 0 85px 0 32px; display: flex; align-items: center; border-bottom: 1px solid var(--color-line); }
+.review-desk-dialog .dialog-scroll { padding: 24px 32px 32px; }
+.review-desk-dialog .dialog-scroll > .form-error + .button, .review-desk-dialog [role="alert"] > .form-error + .button { margin-top: 12px; }
+.review-desk-dialog h2 { font: 400 45px/1.08 var(--font-display); letter-spacing: -.7px; margin: 16px 0 22px; }
+.review-desk-dialog h2 em { color: #7f8f58; font-weight: 400; }
+.review-desk-dialog .portal-form fieldset { display: grid; gap: 18px; padding: 0; margin: 0 0 20px; min-width: 0; border: 0; }
+.review-desk-dialog .form-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; }
+.review-desk-dialog .checkbox-label { display: flex; align-items: start; gap: 11px; font-size: 12px; line-height: 1.8; }
+.review-desk-dialog .checkbox-label input { flex: 0 0 18px; width: 18px; min-height: 18px; height: 18px; margin-top: 3px; padding: 0; accent-color: var(--color-forest); }
+.review-desk-retained { padding: 23px; margin: 20px 0; border: 1px solid var(--color-line); border-radius: 14px; background: #f8f8f0; display: grid; gap: 10px; min-width: 0; font-size: 12px; line-height: 1.8; }
+.review-desk-retained strong { font-size: 14px; font-weight: 500; }
+.review-desk-retained span,.review-desk-retained code { color: var(--color-muted); font-size: 11px; overflow-wrap: anywhere; }
+.review-desk-retained p { white-space: pre-wrap; margin-top: 9px; }
+.review-desk-decision { padding: 23px; margin: 20px 0; border-radius: 14px; background: #e9edde; }
+.review-desk-decision h3,.review-desk-history h3 { font: 400 29px/1.2 var(--font-display); margin: 0 0 16px; }
+.review-desk-decision p,.review-desk-history p { white-space: pre-wrap; font-size: 12px; line-height: 1.85; margin: 8px 0; }
+.review-desk-decision span,.review-desk-history span { color: var(--color-muted); font-size: 11px; line-height: 1.8; }
+.review-desk-history { padding-top: 26px; margin-top: 26px; border-top: 1px solid var(--color-line); }
+.review-desk-history article { padding: 16px 0; border-bottom: 1px solid var(--color-line); }
+.review-desk-history strong { font-size: 11px; font-weight: 500; color: #66764c; }
+.review-desk .recovery-footnote { margin-top: 45px; padding-top: 24px; border-top: 1px solid var(--color-line); }
+@media (max-width: 900px) { .review-desk { padding: 28px; } .review-desk-intro { gap: 25px; margin: 40px 0 30px; } .review-desk-intro aside { padding: 22px; } .review-desk-stats article { padding: 22px; } .review-desk .recovery-top { align-items: start; } .review-desk .recovery-top .review-desk-actions { justify-content: flex-end; max-width: 400px; } }
+@media (max-width: 600px) { .review-desk { padding: 23px 20px; } .review-desk .recovery-top { flex-wrap: wrap; gap: 16px; } .review-desk .recovery-top .review-desk-actions { width: 100%; max-width: none; justify-content: flex-start; gap: 10px; } .review-desk .recovery-status { width: 100%; font-size: 11px; } .review-desk-intro { grid-template-columns: minmax(0,1fr); margin-top: 32px; gap: 20px; } .review-desk-intro h1 { font-size: 45px; } .review-desk-intro aside { border-left: 0; border-top: 1px solid var(--color-line); padding: 22px 0 0; } .review-desk-intro aside > svg { display: none; } .review-desk-intro h2 { font-size: 29px; } .review-desk-stats { grid-template-columns: minmax(0,1fr); gap: 10px; } .review-desk-stats article { padding: 20px 23px; } .review-desk-stats strong { font-size: 44px; margin: 10px 0 4px; } .review-desk-tabs { gap: 0; } .review-desk-tabs button { padding: 10px 12px; font-size: 11px; } .review-desk-heading { flex-wrap: wrap; gap: 13px; } .review-desk-heading h2 { font-size: 31px; } .review-desk-list article { flex-wrap: wrap; gap: 13px; padding: 19px; } .review-desk-list article > div { flex: 1 1 calc(100% - 60px); } .review-desk-list article > .button { width: 100%; justify-content: space-between; } .review-desk-filters { grid-template-columns: minmax(0,1fr); } .review-desk-dialog h2 { font-size: 37px; } .review-desk-dialog .form-row { grid-template-columns: minmax(0,1fr); } .review-desk-retained,.review-desk-decision { padding: 17px; } .review-desk-actions .button { flex: 1 1 auto; } }
+
 /* A recovered workspace keeps the approved palette and withholds old authority. */
 .recovery-screen { max-width: 1200px; margin: 0 auto; padding: 38px 56px 32px; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 56px 72px; min-height: 100dvh; align-content: center; outline: none; }
 .recovery-top { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-bottom: 25px; border-bottom: 1px solid var(--color-line); }
@@ -2557,4 +2638,11 @@
 @media (max-width:375px) {
  .backup-custody-summary { grid-template-columns:minmax(0,1fr); gap:8px; }
  .backup-custody-summary h3 { font-size:25px; }
+}
+
+@media (max-width:600px) { .review-desk-dialog .dialog-scroll { padding:20px 20px 24px; } .review-desk-dialog-top { padding-left:20px; } }
+@media (max-width:480px) {
+ .review-desk-pager { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; }
+ .review-desk-pager > span { grid-column:1/-1; grid-row:1; text-align:center; }
+ .review-desk-pager > button { width:100%; min-width:0; justify-content:center; }
 }

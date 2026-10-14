@@ -81,5 +81,9 @@ func (s *Store) QuarantineRecovery(ctx context.Context, origin RecoveryOrigin, n
 			return RecoveryOrigin{}, err
 		}
 	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO recovery_epoch_heads(sequence,epoch_id)
+		SELECT COALESCE(MAX(sequence),0)+1,? FROM recovery_epoch_heads`, origin.ID); err != nil {
+		return RecoveryOrigin{}, err
+	}
 	return origin, tx.Commit()
 }

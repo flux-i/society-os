@@ -294,7 +294,7 @@ func TestOffsiteCustodyArchiveKeepsExactBytesAndOriginalThroughCleanupAndResume(
 		t.Fatal(err)
 	}
 	want := persistentSnapshotRows(t, filepath.Join(bundle, "society.db"))
-	if len(want) != 107 || len(want["offsite_custody_dispositions"]) != 1 {
+	if len(want) != 113 || len(want["offsite_custody_dispositions"]) != 1 {
 		t.Fatal("Snapshot omitted populated custody evidence", len(want))
 	}
 	path := filepath.Join(t.TempDir(), "recovered", "society.db")

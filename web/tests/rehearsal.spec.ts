@@ -204,7 +204,7 @@ test('populated configured snapshot and restore preserve source, private origina
   const folder=artifactFolder();mkdirSync(folder,{recursive:true,mode:0o700});const runtime=dirname(db),binary=join(runtime,'society-server'),snapshot=join(folder,'snapshot'),restored=join(folder,'restored','society.db')
   for(const name of ['mfa.key','messages.key']){const source=join(runtime,'keys',name==='messages.key'?'messages.key':'mfa.key');copyFileSync(source,join(folder,name))}
   const result=JSON.parse(execFileSync(binary,['snapshot','--db',db,'--out',snapshot],{encoding:'utf8'}))
-  expect(result.schema_version).toBe(29)
+  expect(result.schema_version).toBe(30)
   execFileSync(binary,['restore-check','--snapshot',snapshot,'--out',restored],{encoding:'utf8'})
   const verify=`import sqlite3,json,sys,hashlib
 def state(path):
@@ -215,11 +215,13 @@ def state(path):
  return c,definitions,rows
 a,ad,ar=state(sys.argv[1]);b,bd,br=state(sys.argv[2]);assert ad==bd and ar.keys()==br.keys()
 for t in ar:
- if t not in ['recovery_epochs','recovery_external_jobs']:assert ar[t]==br[t],t
+ if t not in ['recovery_epochs','recovery_external_jobs','recovery_epoch_heads']:assert ar[t]==br[t],t
 assert len(ar['recovery_epochs'])==0 and len(br['recovery_epochs'])==1
+assert len(ar['recovery_epoch_heads'])==0 and len(br['recovery_epoch_heads'])==1
+assert b.execute('SELECT epoch_id FROM recovery_epoch_heads ORDER BY sequence DESC LIMIT 1').fetchone()[0]==b.execute('SELECT id FROM recovery_epochs').fetchone()[0]
 assert len(ar['recovery_external_jobs'])==0
 expected=json.loads(sys.argv[3])
-assert b.execute('SELECT source_sha256,source_bytes,source_schema,source_application FROM recovery_epochs').fetchone()==(expected['sha256'],expected['bytes'],29,expected['application_version'])
+assert b.execute('SELECT source_sha256,source_bytes,source_schema,source_application FROM recovery_epochs').fetchone()==(expected['sha256'],expected['bytes'],30,expected['application_version'])
 withheld=b.execute("SELECT (SELECT COUNT(*) FROM offsite_backup_jobs WHERE state!='VERIFIED')+(SELECT COUNT(*) FROM message_deliveries WHERE state IN('QUEUED','CLAIMED','FAILED','UNKNOWN'))").fetchone()[0]
 assert len(br['recovery_external_jobs'])==withheld
 assert b.execute('PRAGMA integrity_check').fetchone()[0]=='ok' and not b.execute('PRAGMA foreign_key_check').fetchall()
@@ -228,7 +230,7 @@ assert b.execute("SELECT SUM(CASE WHEN kind='RECEIVED' THEN -amount_paise ELSE a
 assert b.execute('SELECT COUNT(*) FROM receipts').fetchone()[0]==1
 assert b.execute("SELECT COUNT(*) FROM flat_memberships WHERE flat_id=(SELECT entity_id FROM registry_import_entities WHERE entity_kind='HOME' AND source_id='a-101') AND can_view_finances=1").fetchone()[0]==0
 print(json.dumps({'persistent_tables':len(ar)-1,'all_original_rows_and_definitions_preserved':True,'only_recovery_journal_appended':True,'recovery_required':True,'integrity_and_foreign_keys':True,'bearer_sessions_purged':True,'balance_paise':150001,'original_receipts':1}))`
-  const proof=JSON.parse(execFileSync('python3',['-c',verify,db,restored,JSON.stringify(result)],{encoding:'utf8'}));expect(proof.persistent_tables).toBe(106)
+  const proof=JSON.parse(execFileSync('python3',['-c',verify,db,restored,JSON.stringify(result)],{encoding:'utf8'}));expect(proof.persistent_tables).toBe(112)
   expect(readDB('SELECT snapshot_json FROM receipts WHERE id=?',[receiptID])[0][0]).toBe(originalSnapshot)
   const issuer=JSON.parse(originalSnapshot).issuer;expect(issuer.name).toBe('The Neighbourhood Rehearsal')
   const hash=(path:string)=>createHash('sha256').update(readFileSync(path)).digest('hex')

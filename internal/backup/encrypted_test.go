@@ -137,7 +137,7 @@ func TestEncryptedPopulatedSnapshotRestoresWithEitherIndependentCustodyIdentity(
 	}
 	bundle := filepath.Join(root, "snapshot")
 	start := time.Now().Add(-time.Second).Unix()
-	if _, err := Snapshot(ctx, s, bundle, "0.32.0-dev"); err != nil {
+	if _, err := Snapshot(ctx, s, bundle, "0.33.0-dev"); err != nil {
 		t.Fatal(err)
 	}
 	recipients, identities := custodyPair(t)
@@ -152,13 +152,13 @@ func TestEncryptedPopulatedSnapshotRestoresWithEitherIndependentCustodyIdentity(
 		t.Fatal("standard encrypted envelope or plaintext isolation")
 	}
 	want := persistentSnapshotRows(t, filepath.Join(bundle, "society.db"))
-	if len(want) != 107 { // 106 persistent business tables plus migration provenance.
+	if len(want) != 113 { // 112 persistent business tables plus migration provenance.
 		t.Fatal("complete current snapshot inventory", len(want))
 	}
 	for i, identity := range identities {
 		extracted := filepath.Join(root, "custodian-"+string(rune('a'+i)))
 		got, manifest, err := DecryptArchive(ctx, encrypted, hash, extracted, []age.Identity{identity})
-		if err != nil || got.CapturedAt != start || got.JobID != info.JobID || manifest.SchemaVersion != 29 {
+		if err != nil || got.CapturedAt != start || got.JobID != info.JobID || manifest.SchemaVersion != 30 {
 			t.Fatal("independent custodian decrypt", i, got, err)
 		}
 		target := filepath.Join(root, "restored-"+string(rune('a'+i))+".db")

@@ -1,0 +1,12 @@
+export interface RecoveryAccess { account_id: string; email: string; name: string; identity_ref: string; role: string; home_id: string; relationship: string; finance: boolean; valid_from: number; valid_until: number; verified_at: number; evidence_ref: string }
+export interface RecoveryWork { kind: 'OFFSITE' | 'MESSAGE'; job_id: string; original_state: string; outcome: string; evidence_ref: string }
+export interface RecoveryInput { operation_key: string; scope_key: string; kind: 'ACCESS' | 'EXTERNAL'; predecessor_id: string; predecessor_version: number; title: string; reason: string; access: RecoveryAccess | null; work: RecoveryWork | null }
+export interface RecoveryDecisionInput { operation_key: string; scope_key: string; version: number; decision: 'APPROVED' | 'DECLINED'; reason: string; attestation: string; confirmed: boolean }
+export interface RecoveryProposal { id: string; kind: RecoveryInput['kind']; title: string; state: 'PENDING' | 'APPROVED' | 'DECLINED' | 'STALE'; version: number; author_id: string; author: string; created_at: number; predecessor_id: string; input: RecoveryInput; decision: { actor: string; decision: 'APPROVED' | 'DECLINED'; reason: string; attestation: string; at: number } | null }
+export interface RecoveryCandidate { id: string; email: string; name: string; state: string }
+export interface RecoveryPage<T> { items: T[]; total: number; page: number; page_size: number }
+export interface RecoverySummary { origin: { id: string; source_sha256: string; source_created_at: number; restored_at: number; source_application: string }; appointment_until: number; pending: number; approved: number; declined: number; stale: number; retained_accounts: number; retained_work: number; status_key: string; can_resume: false }
+export const recoveryState = { PENDING: 'Awaiting review', APPROVED: 'Approved preparation', DECLINED: 'Declined', STALE: 'Earlier appointment' }
+export const recoveryRole = { ADMINISTRATOR: 'Registry administrator', COMMITTEE: 'Committee', TREASURER: 'Treasurer', AUDITOR: 'Accountant / auditor', HOUSEHOLD: 'Household member' }
+export const recoveryOutcome = { RETAIN_UNKNOWN: 'Keep outcome uncertain', EVIDENCE_CONFIRMED: 'Independent evidence recorded', ABANDONED: 'Close out without replay' }
+export const recoveryDate = (value: number) => new Date(value * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' IST'

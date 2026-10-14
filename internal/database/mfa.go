@@ -48,6 +48,9 @@ func (s *Store) beginIdentityWrite(ctx context.Context, token string) (*sql.Tx, 
 		return nil, Principal{}, err
 	}
 	p, err := principal(ctx, tx, TokenHash(token), time.Now())
+	if err == nil && p.RecoveryRequired && !p.RecoveryReviewer {
+		err = ErrRecoveryRequired
+	}
 	if err != nil {
 		tx.Rollback()
 		return nil, p, err
@@ -310,6 +313,9 @@ func (s *Store) DemoVerificationCode(ctx context.Context, token string) (string,
 		return "", false, err
 	}
 	defer tx.Rollback()
+	if p.RecoveryRequired {
+		return "", false, ErrForbidden
+	}
 	if !p.IsDemo {
 		return "", false, ErrForbidden
 	}

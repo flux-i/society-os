@@ -27,3 +27,5 @@ Execution is divided into complete subworkflows. The first is [custodied retaine
 This contract does not establish real custodian verification, an adopted statutory numbering policy, target-host/HTTPS operation or production acceptance.
 
 The next [current recovery authority and retained-work review contract](recovery-review-workflow.md) is saved before implementation after verified 0.32 application/metadata publication. Financial/private ordinary access and old handoffs stay held until the remaining independent numbering and final-cutover conditions are achieved.
+
+Current recovery authority and retained-work review is now [locally accepted in 0.33/schema 30](recovery-review-baseline.md). Actual current nominees with real MFA can prepare access and external-evidence decisions with another reviewer; no ordinary authority, receipt issuance, old handoff or final cutover is released. Its private archival/personal publication must finish before fresh independently reserved numbering. The parent checklist remains incomplete; subworkflow acceptance does not establish final recovered-host or production acceptance.

@@ -22,8 +22,8 @@ func assertQuarantinedOriginals(t *testing.T, bundle, destination string) {
 	t.Helper()
 	source := filepath.Join(bundle, "society.db")
 	want, got := persistentSnapshotRows(t, source), persistentSnapshotRows(t, destination)
-	if len(want) != 107 || len(got) != 107 {
-		t.Fatal("Expected all106 business tables plus provenance", len(want), len(got))
+	if len(want) != 113 || len(got) != 113 {
+		t.Fatal("Expected all112 business tables plus provenance", len(want), len(got))
 	}
 	if len(got["recovery_epochs"]) != len(want["recovery_epochs"])+1 {
 		t.Fatal("Recovery did not append exactly one immutable epoch")
@@ -50,6 +50,20 @@ func assertQuarantinedOriginals(t *testing.T, bundle, destination string) {
 	delete(got, "recovery_epochs")
 	delete(want, "recovery_external_jobs")
 	delete(got, "recovery_external_jobs")
+	if len(got["recovery_epoch_heads"]) != len(want["recovery_epoch_heads"])+1 {
+		t.Fatal("Recovery did not append exactly one durable current epoch head")
+	}
+	for _, old := range want["recovery_epoch_heads"] {
+		found := false
+		for _, current := range got["recovery_epoch_heads"] {
+			found = found || current == old
+		}
+		if !found {
+			t.Fatal("Recovery replaced a predecessor authority boundary")
+		}
+	}
+	delete(want, "recovery_epoch_heads")
+	delete(got, "recovery_epoch_heads")
 	if !reflect.DeepEqual(want, got) {
 		t.Fatal("Recovery changed a confirmed original, private BLOB, source or provenance")
 	}
@@ -70,7 +84,7 @@ func assertQuarantinedOriginals(t *testing.T, bundle, destination string) {
 	if err := store.DB.QueryRow("SELECT (SELECT COUNT(*) FROM offsite_backup_jobs WHERE state!='VERIFIED')+(SELECT COUNT(*) FROM message_deliveries WHERE state IN('QUEUED','CLAIMED','FAILED','UNKNOWN'))").Scan(&expected); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.DB.QueryRow("SELECT COUNT(*) FROM recovery_external_jobs WHERE epoch_id=(SELECT id FROM recovery_epochs ORDER BY rowid DESC LIMIT 1)").Scan(&actual); err != nil || actual != expected {
+	if err := store.DB.QueryRow("SELECT COUNT(*) FROM recovery_external_jobs WHERE epoch_id=(SELECT epoch_id FROM recovery_epoch_heads ORDER BY sequence DESC LIMIT 1)").Scan(&actual); err != nil || actual != expected {
 		t.Fatal("Recovery failed to retain every unresolved external identity", expected, actual, err)
 	}
 	if required, err := store.RecoveryRequired(context.Background()); err != nil || !required {

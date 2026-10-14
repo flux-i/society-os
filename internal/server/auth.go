@@ -52,7 +52,7 @@ func (s *Server) protected(next http.HandlerFunc) http.HandlerFunc {
 			s.resultError(w, r, err)
 			return
 		}
-		if p.RecoveryRequired && r.URL.Path != "/api/auth/me" && r.URL.Path != "/api/auth/logout" {
+		if p.RecoveryRequired && !recoveryRoutePermitted(p, r.URL.Path) {
 			s.resultError(w, r, database.ErrRecoveryRequired)
 			return
 		}
@@ -69,6 +69,20 @@ func (s *Server) protected(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, p)))
 	}
+}
+
+func recoveryRoutePermitted(p database.Principal, path string) bool {
+	if path == "/api/auth/me" || path == "/api/auth/logout" {
+		return true
+	}
+	if !p.RecoveryReviewer {
+		return false
+	}
+	switch path {
+	case "/api/auth/mfa/setup", "/api/auth/mfa/confirm", "/api/auth/mfa/verify", "/api/auth/reauthenticate", "/api/auth/recovery-codes":
+		return true
+	}
+	return strings.HasPrefix(path, "/api/recovery/")
 }
 
 func decode(w http.ResponseWriter, r *http.Request, value any) bool {

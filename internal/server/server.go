@@ -35,6 +35,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	guard := newLoginGuard()
 	s.accountRoutes(mux, guard)
+	s.recoveryReviewRoutes(mux)
 	s.accountAdministrationRoutes(mux)
 	s.registryImportRoutes(mux)
 	s.recordRoutes(mux)
