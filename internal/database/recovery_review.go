@@ -238,7 +238,15 @@ func (s *Store) RecoverySummaryFor(ctx context.Context, token string) (RecoveryS
 	 (SELECT COUNT(*) FROM users), (SELECT COUNT(*) FROM recovery_external_jobs WHERE epoch_id=?)`, p.recoveryEpoch, p.recoveryNomination, p.recoveryEpoch, p.recoveryNomination, p.recoveryEpoch, p.recoveryNomination, p.recoveryEpoch, p.recoveryNomination, p.recoveryEpoch).Scan(&x.Pending, &x.Approved, &x.Declined, &x.Stale, &x.RetainedAccounts, &x.RetainedWork); err != nil {
 		return x, err
 	}
-	body, _ := json.Marshal([]any{p.ScopeKey, x.Pending, x.Approved, x.Declined, x.Stale, x.RetainedAccounts, x.RetainedWork})
+	numbering, err := numberingStatus(ctx, tx, p)
+	if err != nil {
+		return x, err
+	}
+	x.Pending += numbering.Pending
+	x.Approved += numbering.Approved
+	x.Declined += numbering.declined
+	x.Stale += numbering.stale
+	body, _ := json.Marshal([]any{p.ScopeKey, x.Pending, x.Approved, x.Declined, x.Stale, x.RetainedAccounts, x.RetainedWork, numbering.StatusKey})
 	x.StatusKey = InputDigest(body)
 	return x, tx.Commit()
 }
@@ -470,8 +478,8 @@ func (s *Store) ProposeRecovery(ctx context.Context, token string, in RecoveryPr
 	if !errors.Is(err, sql.ErrNoRows) {
 		return x, err
 	}
-	var reused bool
-	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM recovery_decisions WHERE operation_key=?)", in.OperationKey).Scan(&reused); err != nil {
+	reused, err := recoveryOperationUsed(ctx, tx, in.OperationKey)
+	if err != nil {
 		return x, err
 	}
 	if reused {
@@ -584,8 +592,8 @@ func (s *Store) DecideRecovery(ctx context.Context, token, id string, in Recover
 	if !errors.Is(err, sql.ErrNoRows) {
 		return x, err
 	}
-	var reused bool
-	if err = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM recovery_proposals WHERE operation_key=?)", in.OperationKey).Scan(&reused); err != nil {
+	reused, err := recoveryOperationUsed(ctx, tx, in.OperationKey)
+	if err != nil {
 		return x, err
 	}
 	if reused {

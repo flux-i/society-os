@@ -85,6 +85,13 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
         if (first.status_key !== fresh.status_key) throw new Error('The review version changed. Read current review status again.')
         return { pending: fresh.pending, approved_preparation: fresh.approved, declined: fresh.declined, earlier_appointment: fresh.stale, unfinished_actions_held: fresh.retained_work, can_resume: false }
       })
+      if (user.can_review_recovery) add('society_read_recovery_numbering_status', 'Read bounded current numbering-preparation counts. Stable reads preserve human forms. This exposes no prefixes, people, custody/source/object identities, ciphertext, credentials or versions and cannot approve, reserve, retry, reconcile, issue or release anything.', {}, [], async (_input, signal, me) => {
+        if (!me.can_review_recovery) throw new Error('Current recovery review authority is required.')
+        type NumberingStatus = { pending: number; approved: number; verified: number; unresolved: number; status_key: string }
+        const first = await request<NumberingStatus>('/api/recovery/numbering/status', signal), fresh = await request<NumberingStatus>('/api/recovery/numbering/status', signal)
+        if (first.status_key !== fresh.status_key) throw new Error('Numbering preparation changed. Read its current status again.')
+        return { pending: fresh.pending, approved_preparation: fresh.approved, independent_originals_verified: fresh.verified, unresolved_handoffs: fresh.unresolved, can_resume: false }
+      })
       add('society_read_recovery_state', 'Read the current recovery boundary only. Private access, financial changes and external handoffs remain withheld. No private data, job identities, source hashes, keys or recovery mutation is exposed.', {}, [], async (_input, _signal, me) => {
         if (!me.recovery_required) throw new Error('The recovery boundary changed. Discover tools again.')
         return { recovery_required: true, private_access: 'WITHHELD', financial_changes: 'WITHHELD', external_handoffs: 'WITHHELD', can_resume: false }

@@ -12,6 +12,7 @@ import (
 
 	"filippo.io/age"
 
+	"society.local/portal/internal/database"
 	"society.local/portal/internal/objectstorage"
 	"society.local/portal/internal/security"
 	"society.local/portal/internal/testfixtures"
@@ -232,7 +233,7 @@ func TestOffsiteLostReplyNeverResendsAndRequiresIndependentVersionDecrypt(t *tes
 		t.Fatal("failed independent check changed the saved result")
 	}
 	info, manifest, err := ReconcileOffsite(ctx, s, reader, id, objects[0].Version, filepath.Join(root, "verified-custody"), "Independent fictional custodian decrypted and verified the exact original", []age.Identity{identities[1]})
-	if err != nil || info.JobID != id || info.CapturedAt != j.CapturedAt || manifest.SchemaVersion != 30 {
+	if err != nil || info.JobID != id || info.CapturedAt != j.CapturedAt || manifest.SchemaVersion != database.SchemaVersion {
 		t.Fatal("independent reconciliation", info, err)
 	}
 	current, _ := s.OffsiteJobForCustody(ctx, id)

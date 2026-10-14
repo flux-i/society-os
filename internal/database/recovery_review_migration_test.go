@@ -93,7 +93,7 @@ func TestRecoveryReviewMigrationPreservesGenuineSchema29AndNeverGuessesAnAmbiguo
 			if err = s.DB.QueryRow(provenanceQuery).Scan(&retainedProvenance); err != nil || retainedProvenance != oldProvenance {
 				t.Fatal("Upgrade rewrote preceding migration provenance", err)
 			}
-			maintenanceCount(t, s, "SELECT COUNT(*) FROM schema_migrations", 30)
+			maintenanceCount(t, s, "SELECT COUNT(*) FROM schema_migrations", SchemaVersion)
 			if err = s.VerifySchema(ctx); err != nil {
 				t.Fatal("New migration lacks exact current checksummed provenance", err)
 			}

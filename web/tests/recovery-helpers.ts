@@ -31,7 +31,7 @@ export async function recoveredHost(page: Page, browser: Browser, label: string)
   expect(independent.archive.job_id).toBe(rows[0][0])
   const target = join(root, 'host', 'society.db')
   const proof = JSON.parse(execFileSync(binary, ['recover-restore', '--encrypted-file', cipher, '--expected-sha256', object.sha256, '--custody-identities-file', process.env.SOCIETY_OFFSITE_SECOND_IDENTITY!, '--out', target], { encoding: 'utf8' }))
-  expect(proof.status).toBe('restored_verified_quarantined'); expect(proof.recovery_required).toBe(true); expect(proof.manifest.schema_version).toBe(30)
+  expect(proof.status).toBe('restored_verified_quarantined'); expect(proof.recovery_required).toBe(true); expect(proof.manifest.schema_version).toBe(31)
   expect(proof.archive.job_id).toBe(rows[0][0])
   for (const key of ['mfa.key', 'messages.key']) { copyFileSync(join(runtime, 'keys', key), join(root, key)); chmodSync(join(root, key), 0o600) }
   const reservation = createServer(); await new Promise<void>((resolve, reject) => { reservation.once('error', reject); reservation.listen(0, '127.0.0.1', resolve) })

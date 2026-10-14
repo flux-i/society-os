@@ -26,7 +26,7 @@ import (
 	"society.local/portal/internal/server"
 )
 
-var version = "0.33.0-dev"
+var version = "0.34.0-dev"
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -40,7 +40,7 @@ func main() {
 
 func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	if len(args) == 0 {
-		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-restore|recover-mfa|recover-origin|recover-nominate|recover-revoke|offsite-keygen|offsite-decrypt|offsite-reconcile|offsite-archive|version> [flags]")
+		return errors.New("usage: society-server <serve|bootstrap|migrate|seed-demo|inspect|snapshot|restore-check|recover-restore|recover-mfa|recover-origin|recover-nominate|recover-revoke|recover-series-reserve|recover-series-retry|recover-series-reconcile|offsite-keygen|offsite-decrypt|offsite-reconcile|offsite-archive|version> [flags]")
 	}
 	command := args[0]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -71,6 +71,11 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	nominationFile := flags.String("nomination-file", "", "private version-1 current recovery nomination JSON")
 	reviewerPasswordsFile := flags.String("reviewer-passwords-file", "", "separate private new reviewer passwords JSON")
 	revocationFile := flags.String("revocation-file", "", "private version-1 current recovery revocation JSON")
+	seriesRequestFile := flags.String("series-request-file", "", "private current-source approved-series reservation JSON")
+	seriesRetryFile := flags.String("series-retry-file", "", "private explicit known-rejection series retry JSON")
+	seriesConfigFile := flags.String("series-config-file", "", "separately held private series storage/public-recipient configuration")
+	seriesFixture := flags.Bool("series-fixture", false, "explicitly allow numeric-loopback series protocol fixtures")
+	seriesID := flags.String("series-id", "", "retained unresolved series operation for independent reconciliation")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -79,6 +84,35 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	}
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
+	seriesCommand := command == "recover-series-reserve" || command == "recover-series-retry" || command == "recover-series-reconcile"
+	if seriesCommand {
+		allowed := map[string]bool{"db": true, "series-config-file": true, "series-fixture": true}
+		switch command {
+		case "recover-series-reserve":
+			allowed["series-request-file"] = true
+		case "recover-series-retry":
+			allowed["series-retry-file"] = true
+		case "recover-series-reconcile":
+			allowed["series-id"], allowed["object-version"], allowed["custody-identities-file"] = true, true, true
+		}
+		for name := range explicit {
+			if !allowed[name] {
+				return errors.New("series custody commands refuse serving, unrelated provider and unsupported input flags")
+			}
+		}
+		if !explicit["db"] || *dbPath == "" || *seriesConfigFile == "" ||
+			(command == "recover-series-reserve" && *seriesRequestFile == "") ||
+			(command == "recover-series-retry" && *seriesRetryFile == "") ||
+			(command == "recover-series-reconcile" && (*seriesID == "" || *objectVersion == "" || *identitiesFile == "")) {
+			return errors.New("series custody requires an explicit existing --db, separate --series-config-file and the command's private input/identity files")
+		}
+	} else {
+		for _, name := range []string{"series-request-file", "series-retry-file", "series-config-file", "series-fixture", "series-id"} {
+			if explicit[name] {
+				return errors.New("series reservation inputs are exclusively offline; other commands refuse them")
+			}
+		}
+	}
 	if command == "recover-origin" || command == "recover-nominate" || command == "recover-revoke" {
 		allowed := map[string]bool{"db": true}
 		if command == "recover-nominate" {
@@ -222,7 +256,7 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		return printJSON(map[string]any{"status": "restored_verified_quarantined", "recovery_required": true, "elapsed_ms": float64(time.Since(start).Microseconds()) / 1000, "manifest": manifest})
 	}
 	switch command {
-	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa", "offsite-reconcile", "offsite-archive", "recover-origin", "recover-nominate", "recover-revoke":
+	case "serve", "bootstrap", "migrate", "seed-demo", "inspect", "snapshot", "recover-mfa", "offsite-reconcile", "offsite-archive", "recover-origin", "recover-nominate", "recover-revoke", "recover-series-reserve", "recover-series-retry", "recover-series-reconcile":
 	default:
 		return errors.New("unknown command")
 	}
@@ -249,6 +283,33 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 	var nomination database.RecoveryNomination
 	var reviewerPasswords database.RecoveryPasswords
 	var revocation database.RecoveryRevocation
+	var seriesRequest database.RecoverySeriesRequest
+	var seriesRetry database.RecoverySeriesRetry
+	if seriesCommand {
+		if info, err := os.Lstat(*dbPath); err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
+			return errors.New("series custody requires an existing regular private database")
+		}
+		if command == "recover-series-reserve" {
+			body, err := readPrivateFile(*seriesRequestFile, 8192)
+			if err != nil {
+				return err
+			}
+			seriesRequest, err = database.ParseRecoverySeriesRequest(body)
+			if err != nil {
+				return err
+			}
+		}
+		if command == "recover-series-retry" {
+			body, err := readPrivateFile(*seriesRetryFile, 8192)
+			if err != nil {
+				return err
+			}
+			seriesRetry, err = database.ParseRecoverySeriesRetry(body)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	if command == "recover-origin" || command == "recover-nominate" || command == "recover-revoke" {
 		if info, err := os.Lstat(*dbPath); err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
 			return errors.New("recovery review requires an existing regular private database")
@@ -298,6 +359,31 @@ func run(ctx context.Context, args []string, logger *slog.Logger) error {
 		}
 	}
 	switch command {
+	case "recover-series-reserve", "recover-series-retry", "recover-series-reconcile":
+		if err := store.VerifySchema(ctx); err != nil {
+			return err
+		}
+		if err := store.RequireRecoverableWorkspace(ctx); err != nil {
+			return err
+		}
+		var result database.RecoverySeriesIntent
+		var err error
+		switch command {
+		case "recover-series-reserve":
+			result, err = backup.ReserveRecoverySeries(ctx, store, *seriesConfigFile, *seriesFixture, seriesRequest)
+		case "recover-series-retry":
+			result, err = backup.RetryRecoverySeries(ctx, store, *seriesConfigFile, *seriesFixture, seriesRetry)
+		case "recover-series-reconcile":
+			identities, e := backup.LoadCustodyIdentities(*identitiesFile)
+			if e != nil {
+				return e
+			}
+			result, err = backup.ReconcileRecoverySeries(ctx, store, *seriesConfigFile, *seriesFixture, *seriesID, *objectVersion, identities)
+		}
+		if err != nil {
+			return err
+		}
+		return printJSON(map[string]any{"operation_id": result.OperationID, "state": result.State, "attempts": result.Attempts, "prepared_only": true, "can_resume": false})
 	case "recover-origin":
 		origin, err := store.RecoveryOriginForCustody(ctx)
 		if err != nil {
