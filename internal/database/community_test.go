@@ -288,7 +288,9 @@ func TestCommunityCurrentAuthorityFreshnessAndDeclinedCancelledPredecessor(t *te
 	if _, e := s.DecideCommunity(ctx, b, id, approve); !errors.Is(e, ErrReauthRequired) {
 		t.Fatal("stale privilege before retry", e)
 	}
-	accessExec(t, s, "UPDATE role_grants SET valid_until=? WHERE user_id='demo-user-admin'", time.Now().Add(-time.Second).Unix())
+	// Fast fixtures may still be in their creation second. Preserve a valid
+	// historical appointment interval while deliberately expiring its authority.
+	accessExec(t, s, "UPDATE role_grants SET valid_from=valid_from-86400,valid_until=? WHERE user_id='demo-user-admin'", time.Now().Add(-time.Second).Unix())
 	if _, e := s.ProposeCommunity(ctx, a, "", communityInput("CONTACT")); !errors.Is(e, ErrForbidden) {
 		t.Fatal("expired appointment", e)
 	}

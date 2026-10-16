@@ -206,12 +206,13 @@ test('independent rules private reviews and personal response attention open exa
       )
     ).toBe(true)
     // Compare relative geometry in one frame, including while return-focus scrolling settles.
-    const spacing = await panel.evaluate(current => {
+    const geometry = await panel.evaluate(current => {
       const previous = document.querySelector('[aria-labelledby="overview-notices-title"]')
       if (!previous) throw new Error('Noticeboard missing')
-      return current.getBoundingClientRect().top - previous.getBoundingClientRect().bottom
+      return { gap: current.getBoundingClientRect().top - previous.getBoundingClientRect().bottom, padding: parseFloat(getComputedStyle(current).paddingTop) }
     })
-    expect(spacing).toBeGreaterThanOrEqual(16)
+    expect(geometry.gap).toBeGreaterThanOrEqual(0)
+    expect(geometry.padding).toBeGreaterThanOrEqual(16)
     await capture(page, 'incidents-overview-' + width)
   }
   await page.route('**/api/overview/incidents', (route) =>

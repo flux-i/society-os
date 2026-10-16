@@ -80,7 +80,7 @@ export async function reviewHost(browser: Browser, includeFailedWork = true) {
   const bundle = join(root, 'source-bundle'), target = join(root, 'restored', 'society.db')
   const manifest = JSON.parse(execFileSync(binary, ['snapshot', '--db', process.env.SOCIETY_BROWSER_DB!, '--out', bundle], { encoding: 'utf8' }))
   const sourceSHA = createHash('sha256').update(readFileSync(join(bundle, 'society.db'))).digest('hex'); expect(sourceSHA).toBe(manifest.sha256)
-  const restored = JSON.parse(execFileSync(binary, ['restore-check', '--snapshot', bundle, '--out', target], { encoding: 'utf8' })); expect(restored.status).toBe('restored_verified_quarantined'); expect(restored.manifest.schema_version).toBe(31)
+  const restored = JSON.parse(execFileSync(binary, ['restore-check', '--snapshot', bundle, '--out', target], { encoding: 'utf8' })); expect(restored.status).toBe('restored_verified_quarantined'); expect(restored.manifest.schema_version).toBe(32)
   const origin = JSON.parse(execFileSync(binary, ['recover-origin', '--db', target], { encoding: 'utf8' })); expect(origin.source_sha256).toBe(manifest.sha256)
   expect(createHash('sha256').update(readFileSync(join(bundle, 'society.db'))).digest('hex')).toBe(sourceSHA)
   for (const name of ['mfa.key', 'messages.key']) { copyFileSync(join(runtime, 'keys', name), join(root, name)); chmodSync(join(root, name), 0o600) }
@@ -128,11 +128,11 @@ export async function fillAccessReview(page: Page, label = 'Supplied current hou
 }
 
 
-export async function nestedReviewHost(host: Awaited<ReturnType<typeof reviewHost>>, browser: Browser, numbering = false) {
+export async function nestedReviewHost(host: Awaited<ReturnType<typeof reviewHost>>, browser: Browser, numbering = false, gap = false) {
   const binary = process.env.SOCIETY_BROWSER_BINARY!, root = join(host.root, 'nested-current-review'), bundle = join(root, 'source'), target = join(root, 'restored', 'society.db')
   mkdirSync(root, { mode: 0o700 })
   const manifest = JSON.parse(execFileSync(binary, ['snapshot', '--db', host.target, '--out', bundle], { encoding: 'utf8' }))
-  expect(manifest.schema_version).toBe(31); expect(manifest.application_version).toBe('0.34.0-dev')
+  expect(manifest.schema_version).toBe(32); expect(manifest.application_version).toBe('0.35.0-dev')
   expect(createHash('sha256').update(readFileSync(join(bundle, 'society.db'))).digest('hex')).toBe(manifest.sha256)
   const restored = JSON.parse(execFileSync(binary, ['restore-check', '--snapshot', bundle, '--out', target], { encoding: 'utf8' })); expect(restored.status).toBe('restored_verified_quarantined')
   const compare = `import sqlite3,json,sys
@@ -146,7 +146,7 @@ def state(p):
  rows={n:sorted(json.dumps(r,default=enc,separators=(',',':')) for r in c.execute('SELECT * FROM '+n)) for n in names}
  objects=c.execute("SELECT type,name,sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name").fetchall()
  return c,rows,objects
-a,ar,ao=state(sys.argv[1]);b,br,bo=state(sys.argv[2]);assert ao==bo and ar.keys()==br.keys() and len(ar)==117
+a,ar,ao=state(sys.argv[1]);b,br,bo=state(sys.argv[2]);assert ao==bo and ar.keys()==br.keys() and len(ar)==119
 for n in ar:
  if n not in ('recovery_epochs','recovery_epoch_heads','recovery_external_jobs'):assert ar[n]==br[n],n
 for n in ('recovery_epochs','recovery_epoch_heads','recovery_external_jobs'):
@@ -154,19 +154,20 @@ for n in ('recovery_epochs','recovery_epoch_heads','recovery_external_jobs'):
 assert len(br['recovery_epochs'])==len(ar['recovery_epochs'])+1 and len(br['recovery_epoch_heads'])==len(ar['recovery_epoch_heads'])+1
 assert b.execute('SELECT required FROM recovery_quarantine').fetchone()[0]==1
 current=b.execute('SELECT epoch_id FROM recovery_epoch_heads ORDER BY sequence DESC LIMIT 1').fetchone()[0]
-expected=json.loads(sys.argv[3]);assert b.execute('SELECT source_sha256,source_bytes,source_schema,source_application FROM recovery_epochs WHERE id=?',(current,)).fetchone()==(expected['sha256'],expected['bytes'],31,'0.34.0-dev')
+expected=json.loads(sys.argv[3]);assert b.execute('SELECT source_sha256,source_bytes,source_schema,source_application FROM recovery_epochs WHERE id=?',(current,)).fetchone()==(expected['sha256'],expected['bytes'],32,'0.35.0-dev')
 assert b.execute('SELECT COUNT(*) FROM recovery_nominations WHERE epoch_id=?',(current,)).fetchone()[0]==0
 for n in ('sessions','account_tokens','mfa_pending','mfa_recovery_codes'):assert b.execute('SELECT COUNT(*) FROM '+n).fetchone()[0]==0
 assert b.execute('PRAGMA integrity_check').fetchone()[0]=='ok' and not b.execute('PRAGMA foreign_key_check').fetchall()
 assert b.execute('SELECT amount_paise FROM entries WHERE id IN(SELECT entry_id FROM receipts)').fetchone()[0]==40000
 assert b.execute("SELECT SUM(CASE WHEN kind IN('OPENING_DEBIT','CHARGE') THEN amount_paise ELSE -amount_paise END) FROM entries WHERE state='POSTED' AND id NOT IN(SELECT entry_id FROM entry_reversals)").fetchone()[0]==150001
-print(json.dumps({'persistent_tables_with_provenance':len(ar),'prior_nominations':len(ar['recovery_nominations']),'prior_proposals':len(ar['recovery_proposals']),'prior_decisions':len(ar['recovery_decisions']),'prior_numbering_policies':len(ar['recovery_numbering_policies']),'prior_numbering_decisions':len(ar['recovery_numbering_decisions']),'prior_series_intents':len(ar['recovery_series_intents']),'prior_series_events':len(ar['recovery_series_events']),'historical_rows_and_objects_preserved':True,'new_epoch_has_no_current_nomination':True,'receipt_paise':40000,'balance_paise':150001}))`
+print(json.dumps({'persistent_tables_with_provenance':len(ar),'prior_nominations':len(ar['recovery_nominations']),'prior_proposals':len(ar['recovery_proposals']),'prior_decisions':len(ar['recovery_decisions']),'prior_numbering_policies':len(ar['recovery_numbering_policies']),'prior_numbering_decisions':len(ar['recovery_numbering_decisions']),'prior_series_intents':len(ar['recovery_series_intents']),'prior_series_events':len(ar['recovery_series_events']),'prior_gap_preparations':len(ar['recovery_gap_preparations']),'prior_gap_decisions':len(ar['recovery_gap_decisions']),'historical_rows_and_objects_preserved':True,'new_epoch_has_no_current_nomination':True,'receipt_paise':40000,'balance_paise':150001}))`
   const proof = JSON.parse(execFileSync('python3', ['-c', compare, join(bundle, 'society.db'), target, JSON.stringify(manifest)], { encoding: 'utf8' }))
   expect(proof.prior_nominations).toBeGreaterThan(0)
   if (numbering) {
     expect(proof.prior_numbering_policies).toBeGreaterThan(0); expect(proof.prior_numbering_decisions).toBeGreaterThan(0)
     expect(proof.prior_series_intents).toBe(1); expect(proof.prior_series_events).toBe(3)
-  } else expect(proof.prior_proposals).toBeGreaterThan(0)
+  } else if (gap) expect(proof.prior_gap_preparations).toBeGreaterThan(0)
+  else expect(proof.prior_proposals).toBeGreaterThan(0)
   for (const name of ['mfa.key', 'messages.key']) copyFileSync(join(host.root, name), join(root, name))
   const reservation = createServer(); await new Promise<void>((resolve, reject) => { reservation.once('error', reject); reservation.listen(0, '127.0.0.1', resolve) }); const port = (reservation.address() as { port: number }).port; await new Promise<void>(resolve => reservation.close(() => resolve()))
   const origin = 'http://127.0.0.1:' + port, log = openSync(join(root, 'server.log'), 'w', 0o600)
@@ -181,6 +182,6 @@ print(json.dumps({'persistent_tables_with_provenance':len(ar),'prior_nominations
     const me = await (await page.request.get('/api/auth/me')).json(); expect(me.recovery_required).toBe(true); expect(me.recovery_reviewer).toBe(false); expect(me.can_review_recovery).toBe(false); expect(me.roles).toEqual([])
     for (const path of ['/api/recovery/status', '/api/recovery/proposals', '/api/flats', '/api/receipts/' + host.receiptID + '/download']) expect((await page.request.get(path)).status(), path).toBe(423)
     writeFileSync(join(root, 'nested-recovery-proof.json'), JSON.stringify({ manifest, restored, proof, copied_nomination_withheld: true, limits: 'Actual matching nested operational restore and personal password login with copied nominated identities; all old evidence remains retained, no nomination is current on the new epoch. No real production authority or final cutover.' }, null, 2), { mode: 0o600 })
-    return { page, close, root, proof }
+    return { page, close, root, proof, target }
   } catch (error) { await close(); throw error }
 }

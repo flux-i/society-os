@@ -41,7 +41,7 @@ async function openContact(page: Page, id: string) {
 }
 const attestation = 'I reviewed this person, destination, permission and this decision’s effect.'
 
-test('contact cards opened filters selection keyboard and four-width layouts use the approved border and typography', async ({ page }) => {
+test('contact rows opened filters selection keyboard and four-width layouts retain separators and readable typography', async ({ page }) => {
   await login(page)
   for (const width of [1440, 768, 375, 320]) {
     await page.setViewportSize({ width, height: width <= 375 ? 640 : 1000 })
@@ -49,9 +49,9 @@ test('contact cards opened filters selection keyboard and four-width layouts use
     await expect(page.locator('.result-count')).toHaveText('153 people in this view')
     await page.evaluate(() => scrollTo(0, 0))
     await capture(page, 'current-register-' + width)
-    const style = await page.locator('.contact-card').first().evaluate(element => ({ border: getComputedStyle(element).borderLeftWidth, font: getComputedStyle(element.querySelector('h3')!).fontFamily }))
+    const style = await page.locator('.contact-card').first().evaluate(element => ({ border: getComputedStyle(element).borderBottomWidth, font: getComputedStyle(element.querySelector('h3')!).fontFamily }))
     expect(style.border).toBe('1px')
-    expect(style.font).toContain('Instrument Serif')
+    expect(style.font).toContain('DM Sans')
     await page.getByRole('combobox', { name: 'Filter contacts by relationship' }).click()
     await expect(page.getByRole('option', { name: 'All people', exact: true })).toHaveAttribute('aria-selected', 'true')
     await page.getByRole('option', { name: 'Tenants', exact: true }).hover()

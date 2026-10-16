@@ -71,7 +71,7 @@ test('fine menus tabs empty loading and retry states stay aligned and keyboard u
   for (const width of [1440, 768, 375, 320]) {
     await page.setViewportSize({ width, height: width <= 375 ? 640 : 1000 })
     await navigate(page, 'Fines & appeals')
-    await expect(page.getByRole('heading', { name: 'A considered decision. Every step, together.' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Fines & appeals.' })).toBeVisible()
     await page.getByRole('tab', { name: 'Fines', exact: true }).click()
     await page.getByRole('combobox', { name: 'Filter fines by state', exact: true }).click()
     const selected = page.getByRole('option', { name: 'All permitted fines', exact: true })

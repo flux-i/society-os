@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+/* Supplied financial comparisons retain the same calm recovery controls. */
+.gap-items,.gap-preview { display:grid; gap:18px; min-width:0; margin:8px 0; }
+.gap-items h3,.gap-preview h3 { font:400 28px/1.2 var(--font-display); margin:8px 0; }
+.gap-items-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.gap-items-heading span { font-size:11px; color:var(--color-muted); }
+.gap-item { display:grid; grid-template-columns:minmax(0,1fr); gap:18px; padding:20px; border:1px solid var(--color-line); border-radius:14px; background:#fffdf8; min-width:0; }
+.gap-item label { min-width:0; }
+.gap-item .filter-select { width:100%; min-width:0; height:auto; min-height:48px; padding-top:10px; padding-bottom:10px; }
+.gap-item .filter-select > span:first-child { min-width:0; white-space:normal; overflow-wrap:anywhere; line-height:1.6; }
+.gap-item h4 { font-size:13px; font-weight:500; margin:0; }
+.gap-items-heading .text-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:40px; }
+.gap-balance { padding:20px; border:1px solid #d9e1c9; border-radius:14px; background:#edf0e4; min-width:0; }
+.gap-balance h3 { font:400 28px/1.2 var(--font-display); margin:0 0 16px; }
+.gap-balance dl { display:grid; gap:12px; margin:0; }
+.gap-balance dl > div { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+.gap-balance dt { font-size:12px; color:var(--color-muted); }
+.gap-balance dd { margin:0; font-size:17px; font-variant-numeric:tabular-nums; }
+.gap-balance dl > div:last-child { padding-top:12px; border-top:1px solid #d9e1c9; }
+.gap-balance .form-help { margin-top:16px; }
+.gap-item .review-desk-frozen { margin:0; }
+@media(max-width:420px) { .gap-item,.gap-balance { padding:15px; } .gap-balance dl > div { display:grid; gap:5px; } .gap-items-heading { gap:8px; } }
+
 /* Supplied receipt identities remain readable at narrow dialog widths. */
 .numbering-preview { display: grid; gap: 8px; padding: 20px; border: 1px solid var(--color-line); border-radius: 14px; background: #edf0e4; margin: 18px 0; overflow-wrap: anywhere; }
 .numbering-preview strong { font: 400 clamp(24px,3vw,34px)/1.2 var(--font-display); color: var(--color-forest); }

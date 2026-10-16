@@ -22,8 +22,8 @@ func assertQuarantinedOriginals(t *testing.T, bundle, destination string) {
 	t.Helper()
 	source := filepath.Join(bundle, "society.db")
 	want, got := persistentSnapshotRows(t, source), persistentSnapshotRows(t, destination)
-	if len(want) != 117 || len(got) != 117 {
-		t.Fatal("Expected all116 business tables plus provenance", len(want), len(got))
+	if len(want) != 119 || len(got) != 119 {
+		t.Fatal("Expected all118 business tables plus provenance", len(want), len(got))
 	}
 	if len(got["recovery_epochs"]) != len(want["recovery_epochs"])+1 {
 		t.Fatal("Recovery did not append exactly one immutable epoch")

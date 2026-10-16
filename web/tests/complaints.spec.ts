@@ -10,7 +10,7 @@ async function capture(page: Page, name: string) {
   const folder = resolve('../reports/local/complaints-review'); mkdirSync(folder, { recursive: true, mode: 0o700 })
   const path = resolve(folder, name + '.png'); await page.screenshot({ path, animations: 'disabled' }); chmodSync(path, 0o600)
 }
-async function desk(page: Page) { await navigate(page, 'Help & repairs'); await expect(page.getByRole('heading', { name: 'Little things, well taken care of.' })).toBeVisible() }
+async function desk(page: Page) { await navigate(page, 'Help & repairs'); await expect(page.getByRole('heading', { name: 'Complaints & service requests' })).toBeVisible() }
 async function close(page: Page) { await page.getByRole('button', { name: 'Close service request details', exact: true }).click() }
 async function switchTo(page: Page, account: string) { if (await page.getByRole('button', { name: 'Close service request details', exact: true }).count()) await close(page); await page.getByRole('button', { name: 'Sign out', exact: true }).click(); await login(page, account) }
 async function report(page: Page, subject: string) {

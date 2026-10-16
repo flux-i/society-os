@@ -12,8 +12,9 @@ import { MessageCountFacts, MessageEnvelope, MessageRecipientList, MessageProvid
 import { PageControls } from './Maintenance'
 import { Icon } from './Icon'
 
-export function MessageCompose({user,config,onClose,onSaved}:{user:User;config?:MessageConfig|null;onClose:()=>void;onSaved:(id:string)=>void}) {
-  const [kind,setKind]=useState(user.can_review_requests?'NOTICE':'RECEIPT'),[source,setSource]=useState<MessageSource|null>(null),[channel,setChannel]=useState('EMAIL'),[target,setTarget]=useState<MessageTarget>({kind:'ALL',wing:'',ids:[]}),[selected,setSelected]=useState<Record<string,string>>({}),[reason,setReason]=useState(''),[sourceSearch,setSourceSearch]=useState(''),[sourcePage,setSourcePage]=useState(1),[targetSearch,setTargetSearch]=useState(''),[targetPage,setTargetPage]=useState(1)
+export function MessageCompose({user,config,maintenanceSearch,onClose,onSaved}:{user:User;config?:MessageConfig|null;maintenanceSearch?:string;onClose:()=>void;onSaved:(id:string)=>void}) {
+  const maintenance = maintenanceSearch !== undefined && user.can_manage_records
+  const [kind,setKind]=useState(maintenance?'MAINTENANCE_REMINDER':user.can_review_requests?'NOTICE':'RECEIPT'),[source,setSource]=useState<MessageSource|null>(null),[channel,setChannel]=useState('EMAIL'),[target,setTarget]=useState<MessageTarget>({kind:'ALL',wing:'',ids:[]}),[selected,setSelected]=useState<Record<string,string>>({}),[reason,setReason]=useState(''),[sourceSearch,setSourceSearch]=useState(maintenance?maintenanceSearch!.slice(0,100):''),[sourcePage,setSourcePage]=useState(1),[targetSearch,setTargetSearch]=useState(''),[targetPage,setTargetPage]=useState(1)
   const [basis,setBasis]=useState('OUTSTANDING'),[preview,setPreview]=useState<MessagePreview|null>(null),[previewLoading,setPreviewLoading]=useState(false),[previewError,setPreviewError]=useState(''),[checked,setChecked]=useState(false)
   const controller=useRef<AbortController|null>(null),writer=useMessageWrite()
   useEffect(()=>()=>controller.current?.abort(),[])

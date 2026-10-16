@@ -12,7 +12,7 @@ test.afterAll(async () => { await host?.close() })
 
 test('actual native bounded numbering read preserves the human format fields focus and internal scroll', async () => {
   const page = host.one.page; await page.setViewportSize({ width: 375, height: 812 })
-  await expect.poll(async () => (await names(page)).sort()).toEqual(['society_read_recovery_numbering_status', 'society_read_recovery_review_status', 'society_read_recovery_state'])
+  await expect.poll(async () => (await names(page)).sort()).toEqual(['society_read_recovery_gap_status', 'society_read_recovery_numbering_status', 'society_read_recovery_review_status', 'society_read_recovery_state'])
   await page.getByRole('button', { name: 'Receipt numbering', exact: true }).click(); await page.getByRole('button', { name: 'Prepare numbering', exact: true }).click(); await fillNumbering(page, 'TRV-R2026B')
   const notes = page.getByRole('textbox', { name: 'Preparation reason', exact: true }); await notes.focus()
   const before = await page.evaluate(() => ({ hash: location.hash, scroll: scrollY, dialogScroll: document.querySelector('dialog .dialog-scroll')?.scrollTop }))

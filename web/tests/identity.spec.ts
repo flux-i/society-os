@@ -133,7 +133,7 @@ test('invited administrator enrolls a real authenticator and uses a single recov
     const recovery = await recipient.locator('.recovery-grid code').first().textContent()
     await recipient.getByRole('checkbox', { name: 'I have saved my recovery codes privately.' }).check()
     await recipient.getByRole('button', { name: 'Continue to workspace', exact: true }).click()
-    await expect(recipient.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible()
+    await expect(recipient.getByRole('heading', { name: 'Today.' })).toBeVisible()
     await recipient.getByRole('button', { name: 'Sign out', exact: true }).click()
     await customLogin(recipient, 'officer@browser.test', 'A memorable new password!')
     await recipient.getByRole('button', { name: 'Use a recovery code', exact: true }).click()

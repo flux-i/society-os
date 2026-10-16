@@ -92,6 +92,13 @@ export function registerSocietyTools(user: User, openHome: (id: string) => void)
         if (first.status_key !== fresh.status_key) throw new Error('Numbering preparation changed. Read its current status again.')
         return { pending: fresh.pending, approved_preparation: fresh.approved, independent_originals_verified: fresh.verified, unresolved_handoffs: fresh.unresolved, can_resume: false }
       })
+      if (user.can_review_recovery) add('society_read_recovery_gap_status', 'Read bounded current financial-assessment counts only. This preserves human forms and exposes no homes, amounts, evidence, book/item references or credentials. Approval and known comparisons do not post money, issue receipts or release recovery.', {}, [], async (_input, signal, me) => {
+        if (!me.can_review_recovery) throw new Error('Current recovery review authority is required.')
+        type GapStatus = { pending: number; approved: number; known: number; unresolved: number; status_key: string }
+        const first = await request<GapStatus>('/api/recovery/financial-gap/status', signal), fresh = await request<GapStatus>('/api/recovery/financial-gap/status', signal)
+        if (first.status_key !== fresh.status_key) throw new Error('The financial assessment changed. Read its current status again.')
+        return { pending: fresh.pending, approved_assessments: fresh.approved, supplied_known_differences: fresh.known, unresolved_evidence: fresh.unresolved, can_resume: false }
+      })
       add('society_read_recovery_state', 'Read the current recovery boundary only. Private access, financial changes and external handoffs remain withheld. No private data, job identities, source hashes, keys or recovery mutation is exposed.', {}, [], async (_input, _signal, me) => {
         if (!me.recovery_required) throw new Error('The recovery boundary changed. Discover tools again.')
         return { recovery_required: true, private_access: 'WITHHELD', financial_changes: 'WITHHELD', external_handoffs: 'WITHHELD', can_resume: false }

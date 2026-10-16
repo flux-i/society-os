@@ -179,7 +179,9 @@ func TestMeetingAuthorityFreshnessAndDeclinedCancelledPredecessor(t *testing.T) 
 	if _, e := s.DecideMeeting(ctx, b, id, approve); !errors.Is(e, ErrReauthRequired) {
 		t.Fatal("accepted decision retry bypassed current freshness", e)
 	}
-	accessExec(t, s, "UPDATE role_grants SET valid_until=? WHERE user_id='demo-user-admin'", time.Now().Add(-time.Second).Unix())
+	// Fast fixtures may still be in their creation second. Preserve a valid
+	// historical appointment interval while deliberately expiring its authority.
+	accessExec(t, s, "UPDATE role_grants SET valid_from=valid_from-86400,valid_until=? WHERE user_id='demo-user-admin'", time.Now().Add(-time.Second).Unix())
 	if _, e := s.ProposeMeeting(ctx, a, "", meetingInput(t, s, b)); !errors.Is(e, ErrForbidden) {
 		t.Fatal("expired appointment prepared meeting", e)
 	}

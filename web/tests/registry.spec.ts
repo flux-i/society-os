@@ -3,14 +3,14 @@ import { login, chooseFilter } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await login(page)
-  await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Today.' })).toBeVisible()
 })
 
 test('overview links to home counts, wing registry, details and working filters', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Today.' })).toBeVisible()
   await page.getByRole('link', { name: 'Open homes & people', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Explore Wing A, 40 homes' })).toBeVisible()
   await expect(page.locator('.stat-item').filter({ hasText: 'Owners' }).locator('strong')).toHaveText('118')
@@ -21,7 +21,7 @@ test('overview links to home counts, wing registry, details and working filters'
   await expect(page.getByRole('status')).toHaveText('40 homes found')
   await page.getByRole('link', { name: 'Skip to content', exact: true }).focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('heading', { name: 'Every home has a story.', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Homes & people.', exact: true })).toBeVisible()
   expect(new URL(page.url()).hash).toBe('#homes')
   await page.getByRole('button', { name: 'View home A-101', exact: true }).click()
   await expect(page.getByRole('dialog')).toBeVisible()

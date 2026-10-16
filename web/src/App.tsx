@@ -5,10 +5,13 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 're
 import { canReadChecklists } from './checklists'
 import { canImportRegistry } from './registry-import'
 import { APIError, mutate, request, setSession, statuses, userAccessScope } from './api'
-import type { Building, Flat, FlatDetail, FlatPage, Summary, User } from './api'
+import type { Flat, FlatDetail, FlatPage, Summary, User } from './api'
 import { Icon } from './components/Icon'
 import type { IconName } from './components/Icon'
 import { Overview } from './components/Overview'
+import { WorkspaceNavigation, WorkspaceSections, workspaceGroup } from './components/WorkspaceNavigation'
+import { PortalHelp } from './components/PortalHelp'
+import './rollout.css'
 import { Login } from './components/Login'
 import { RegistryEditor, RegistryHistory, relationshipLabel } from './components/RegistryEditor'
 import { Access, AccountLink, AccountSecurity, MFAGate } from './components/Identity'
@@ -39,8 +42,10 @@ const Contacts=lazy(()=>import('./components/Contacts').then(module=>({default:m
 const Messages=lazy(()=>import('./components/Messages').then(module=>({default:module.Messages})))
 const Statements=lazy(()=>import('./components/Statements').then(module=>({default:module.Statements})))
 
-type View = 'overview' | 'homes' | 'access' | 'security' | 'entries' | 'receipts' | 'reviews' | 'community' | 'help' | 'documents' | 'maintenance' | 'upkeep' | 'collections' | 'conduct' | 'fines' | 'contacts' | 'messages' | 'statements' | 'backups'
-const currentView = (): View => { const hash = window.location.hash.slice(1).split('?')[0]; return ['homes', 'access', 'security', 'entries', 'receipts', 'reviews', 'community', 'help', 'documents', 'maintenance', 'upkeep', 'collections', 'conduct', 'fines', 'contacts', 'messages', 'statements', 'backups'].includes(hash) ? hash as View : 'overview' }
+const FinanceWorkspaces = lazy(() => import('./components/FinanceWorkspaces').then(module => ({ default: module.FinanceWorkspaces })))
+
+type View = 'payments' | 'reports' | 'my-home' | 'guide' | 'overview' | 'homes' | 'access' | 'security' | 'entries' | 'receipts' | 'reviews' | 'community' | 'help' | 'documents' | 'maintenance' | 'upkeep' | 'collections' | 'conduct' | 'fines' | 'contacts' | 'messages' | 'statements' | 'backups'
+const currentView = (): View => { const hash = window.location.hash.slice(1).split('?')[0]; return ['payments', 'reports', 'my-home', 'guide', 'homes', 'access', 'security', 'entries', 'receipts', 'reviews', 'community', 'help', 'documents', 'maintenance', 'upkeep', 'collections', 'conduct', 'fines', 'contacts', 'messages', 'statements', 'backups'].includes(hash) ? hash as View : 'overview' }
 const takeLink = () => {
   const match = window.location.hash.match(/^#(?:activate|reset)=([A-Za-z0-9_-]{43})$/)
   if (!match) return ''
@@ -49,46 +54,6 @@ const takeLink = () => {
 }
 const initialLink = takeLink()
 
-function Brand() {
-  return <a href="#overview" className="brand" aria-label="Society OS overview"><span className="brand-mark"><svg aria-hidden="true" viewBox="0 0 32 32" fill="none"><path d="M6 26V12l10-7 10 7v14h-7v-9h-6v9Z" stroke="currentColor" strokeWidth="1.8" /><circle cx="16" cy="12" r="2" fill="currentColor" /></svg></span><span>society<span className="brand-dot">.</span><small>A place for everything</small></span></a>
-}
-
-function Sidebar({ view, user, onAbout }: { view: View; user: User; onAbout: () => void }) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuButton = useRef<HTMLButtonElement>(null)
-  useEffect(() => { setMenuOpen(false) }, [view])
-  return <aside className="sidebar" onKeyDown={event => { if (event.key === 'Escape') { setMenuOpen(false); menuButton.current?.focus() } }}>
-    <Brand />
-    <button ref={menuButton} className="mobile-nav-toggle" aria-expanded={menuOpen} aria-controls="workspace-navigation" onClick={() => setMenuOpen(value => !value)}>Menu<Icon name={menuOpen ? 'close' : 'menu'} /></button>
-    <div id="workspace-navigation" className={`sidebar-space ${menuOpen ? 'menu-open' : ''}`} onClick={event => { if ((event.target as Element).closest('a')) { setMenuOpen(false); if (menuOpen) requestAnimationFrame(() => document.getElementById('main-content')?.focus({ preventScroll: true })) } }}><span className="eyebrow">YOUR WORKSPACE</span>
-      <nav aria-label="Main navigation" className="nav-list">
-        {<a href="#overview" className={`nav-item ${view === 'overview' ? 'active' : ''}`} aria-current={view === 'overview' ? 'page' : undefined}><Icon name="overview" /><span>Overview</span>{view === 'overview' && <span className="active-dot" />}</a>}
-        <a href="#homes" className={`nav-item ${view === 'homes' ? 'active' : ''}`} aria-current={view === 'homes' ? 'page' : undefined}><Icon name="homes" /><span>{user.can_read_registry ? 'Homes & people' : 'Your homes'}</span>{view === 'homes' && <span className="active-dot" />}</a>
-        {user.can_manage_accounts && <a href="#access" className={`nav-item ${view === 'access' ? 'active' : ''}`} aria-current={view === 'access' ? 'page' : undefined}><Icon name="community" /><span>Access & invitations</span></a>}
-        {user.can_read_records && (['entries', 'receipts'] as const).map(item => <a key={item} href={'#' + item} className={`nav-item ${view === item ? 'active' : ''}`} aria-current={view === item ? 'page' : undefined}><Icon name={item === 'entries' ? 'records' : 'receipt'} /><span>{item === 'entries' ? 'Entries' : 'Receipts'}</span></a>)}
-        {user.can_read_records && <a href="#maintenance" className={`nav-item ${view === 'maintenance' ? 'active' : ''}`} aria-current={view === 'maintenance' ? 'page' : undefined}><Icon name="leaf" /><span>Maintenance</span></a>}
-        {user.can_read_records && <a href="#collections" className={`nav-item ${view === 'collections' ? 'active' : ''}`} aria-current={view === 'collections' ? 'page' : undefined}><Icon name="leaf" /><span>Collections</span></a>}
-        <a href="#reviews" className={`nav-item ${view === 'reviews' ? 'active' : ''}`} aria-current={view === 'reviews' ? 'page' : undefined}><Icon name="check" /><span>{user.can_review_requests ? 'Requests & approvals' : 'Your requests'}</span></a>
-        <a href="#community" className={`nav-item ${view === 'community' ? 'active' : ''}`} aria-current={view === 'community' ? 'page' : undefined}><Icon name="community" /><span>Community</span></a>
-        <a href="#help" className={`nav-item ${view === 'help' ? 'active' : ''}`} aria-current={view === 'help' ? 'page' : undefined}><Icon name="leaf" /><span>Help & repairs</span></a>
-        <a href="#upkeep" className={`nav-item ${view === 'upkeep' ? 'active' : ''}`} aria-current={view === 'upkeep' ? 'page' : undefined}><Icon name="leaf" /><span>Upkeep</span></a>
-        <a href="#conduct" className={`nav-item ${view === 'conduct' ? 'active' : ''}`} aria-current={view === 'conduct' ? 'page' : undefined}><Icon name="shield" /><span>Rules & conduct</span></a>
-        <a href="#fines" className={`nav-item ${view === 'fines' ? 'active' : ''}`} aria-current={view === 'fines' ? 'page' : undefined}><Icon name="shield" /><span>Fines & appeals</span></a>
-        {user.can_read_contacts && <a href="#contacts" className={`nav-item ${view === 'contacts' ? 'active' : ''}`} aria-current={view === 'contacts' ? 'page' : undefined}><Icon name="community" /><span>{user.can_manage_contacts ? 'Contacts' : 'Your preferences'}</span></a>}
-        <a href="#statements" className={`nav-item ${view === 'statements' ? 'active' : ''}`} aria-current={view === 'statements' ? 'page' : undefined}><Icon name="document" /><span>Statements</span></a>
-        <a href="#messages" className={`nav-item ${view === 'messages' ? 'active' : ''}`} aria-current={view === 'messages' ? 'page' : undefined}><Icon name="community" /><span>Messages</span></a>
-        {(user.can_manage_accounts || user.can_manage_records) && <a href="#backups" className={`nav-item ${view === 'backups' ? 'active' : ''}`} aria-current={view === 'backups' ? 'page' : undefined}><Icon name="shield" /><span>Backups & recovery</span></a>}
-        <a href="#security" className={`nav-item ${view === 'security' ? 'active' : ''}`} aria-current={view === 'security' ? 'page' : undefined}><Icon name="shield" /><span>Account security</span></a>
-        <a href="#documents" className={`nav-item ${view === 'documents' ? 'active' : ''}`} aria-current={view === 'documents' ? 'page' : undefined}><Icon name="document" /><span>Documents</span></a>
-      </nav>
-    </div>
-    <div className="sidebar-bottom">
-      <div className="sidebar-note"><Icon name="leaf" /><p>Less administration.<br /><span>More community.</span></p></div>
-      <button className="workspace-profile" onClick={onAbout}><span className="avatar avatar-profile">{user.can_manage_registry ? 'RO' : 'ME'}</span><span>{user.name}<small>{user.can_manage_registry ? 'Registry officer' : user.can_read_registry ? 'Community access' : 'Resident access'}</small></span><Icon name="chevron" /></button>
-    </div>
-  </aside>
-}
-
 function WingArt({ code }: { code: string }) {
   const heights = code === 'A' ? [62, 92, 74] : code === 'B' ? [86, 66, 98] : [72, 101, 58]
   return <svg aria-hidden="true" className="wing-art" viewBox="0 0 150 115" fill="none">
@@ -96,15 +61,6 @@ function WingArt({ code }: { code: string }) {
     {heights.map((h, i) => <g key={i}><rect x={20 + i * 39} y={108 - h} width="32" height={h} rx="2" fill="currentColor" opacity={i === 1 ? '.25' : '.13'} />{Array.from({ length: Math.floor(h / 17) - 1 }, (_, j) => <g key={j}><rect x={27 + i * 39} y={116 - h + j * 17} width="5" height="8" rx="2.5" fill="currentColor" opacity=".5" /><rect x={39 + i * 39} y={116 - h + j * 17} width="5" height="8" rx="2.5" fill="currentColor" opacity=".5" /></g>)}</g>)}
     <path d="M12 108V88m0 8-7-7m7 4 7-10" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="84" r="10" fill="currentColor" opacity=".2" />
   </svg>
-}
-
-function WingCard({ wing, onClick, selected = false }: { wing: Building; onClick: () => void; selected?: boolean }) {
-  return <button onClick={onClick} className={`wing-card wing-${wing.code.toLowerCase()} ${selected ? 'selected-wing' : ''}`} aria-label={`Explore ${wing.name}, ${wing.flats} homes`} aria-pressed={selected}>
-    <span className="wing-card-top"><span className="wing-label">{wing.name}</span><span className="circle-arrow"><Icon name={selected ? 'check' : 'arrow'} /></span></span>
-    <span className="wing-card-middle"><span><strong>{wing.flats}</strong><span className="wing-homes">homes</span></span><WingArt code={wing.code} /></span>
-    <span className="wing-card-bottom"><span><i className="dot dot-green" />{wing.owner_occupied + wing.rented} occupied</span><span>{wing.vacant} vacant</span></span>
-    <span className="wing-people"><span>{wing.owners} owners</span><span>{wing.tenants} tenants</span></span>
-  </button>
 }
 
 function CommunityCounts({ summary }: { summary: Summary | null }) {
@@ -123,10 +79,10 @@ function Registry(props: { summary: Summary | null; user: User; refresh: number;
  useFragmentSync(()=>{setPanel(new URLSearchParams(window.location.hash.split('?')[1]??'').get('panel')??'')},[])
  const selected=panel==='checklists'&&permitted?'checklists':panel==='imports'&&imports?'imports':''
  const choose=(value:string)=>{setPanel(value);window.location.hash=value?'homes?panel='+value:'homes'}
- return <>{(permitted||imports)&&<nav className="homes-views" aria-label="Home views"><button type="button" aria-current={!selected?'page':undefined} onClick={()=>choose('')}>{props.user.can_read_registry?'Homes & people':'Your homes'}</button>{permitted&&<button type="button" aria-current={selected==='checklists'?'page':undefined} onClick={()=>choose('checklists')}>Move & contact reviews<Icon name="arrow"/></button>}{imports&&<button type="button" aria-current={selected==='imports'?'page':undefined} onClick={()=>choose('imports')}>Initial register<Icon name="arrow"/></button>}</nav>}{selected==='imports'?<RegistryImport key={props.user.scope_key} user={props.user}/>:selected==='checklists'?<MoveChecklists key={props.user.scope_key} user={props.user}/>:<RegistryRegister {...props}/>}</>
+ return <>{(permitted||imports)&&<nav className="homes-views" aria-label="Home views"><button type="button" aria-current={!selected?'page':undefined} onClick={()=>choose('')}>{props.user.can_read_registry?'Homes & people':'Your homes'}</button>{permitted&&<button type="button" aria-current={selected==='checklists'?'page':undefined} onClick={()=>choose('checklists')}>Moves & tenants<Icon name="arrow"/></button>}{imports&&<button type="button" aria-current={selected==='imports'?'page':undefined} onClick={()=>choose('imports')}>Initial register<Icon name="arrow"/></button>}</nav>}{selected==='imports'?<RegistryImport key={props.user.scope_key} user={props.user}/>:selected==='checklists'?<MoveChecklists key={props.user.scope_key} user={props.user}/>:<RegistryRegister {...props}/>}</>
 }
 
-function RegistryRegister({ summary, user, refresh, initialWing, onOpen }: { summary: Summary | null; user: User; refresh: number; initialWing: string; onOpen: (id: string) => void }) {
+function RegistryRegister({ summary, user, refresh, initialWing, onOpen, personal = false }: { summary: Summary | null; user: User; refresh: number; initialWing: string; onOpen: (id: string) => void; personal?: boolean }) {
   const [query, setQuery] = useState('')
   const [building, setBuilding] = useState(initialWing)
   const [status, setStatus] = useState('')
@@ -141,23 +97,23 @@ function RegistryRegister({ summary, user, refresh, initialWing, onOpen }: { sum
     setLoading(true)
     setError('')
     const timer = window.setTimeout(() => {
-      const params = new URLSearchParams({ q: query, building, status, page: String(page), page_size: '12' })
+      const params = new URLSearchParams({ q: query, building, status, page: String(page), page_size: '12', ...(personal ? { scope: 'mine' } : {}) })
       request<FlatPage>(`/api/flats?${params}`, controller.signal).then(result => { setData(result); setLoading(false) }).catch((err: Error) => {
         if (controller.signal.aborted) return
         setError(err.message); setLoading(false)
       })
     }, query ? 200 : 0)
     return () => { clearTimeout(timer); controller.abort() }
-  }, [query, building, status, page, retry, refresh])
+  }, [query, building, status, page, retry, refresh, personal])
 
   const clear = () => { setQuery(''); setBuilding(''); setStatus(''); setPage(1) }
   const chooseWing = (code: string) => { setBuilding(old => old === code ? '' : code); setPage(1) }
   return <div className="page-enter">
-    <div className="registry-heading"><div><span className="eyebrow">{user.can_read_registry ? 'OUR NEIGHBOURHOOD' : 'YOUR CORNER OF THE COMMUNITY'}</span><h1>{user.can_read_registry ? <>Every home has <em>a story.</em></> : <>A place to call <em>yours.</em></>}</h1><p>{user.can_read_registry ? 'Find a home. Meet the people. Keep the details together.' : 'Your active homes and the people who share them.'}</p></div>{summary && <span className="registry-count"><strong>{summary.counts.flats}</strong><span>homes,<br />one community</span></span>}</div>
-    {user.can_read_registry && <CommunityCounts summary={summary} />}
-    <div className="wing-grid registry-wings">{summary?.buildings.map(wing => <WingCard key={wing.id} wing={wing} onClick={() => chooseWing(wing.code)} selected={building === wing.code} />)}</div>
+    <div className="registry-heading"><div><span className="eyebrow">{personal ? 'YOUR CURRENT HOMES' : 'PEOPLE & HOMES'}</span><h1>{personal ? 'My home' : user.can_read_registry ? 'Homes & people' : 'Your homes'}<em>.</em></h1><p>{personal ? 'Your current home relationships. Open a home for people and available actions.' : 'Find a home or person. Open a row for details, changes and history.'}</p></div></div>
+    {user.can_read_registry && !personal && <details className="registry-summary"><summary><span><strong>{summary?.counts.flats ?? '—'} homes</strong> · {summary?.community.occupied ?? '—'} occupied · {summary?.community.vacant ?? '—'} vacant</span><span>Community counts<Icon name="down"/></span></summary><CommunityCounts summary={summary}/></details>}
+    {summary && !personal && <div className="wing-filters" aria-label="Browse by wing">{summary.buildings.map(wing => <button key={wing.id} type="button" onClick={() => chooseWing(wing.code)} aria-label={`Explore ${wing.name}, ${wing.flats} homes`} aria-pressed={building === wing.code}><strong>{wing.name}</strong><span>{wing.flats} homes · {wing.vacant} vacant</span><Icon name={building === wing.code ? 'check' : 'chevron'}/></button>)}</div>}
     <section className="registry-panel" aria-labelledby="registry-title">
-      <div className="registry-toolbar"><div><h2 id="registry-title">{user.can_read_registry ? 'Homes & people' : 'Your homes'}</h2><p>{user.can_manage_registry ? 'Open a home to manage its occupancy, people and history.' : user.can_read_registry ? 'A view of the community. Registry changes are made by the officer.' : 'Access follows your current relationships with each home.'}</p></div><span className="result-count" role="status">{loading ? 'Finding homes…' : error ? 'Connection unavailable' : `${data?.total ?? 0} homes found`}</span></div>
+      <div className="registry-toolbar"><div><h2 id="registry-title">{personal ? 'Your linked homes' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</h2><p>{user.can_manage_registry ? 'Open a home to manage its occupancy, people and history.' : user.can_read_registry ? 'A view of the community. Registry changes are made by the officer.' : 'Access follows your current relationships with each home.'}</p></div><span className="result-count" role="status">{loading ? 'Finding homes…' : error ? 'Connection unavailable' : `${data?.total ?? 0} homes found`}</span></div>
       <div className="filter-row">
         <label className="search-control"><span className="sr-only">Search homes or people</span><Icon name="search" /><input type="search" value={query} onChange={e => { setQuery(e.target.value); setPage(1) }} placeholder="Search a home or a person…" autoComplete="off" /></label>
         {summary && <FilterSelect label="Filter by wing" value={building} onChange={value => { setBuilding(value); setPage(1) }} options={[{ value: '', label: 'All wings' }, ...summary.buildings.map(wing => ({ value: wing.code, label: wing.name }))]} />}
@@ -165,7 +121,7 @@ function RegistryRegister({ summary, user, refresh, initialWing, onOpen }: { sum
         <button className="clear-button" disabled={!query && !building && !status} onClick={clear}>Clear<Icon name="close" /></button>
       </div>
       <div aria-busy={loading} className="registry-results">
-        {error ? <div className="empty-state" role="alert"><Icon name="globe" /><h3>Let’s try that again.</h3><p>{error}</p><button className="button button-dark" onClick={() => setRetry(n => n + 1)}>Try again<Icon name="refresh" /></button></div> : loading ? <div className="home-grid">{Array.from({length:6}, (_, i) => <div key={i} className="home-skeleton skeleton" aria-hidden="true" />)}</div> : data?.items.length === 0 ? <div className="empty-state"><Icon name="search" /><h3>No homes found.</h3><p>Try another name, home number or filter.</p><button className="button button-dark" onClick={clear}>Clear filters<Icon name="close" /></button></div> : <div className="home-grid">{data?.items.map(flat => <HomeCard key={flat.id} flat={flat} onClick={() => onOpen(flat.id)} />)}</div>}
+        {error ? <div className="empty-state" role="alert"><Icon name="globe" /><h3>Let’s try that again.</h3><p>{error}</p><button className="button button-dark" onClick={() => setRetry(n => n + 1)}>Try again<Icon name="refresh" /></button></div> : loading ? <div className="home-rows">{Array.from({length:6}, (_, i) => <div key={i} className="home-skeleton skeleton" aria-hidden="true" />)}</div> : data?.items.length === 0 ? <div className="empty-state"><Icon name="search" /><h3>No homes found.</h3><p>Try another name, home number or filter.</p><button className="button button-dark" onClick={clear}>Clear filters<Icon name="close" /></button></div> : <div className="home-rows">{data?.items.map(flat => <HomeCard key={flat.id} flat={flat} onClick={() => onOpen(flat.id)} />)}</div>}
       </div>
       {data && !error && !loading && data.total > 0 && <div className="pagination"><span>Showing {(data.page - 1) * data.page_size + 1}–{Math.min(data.page * data.page_size, data.total)} of {data.total} homes</span><div><button onClick={() => setPage(p => p - 1)} disabled={page === 1} aria-label="Previous page"><Icon name="left" /></button><span>Page {data.page} of {Math.ceil(data.total / data.page_size)}</span><button onClick={() => setPage(p => p + 1)} disabled={page * data.page_size >= data.total} aria-label="Next page"><Icon name="chevron" /></button></div></div>}
     </section>
@@ -173,10 +129,10 @@ function RegistryRegister({ summary, user, refresh, initialWing, onOpen }: { sum
 }
 
 function HomeCard({ flat, onClick }: { flat: Flat; onClick: () => void }) {
-  return <button className="home-card" onClick={onClick} aria-label={`View home ${flat.building_code}-${flat.number}`}>
-    <span className="home-card-top"><span className={`home-wing home-wing-${flat.building_code.toLowerCase()}`}>{flat.building_code}</span><span className={`status status-${flat.status.toLowerCase()}`}><i />{statuses[flat.status]}</span></span>
-    <span className="home-number">{flat.number}<span>Floor {flat.floor.toString().padStart(2, '0')}</span></span>
-    <span className="home-card-bottom"><span><span className="home-contact-label">PRIMARY CONTACT</span>{flat.primary_contact || 'Not assigned'}</span><Icon name="arrow" /></span>
+  return <button className="home-row home-card" onClick={onClick} aria-label={`View home ${flat.building_code}-${flat.number}`} aria-describedby={'home-meta-' + flat.id}>
+    <span className="home-row-number"><Icon name="homes"/><strong>{flat.building_code}-{flat.number}</strong></span>
+    <span className="home-row-person">{flat.primary_contact || 'Contact not assigned'}</span>
+    <span id={'home-meta-' + flat.id} className="home-row-meta"><span className={`status status-${flat.status.toLowerCase()}`}><i />{statuses[flat.status]}</span><span>Floor {flat.floor}</span></span><Icon name="chevron"/>
   </button>
 }
 
@@ -226,15 +182,16 @@ function Workspace({ user, onLogout, onUser }: { user: User; onLogout: () => voi
     return () => controller.abort()
   }, [retry, refresh, user.can_read_registry, view])
   const date = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(new Date())
-  return <div className="app-shell">
+  return <div className="app-shell rollout-shell">
     <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>Skip to content</a>
-    <Sidebar view={view} user={user} onAbout={() => setAbout(true)} />
+    <WorkspaceNavigation view={view} user={user} onAbout={() => setAbout(true)} />
     <div className="main-shell">
-      <header className="topbar"><span className="breadcrumb">Your workspace<span>/</span><strong>{view === 'backups' ? 'Backups & recovery' : view === 'statements' ? 'Financial statements' : view === 'messages' ? 'Messages' : view === 'contacts' ? 'Contacts & preferences' : view === 'fines' ? 'Fines & appeals' : view === 'conduct' ? 'Rules & conduct' : view === 'collections' ? 'Collections' : view === 'upkeep' ? 'Upkeep' : view === 'maintenance' ? 'Maintenance' : view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_accounts ? 'Access & invitations' : view === 'overview' ? 'Overview' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />{user.workspace_mode==='DEMO'?'Local preview':'Local workspace'}</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
+      <header className="topbar"><span className="breadcrumb">{workspaceGroup(user, view)?.label ?? 'Your workspace'}<span>/</span><strong>{view === 'payments' ? 'Payment reconciliation' : view === 'reports' ? 'Financial reports' : view === 'guide' ? 'Help & permissions' : view === 'my-home' ? 'My home' : view === 'backups' ? 'Backups & recovery' : view === 'statements' ? 'Financial statements' : view === 'messages' ? 'Messages' : view === 'contacts' ? 'Contacts & preferences' : view === 'fines' ? 'Fines & appeals' : view === 'conduct' ? 'Rules & conduct' : view === 'collections' ? 'Collections' : view === 'upkeep' ? 'Upkeep' : view === 'maintenance' ? 'Maintenance' : view === 'documents' ? 'Documents' : view === 'help' ? 'Help & repairs' : view === 'reviews' ? user.can_review_requests ? 'Requests & approvals' : 'Your requests' : view === 'community' ? 'Community' : view === 'entries' ? 'Entries' : view === 'receipts' ? 'Receipts' : view === 'security' ? 'Account security' : view === 'access' && user.can_manage_accounts ? 'Access & invitations' : view === 'overview' ? 'Today' : user.can_read_registry ? 'Homes & people' : 'Your homes'}</strong></span><div className="topbar-right"><span className="today">{date}</span><span className="preview-pill"><i />{user.workspace_mode==='DEMO'?'Local preview':'Local workspace'}</span><button className="signout-button" onClick={onLogout}>Sign out</button></div></header>
       <div className="preview-banner"><span><Icon name="spark" />{user.workspace_mode==='DEMO'?'A first look at your community workspace.':user.workspace_name}</span><span>{user.workspace_mode==='DEMO'?'Fictional data':user.workspace_mode==='FICTIONAL_REHEARSAL'?'Fictional rehearsal':'Local workspace'} <i /> Live local registry</span></div>
-      <main id="main-content" tabIndex={-1} className="main-content">
+      <main id="main-content" tabIndex={-1} className="main-content" data-workspace={view}>
+        <WorkspaceSections user={user} view={view}/>
         {view === 'homes' && error && <div className="connection-error" role="alert"><p>{error}</p><button onClick={() => setRetry(n => n + 1)}>Reconnect<Icon name="refresh" /></button></div>}
-        <ScreenBoundary key={view}><Suspense fallback={<ScreenLoading/>}>{view === 'backups' ? <Backups user={user} /> : view === 'statements' ? <Statements user={user} /> : view === 'messages' ? <Messages user={user} /> : view === 'contacts' ? <Contacts user={user} /> : view === 'fines' ? <Fines user={user} /> : view === 'conduct' ? <Incidents user={user} /> : view === 'collections' ? <Collections user={user} /> : view === 'upkeep' ? <Upkeep user={user} /> : view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'community' ? <Community user={user} /> : view === 'reviews' ? <Reviews user={user} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}</Suspense></ScreenBoundary>
+        <ScreenBoundary key={view}><Suspense fallback={<ScreenLoading/>}>{view === 'payments' || view === 'reports' ? <FinanceWorkspaces user={user} payments={view === 'payments'}/> : view === 'guide' ? <PortalHelp user={user}/> : view === 'my-home' ? <RegistryRegister key={'mine-' + user.scope_key} summary={null} user={user} refresh={refresh} initialWing="" onOpen={setSelected} personal/> : view === 'backups' ? <Backups user={user} /> : view === 'statements' ? <Statements user={user} /> : view === 'messages' ? <Messages user={user} /> : view === 'contacts' ? <Contacts user={user} /> : view === 'fines' ? <Fines user={user} /> : view === 'conduct' ? <Incidents user={user} /> : view === 'collections' ? <Collections user={user} /> : view === 'upkeep' ? <Upkeep user={user} /> : view === 'maintenance' ? <Maintenance user={user} /> : view === 'documents' ? <Documents user={user} /> : view === 'help' ? <Complaints user={user} /> : view === 'community' ? <Community user={user} /> : view === 'reviews' ? <Reviews user={user} /> : view === 'entries' || view === 'receipts' ? <Records key={view} user={user} receipts={view === 'receipts'} /> : view === 'security' ? <AccountSecurity user={user} onUser={onUser} onLogout={onLogout} /> : view === 'access' && user.can_manage_accounts ? <Access user={user} /> : view === 'overview' ? <Overview user={user} /> : <Registry summary={summary} user={user} refresh={refresh} initialWing={initialWing} onOpen={setSelected} />}</Suspense></ScreenBoundary>
         <footer className="page-footer"><span><span className="footer-wordmark">society.</span> Made for everyday life.</span><button onClick={() => setAbout(true)}>{user.workspace_mode==='DEMO'?'About this preview':'About your workspace'}<Icon name="arrow" /></button></footer>
       </main>
     </div>

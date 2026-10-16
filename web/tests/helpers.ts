@@ -19,8 +19,23 @@ export async function chooseOption(page: Page, name: string, choice: string) {
 
 export async function navigate(page: Page, name: string) {
   const menu = page.getByRole('button', { name: 'Menu', exact: true })
-  if (await menu.isVisible() && await menu.getAttribute('aria-expanded') === 'false') await menu.click()
-  await page.getByRole('link', { name, exact: true }).click()
+  const destination = name === 'Overview' ? 'Today' : name
+  const groups: Record<string, string> = {
+    'Homes & people': 'People & homes', 'Your homes': 'People & homes', Contacts: 'People & homes', 'Your preferences': 'People & homes',
+    Entries: 'Money', Receipts: 'Money', Reports: 'Money', 'Payment reconciliation': 'Money', Maintenance: 'Money', Collections: 'Money', Statements: 'Money',
+    'Help & repairs': 'Operations', 'Requests & approvals': 'Operations', 'Your requests': 'Operations', Upkeep: 'Operations', 'Rules & conduct': 'Operations', 'Fines & appeals': 'Operations',
+    Documents: 'Community', Messages: 'Community', 'Access & invitations': 'Administration', 'Backups & recovery': 'Administration',
+  }
+  const target = page.getByRole('link', { name: destination, exact: true })
+  if (!await target.isVisible()) {
+    if (await menu.isVisible() && await menu.getAttribute('aria-expanded') === 'false') await menu.click()
+    if (!await target.isVisible() && groups[name]) await page.getByRole('navigation', { name: 'Main navigation', exact: true }).getByRole('link', { name: groups[name], exact: true }).click()
+  } else if (await menu.isVisible() && await menu.getAttribute('aria-expanded') === 'true' && await target.evaluate(el => !el.closest('.sidebar'))) await menu.click()
+  const route = (await target.getAttribute('href'))?.slice(1).split('?')[0]
+  await target.click()
+  // A hash changes before React commits the destination. Wait for its actual
+  // workspace before the next navigation can inspect contextual section links.
+  if (route) await expect(page.locator('main[data-workspace]')).toHaveAttribute('data-workspace', route)
 }
 
 export async function completePreviewMFA(page: Page) {

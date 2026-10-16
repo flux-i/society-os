@@ -10,10 +10,10 @@ import { Icon } from './Icon'
 import { PortalDialog } from './PortalDialog'
 import { PageControls } from './Maintenance'
 
-export function FinanceExportAction({ user, report, home = '' }: { user: User; report: FinanceReport; home?: string }) {
+export function FinanceExportAction({ user, report, home = '', label = 'Export records' }: { user: User; report: FinanceReport; home?: string; label?: string }) {
   const [open, setOpen] = useState(false)
   if (!user.can_export_finance) return null
-  return <><button className="button button-outline" onClick={() => setOpen(true)}>Export records<Icon name="document" /></button>{open && <FinanceExportDialog initialReport={report} initialHome={home} onClose={() => setOpen(false)} />}</>
+  return <><button className="button button-outline" onClick={() => setOpen(true)}>{label}<Icon name="document" /></button>{open && <FinanceExportDialog initialReport={report} initialHome={home} onClose={() => setOpen(false)} />}</>
 }
 
 function ExportAmounts({ snapshot }: { snapshot: FinanceExport }) {

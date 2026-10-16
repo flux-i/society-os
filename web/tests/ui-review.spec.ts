@@ -94,7 +94,7 @@ test('small phone login and overview fit the viewport', async ({ page }) => {
   await capture(page, 'login-small-phone')
   await login(page)
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
-  await expect(page.getByRole('heading', { name: 'Good things, in order.' })).toBeInViewport()
+  await expect(page.getByRole('heading', { name: 'Today.' })).toBeInViewport()
   await capture(page, 'overview-small-phone')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
@@ -110,7 +110,7 @@ test('navigation and dialog controls fit tablet, narrow and reduced-height scree
       await page.keyboard.press('Escape')
       await expect(page.getByRole('button', { name: 'Menu', exact: true })).toHaveAttribute('aria-expanded', 'false')
       await page.getByRole('button', { name: 'Menu', exact: true }).click()
-      for (const name of ['Overview', 'Homes & people', 'Access & invitations', 'Entries', 'Receipts', 'Requests & approvals', 'Community', 'Help & repairs', 'Account security', 'Documents']) {
+      for (const name of ['Today', 'People & homes', 'Money', 'Operations', 'Community', 'Administration', 'Account security', 'Help & permissions']) {
         await page.getByRole('link', { name, exact: true }).scrollIntoViewIfNeeded()
         await expect(page.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 })
       }
@@ -121,7 +121,7 @@ test('navigation and dialog controls fit tablet, narrow and reduced-height scree
       await expect(page.getByRole('button', { name: 'Menu', exact: true })).toHaveAttribute('aria-expanded', 'false')
     } else {
       await expect(page.locator('.workspace-profile')).toBeInViewport({ ratio: 1 })
-      const accessIcon = await page.getByRole('link', { name: 'Access & invitations', exact: true }).locator('svg').boundingBox()
+      const accessIcon = await page.getByRole('link', { name: 'Administration', exact: true }).locator('svg').boundingBox()
       expect(accessIcon?.width).toBeGreaterThanOrEqual(16)
       await capture(page, `navigation-${viewport.width}x${viewport.height}`)
     }

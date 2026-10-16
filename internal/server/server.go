@@ -214,8 +214,8 @@ func (s *Server) failure(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) flats(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	filter := database.FlatFilter{Query: strings.TrimSpace(q.Get("q")), Building: q.Get("building"), Status: q.Get("status"), Page: 1, PageSize: 12}
-	if len(filter.Query) > 100 || (filter.Building != "" && !buildingCode.MatchString(filter.Building)) ||
+	filter := database.FlatFilter{MineOnly: q.Get("scope") == "mine", Query: strings.TrimSpace(q.Get("q")), Building: q.Get("building"), Status: q.Get("status"), Page: 1, PageSize: 12}
+	if (q.Get("scope") != "" && q.Get("scope") != "mine") || len(filter.Query) > 100 || (filter.Building != "" && !buildingCode.MatchString(filter.Building)) ||
 		(filter.Status != "" && filter.Status != "OWNER_OCCUPIED" && filter.Status != "RENTED" && filter.Status != "VACANT") {
 		respond(w, http.StatusBadRequest, map[string]string{"error": "invalid_filter"})
 		return

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"society.local/portal/internal/database"
+	"society.local/portal/internal/documents"
 )
 
 func (s *Server) statementRoutes(mux *http.ServeMux) {
@@ -148,6 +149,38 @@ func (s *Server) statementRoutes(mux *http.ServeMux) {
 			return
 		}
 		respond(w, 200, map[string]string{"id": id})
+	}))
+	mux.HandleFunc("GET /api/financial-statements/{id}/preview", s.protected(func(w http.ResponseWriter, r *http.Request) {
+		x, data, err := s.Store.DownloadStatement(r.Context(), sessionToken(r), r.PathValue("id"))
+		if err != nil {
+			s.resultError(w, r, err)
+			return
+		}
+		if x.ContentType == "application/pdf" {
+			w.Header().Set("Content-Type", "application/pdf")
+			w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": x.Filename}))
+			w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; frame-ancestors 'self'")
+			w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+			w.WriteHeader(200)
+			_, _ = w.Write(data)
+			return
+		}
+		page, err := documentPage(r.URL.Query().Get("page"))
+		if err != nil {
+			s.resultError(w, r, err)
+			return
+		}
+		sheet, err := documentPage(r.URL.Query().Get("sheet"))
+		if err != nil {
+			s.resultError(w, r, err)
+			return
+		}
+		table, err := documents.PreviewStatement(r.Context(), x.Filename, data, sheet, page)
+		if err != nil {
+			respond(w, 400, map[string]string{"error": "preview_unavailable", "message": "This worksheet preview is unavailable. Choose another sheet or download the original."})
+			return
+		}
+		respond(w, 200, table)
 	}))
 	mux.HandleFunc("GET /api/financial-statements/{id}/download", s.protected(func(w http.ResponseWriter, r *http.Request) {
 		x, data, err := s.Store.DownloadStatement(r.Context(), sessionToken(r), r.PathValue("id"))

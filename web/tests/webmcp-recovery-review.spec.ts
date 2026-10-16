@@ -9,9 +9,9 @@ let host: Awaited<ReturnType<typeof reviewHost>>
 test.beforeAll(async ({ browser }) => { host = await reviewHost(browser); await loginReviewer(host.one); await loginReviewer(host.two) })
 test.afterAll(async () => { await host?.close() })
 
-test('actual native discovery exposes three bounded reads and preserves a human access preparation', async () => {
+test('actual native discovery exposes four bounded reads and preserves a human access preparation', async () => {
   const page = host.one.page; await page.setViewportSize({ width: 375, height: 812 })
-  await expect.poll(async () => (await names(page)).sort()).toEqual(['society_read_recovery_numbering_status', 'society_read_recovery_review_status', 'society_read_recovery_state'])
+  await expect.poll(async () => (await names(page)).sort()).toEqual(['society_read_recovery_gap_status', 'society_read_recovery_numbering_status', 'society_read_recovery_review_status', 'society_read_recovery_state'])
   await page.getByRole('button', { name: 'Prepare new person', exact: true }).click(); await fillAccessReview(page, 'Keep this supplied evidence while native status reads.')
   const notes = page.getByRole('textbox', { name: 'Review notes', exact: true }); await notes.focus()
   const before = await page.evaluate(() => ({ hash: location.hash, scroll: scrollY, dialogScroll: document.querySelector('dialog .dialog-scroll')?.scrollTop }))

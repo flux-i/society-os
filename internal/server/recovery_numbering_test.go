@@ -14,13 +14,16 @@ import (
 	"society.local/portal/internal/security"
 )
 
-func numberingHTTPReviewers(t *testing.T) (*database.Store, authClient, authClient, database.Principal, database.Principal, database.RecoveryNomination, *bytes.Buffer) {
+func numberingHTTPReviewers(t *testing.T, beforeRestore ...func(*database.Store, authClient)) (*database.Store, authClient, authClient, database.Principal, database.Principal, database.RecoveryNomination, *bytes.Buffer) {
 	t.Helper()
 	s, app, logs := handler(t)
 	h := app.Handler()
 	ctx, now := context.Background(), time.Now().Unix()
 	copied := signIn(t, h, "admin@demo.society")
-	origin, err := s.QuarantineRecovery(ctx, database.RecoveryOrigin{FormatVersion: 1, SourceSHA256: strings.Repeat("d", 64), SourceBytes: 1691648, SourceSchema: 31, SourceApplication: "0.34.0-dev", SourceCreatedAt: now - 60}, time.Now())
+	for _, prepare := range beforeRestore {
+		prepare(s, copied)
+	}
+	origin, err := s.QuarantineRecovery(ctx, database.RecoveryOrigin{FormatVersion: 1, SourceSHA256: strings.Repeat("d", 64), SourceBytes: 1691648, SourceSchema: database.SchemaVersion, SourceApplication: "0.35.0-dev", SourceCreatedAt: now - 60}, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

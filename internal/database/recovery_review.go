@@ -246,7 +246,15 @@ func (s *Store) RecoverySummaryFor(ctx context.Context, token string) (RecoveryS
 	x.Approved += numbering.Approved
 	x.Declined += numbering.declined
 	x.Stale += numbering.stale
-	body, _ := json.Marshal([]any{p.ScopeKey, x.Pending, x.Approved, x.Declined, x.Stale, x.RetainedAccounts, x.RetainedWork, numbering.StatusKey})
+	gap, err := gapStatus(ctx, tx, p)
+	if err != nil {
+		return x, err
+	}
+	x.Pending += gap.Pending
+	x.Approved += gap.Approved
+	x.Declined += gap.declined
+	x.Stale += gap.stale
+	body, _ := json.Marshal([]any{p.ScopeKey, x.Pending, x.Approved, x.Declined, x.Stale, x.RetainedAccounts, x.RetainedWork, numbering.StatusKey, gap.StatusKey})
 	x.StatusKey = InputDigest(body)
 	return x, tx.Commit()
 }

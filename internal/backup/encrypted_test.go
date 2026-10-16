@@ -152,7 +152,7 @@ func TestEncryptedPopulatedSnapshotRestoresWithEitherIndependentCustodyIdentity(
 		t.Fatal("standard encrypted envelope or plaintext isolation")
 	}
 	want := persistentSnapshotRows(t, filepath.Join(bundle, "society.db"))
-	if len(want) != 117 { // 116 persistent business tables plus migration provenance.
+	if len(want) != 119 { // 118 persistent business tables plus migration provenance.
 		t.Fatal("complete current snapshot inventory", len(want))
 	}
 	for i, identity := range identities {

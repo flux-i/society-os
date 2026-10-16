@@ -139,7 +139,7 @@ func validateNumbering(in RecoveryNumberingInput, retry bool) error {
 
 func recoveryOperationUsed(ctx context.Context, q identityReader, key string) (bool, error) {
 	var used bool
-	err := q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM recovery_proposals WHERE operation_key=? UNION ALL SELECT 1 FROM recovery_decisions WHERE operation_key=? UNION ALL SELECT 1 FROM recovery_numbering_policies WHERE operation_key=? UNION ALL SELECT 1 FROM recovery_numbering_decisions WHERE operation_key=?)`, key, key, key, key).Scan(&used)
+	err := q.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM recovery_proposals WHERE operation_key=? UNION ALL SELECT 1 FROM recovery_decisions WHERE operation_key=? UNION ALL SELECT 1 FROM recovery_numbering_policies WHERE operation_key=? UNION ALL SELECT 1 FROM recovery_numbering_decisions WHERE operation_key=? UNION ALL SELECT 1 FROM recovery_gap_preparations WHERE operation_key=? UNION ALL SELECT 1 FROM recovery_gap_decisions WHERE operation_key=?)`, key, key, key, key, key, key).Scan(&used)
 	return used, err
 }
 

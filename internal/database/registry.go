@@ -136,6 +136,7 @@ type Flat struct {
 }
 
 type FlatFilter struct {
+	MineOnly bool
 	Query    string
 	Building string
 	Status   string
@@ -183,7 +184,7 @@ func (s *Store) flats(ctx context.Context, filter FlatFilter, token string, auth
 			AND instr(lower(r.full_name), lower(?)) > 0))`
 	date := today()
 	args := []any{filter.Building, filter.Building, filter.Status, filter.Status, filter.Query, filter.Query, date, date, filter.Query}
-	if authenticated && !p.CanReadRegistry {
+	if authenticated && (!p.CanReadRegistry || filter.MineOnly) {
 		where += ` AND EXISTS (SELECT 1 FROM flat_memberships scope WHERE scope.flat_id = f.id AND scope.resident_id = ?
             AND scope.start_date <= ? AND (scope.end_date IS NULL OR scope.end_date > ?))`
 		args = append(args, p.ResidentID, date, date)

@@ -108,6 +108,18 @@ func TestFinancialStatementHTTPSeparateFinanceAuthorityStrictMetadataOriginalAnd
 	if w.Code != 200 || w.Body.String() != string(data) || w.Header().Get("Cache-Control") != "no-store" || w.Header().Get("Content-Type") != "text/csv; charset=utf-8" || !strings.Contains(w.Header().Get("Content-Disposition"), "attachment") {
 		t.Fatal("original download", w.Code, w.Header(), w.Body)
 	}
+	// The lightweight viewer uses exactly the original's current audience checks.
+	w = tenant.request("GET", "/api/financial-statements/"+out.ID+"/preview", "")
+	var table documents.StatementTable
+	if err = json.Unmarshal(w.Body.Bytes(), &table); w.Code != 200 || err != nil || table.Rows[1][1] != "50000.00" || w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("permitted preview", w.Code, w.Body, err)
+	}
+	if w = owner.request("GET", "/api/financial-statements/"+out.ID+"/preview", ""); w.Code != 404 {
+		t.Fatal("cross-audience preview", w.Code)
+	}
+	if w = tenant.request("GET", "/api/financial-statements/"+out.ID+"/preview?page=0", ""); w.Code != 400 {
+		t.Fatal("preview pagination", w.Code)
+	}
 	if w = owner.request("GET", "/api/financial-statements/"+out.ID+"/download", ""); w.Code != 404 {
 		t.Fatal("cross-audience download", w.Code)
 	}

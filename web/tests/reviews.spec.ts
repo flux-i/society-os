@@ -11,8 +11,7 @@ async function capture(page: Page, name: string) {
   const path = resolve(folder, name + '.png'); await page.screenshot({ path, animations: 'disabled' }); chmodSync(path, 0o600)
 }
 async function desk(page: Page) {
-  const menu = page.getByRole('button', { name: 'Menu', exact: true })
-  if (await menu.isVisible() && await menu.getAttribute('aria-expanded') === 'false') await menu.click()
+  await navigate(page, 'Help & repairs')
   const staff = page.getByRole('link', { name: 'Requests & approvals', exact: true })
   await navigate(page, await staff.count() ? 'Requests & approvals' : 'Your requests')
   await expect(page.getByRole('heading', { name: 'Every idea deserves a thoughtful review.' })).toBeVisible()

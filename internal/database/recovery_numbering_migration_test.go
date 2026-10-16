@@ -139,7 +139,7 @@ func TestRecoveryNumberingMigrationPreservesPopulatedGenuineSchema30WithoutNewAu
 	if err = s.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
-	maintenanceCount(t, s, "SELECT COUNT(*) FROM schema_migrations", 31)
+	maintenanceCount(t, s, "SELECT COUNT(*) FROM schema_migrations", SchemaVersion)
 	if err = s.VerifySchema(ctx); err != nil {
 		t.Fatal(err)
 	}

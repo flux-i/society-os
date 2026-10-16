@@ -9,6 +9,7 @@ import (
 
 func (s *Server) recoveryReviewRoutes(mux *http.ServeMux) {
 	s.recoveryNumberingRoutes(mux)
+	s.recoveryGapRoutes(mux)
 	page := func(r *http.Request) int {
 		value := r.URL.Query().Get("page")
 		if value == "" {
